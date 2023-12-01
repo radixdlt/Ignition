@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "blueprints/unit-tests"
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+description = "The implementation of project Olympus in Scrypto for the Radix Ledger"
+
+[workspace.dependencies]
+sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = 'abort'
+strip = true
+overflow-checks = true
