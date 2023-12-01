@@ -1,3 +1,10 @@
 {
-    "editor.rulers": [80]
+    "editor.rulers": [
+        80
+    ],
+    "cSpell.words": [
+        "caviarnine",
+        "ociswap",
+        "uninit"
+    ]
 }

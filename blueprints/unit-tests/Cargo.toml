@@ -3,9 +3,12 @@ name = "unit-tests"
 version = { workspace = true }
 edition = { workspace = true }
 
-[dependencies]
-sbor = { workspace = true }
-scrypto = { workspace = true }
+[dev-dependencies]
+scrypto-test = { workspace = true }
+scrypto-unit = { workspace = true }
+radix-engine-stores = { workspace = true }
+radix-engine-interface = { workspace = true }
+radix-engine-store-interface = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "lib"]

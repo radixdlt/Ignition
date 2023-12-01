@@ -10,13 +10,16 @@ edition = "2021"
 description = "The implementation of project Olympus in Scrypto for the Radix Ledger"
 
 [workspace.dependencies]
-sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
-radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "f117fb4445dee7d6467157f37b7d68e0c6a14944" }
+sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+
+scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 
 [profile.release]
 opt-level = 'z'
