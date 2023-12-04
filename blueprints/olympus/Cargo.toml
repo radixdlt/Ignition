@@ -1,0 +1,14 @@
+[package]
+name = "olumpus"
+version = { workspace = true }
+edition = { workspace = true }
+description = "Defines the interface of the various adapters"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+
+adapters = { path = "../adapters", features = ["scrypto"] }
+
+[lib]
+crate-type = ["cdylib", "lib"]

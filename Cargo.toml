@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "blueprints/unit-tests",
     "blueprints/adapters",
+    "blueprints/olympus",
 ]
 
 [workspace.package]
@@ -15,6 +16,7 @@ sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9
 scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
