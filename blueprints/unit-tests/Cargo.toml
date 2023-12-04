@@ -2,6 +2,7 @@
 name = "unit-tests"
 version = { workspace = true }
 edition = { workspace = true }
+description = "Unit tests of the Olympus protocol and accompanying blueprints"
 
 [dev-dependencies]
 scrypto-test = { workspace = true }
