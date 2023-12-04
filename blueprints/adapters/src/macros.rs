@@ -11,6 +11,7 @@ macro_rules! define_adapter {
         /* Scrypto stub */
 
         #[cfg(feature = "scrypto")]
+        #[derive(::scrypto::prelude::ScryptoSbor)]
         pub struct $adapter_name(pub ::scrypto::prelude::NodeId);
 
         #[cfg(feature = "scrypto")]
