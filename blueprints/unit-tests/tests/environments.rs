@@ -87,14 +87,20 @@ fn flash<S: CommittableSubstateDatabase>(
 fn decode_package_substates(
     package_substates: &[u8],
 ) -> HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>> {
-    scrypto_decode(package_substates).expect("Decoding of package can not fail!")
+    scrypto_decode(package_substates)
+        .expect("Decoding of package can not fail!")
 }
 
-fn extract_package_address(package_substates: &PackageSubstates) -> PackageAddress {
+fn extract_package_address(
+    package_substates: &PackageSubstates,
+) -> PackageAddress {
     package_substates
         .keys()
         .map(|item| {
-            PackageAddress::try_from(SpreadPrefixKeyMapper::from_db_partition_key(item).0).unwrap()
+            PackageAddress::try_from(
+                SpreadPrefixKeyMapper::from_db_partition_key(item).0,
+            )
+            .unwrap()
         })
         .next()
         .unwrap()
@@ -105,17 +111,19 @@ fn database_updates(package_substates: PackageSubstates) -> DatabaseUpdates {
 
     for (partition_key, substate_values) in package_substates.into_iter() {
         for (sort_key, substate_value) in substate_values.into_iter() {
-            let PartitionDatabaseUpdates::Delta { substate_updates } = database_updates
-                .node_updates
-                .entry(partition_key.node_key.clone())
-                .or_default()
-                .partition_updates
-                .entry(partition_key.partition_num)
-                .or_default()
+            let PartitionDatabaseUpdates::Delta { substate_updates } =
+                database_updates
+                    .node_updates
+                    .entry(partition_key.node_key.clone())
+                    .or_default()
+                    .partition_updates
+                    .entry(partition_key.partition_num)
+                    .or_default()
             else {
                 panic!("Can't happen!")
             };
-            substate_updates.insert(sort_key, DatabaseUpdate::Set(substate_value));
+            substate_updates
+                .insert(sort_key, DatabaseUpdate::Set(substate_value));
         }
     }
 
