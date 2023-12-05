@@ -73,8 +73,8 @@ mod olympus {
             deposit => restrict_to: [protocol_owner];
             withdraw => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
-            add_rate => restrict_to: [protocol_owner];
-            remove_rate => restrict_to: [protocol_owner];
+            add_rewards_rate => restrict_to: [protocol_owner];
+            remove_rewards_rate => restrict_to: [protocol_owner];
             update_usd_resource_address => restrict_to: [protocol_owner];
         }
     }
@@ -149,7 +149,7 @@ mod olympus {
         /// value of 1 equals 1 second.
         /// * The value is a [`Decimal`] of the percentage to provide upfront
         /// when users contribute liquidity. A value of `dec!(1)` is 1%.
-        rates: KeyValueStore<u32, Decimal>,
+        reward_rates: KeyValueStore<u32, Decimal>,
 
         /// The resource address of the USDC, USDT, or any stablecoin. This
         /// resource is needed when trying to find the value of the tokens
@@ -246,7 +246,7 @@ mod olympus {
                 pool_units: KeyValueStore::new(),
                 is_open_liquidity_position_enabled: false,
                 is_close_liquidity_position_enabled: false,
-                rates: KeyValueStore::new(),
+                reward_rates: KeyValueStore::new(),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -592,8 +592,8 @@ mod olympus {
         ///
         /// * `lockup_period`: [`u32`] - The lockup period in seconds.
         /// * `rate`: [`Decimal`] - The decimal of the rate percentage.
-        pub fn add_rate(&mut self, lockup_period: u32, rate: Decimal) {
-            self.rates.insert(lockup_period, rate);
+        pub fn add_rewards_rate(&mut self, lockup_period: u32, rate: Decimal) {
+            self.reward_rates.insert(lockup_period, rate);
         }
 
         /// Removes a rewards rate from the protocol.
@@ -612,8 +612,8 @@ mod olympus {
         ///
         /// * `lockup_period`: [`u32`] - The lockup period in seconds associated
         /// with the rewards rate that we would like to remove.
-        pub fn remove_rate(&mut self, lockup_period: u32) {
-            self.rates.remove(&lockup_period);
+        pub fn remove_rewards_rate(&mut self, lockup_period: u32) {
+            self.reward_rates.remove(&lockup_period);
         }
 
         /// Updates the resource address of the USD resource to another address.
