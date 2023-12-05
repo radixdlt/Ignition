@@ -1,5 +1,5 @@
 [package]
-name = "olumpus"
+name = "olympus"
 version = { workspace = true }
 edition = { workspace = true }
 description = "Defines the interface of the various adapters"
@@ -9,6 +9,10 @@ sbor = { workspace = true }
 scrypto = { workspace = true }
 
 adapters = { path = "../adapters", features = ["scrypto"] }
+
+[features]
+default = []
+test = []
 
 [lib]
 crate-type = ["cdylib", "lib"]

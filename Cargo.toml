@@ -18,6 +18,7 @@ transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+radix-engine-queries = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
 

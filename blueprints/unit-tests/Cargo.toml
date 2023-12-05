@@ -3,13 +3,35 @@ name = "unit-tests"
 version = { workspace = true }
 edition = { workspace = true }
 description = "Unit tests of the Olympus protocol and accompanying blueprints"
+build = "build.rs"
 
 [dev-dependencies]
+scrypto = { workspace = true }
 scrypto-test = { workspace = true }
 scrypto-unit = { workspace = true }
+radix-engine-common = { workspace = true }
 radix-engine-stores = { workspace = true }
+radix-engine-queries = { workspace = true }
 radix-engine-interface = { workspace = true }
 radix-engine-store-interface = { workspace = true }
 
+# Pull in the various blueprints to get their testing stubs
+olympus = { path = "../olympus", features = ["test"] }
+adapters = { path = "../adapters" }
+
+paste = { version = "1.0.14" }
+lazy_static = { version = "1.4.0" }
+
+[build-dependencies]
+walkdir = { version = "2.3.3", optional = true }
+cargo_toml = { version = "0.15.3", optional = true }
+scrypto = { workspace = true }
+scrypto-unit = { workspace = true }
+
 [lib]
 crate-type = ["cdylib", "lib"]
+
+[features]
+# If this feature is enabled, this crate will compile all of the blueprints ahead of time and make
+# them available for use.
+compile-blueprints-at-build-time = ["dep:walkdir", "dep:cargo_toml"]
