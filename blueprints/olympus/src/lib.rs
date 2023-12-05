@@ -40,6 +40,7 @@ mod olympus {
             ];
             deposit => restrict_to: [protocol_owner];
             withdraw => restrict_to: [protocol_owner];
+            withdraw_pool_units => restrict_to: [protocol_owner];
         }
     }
 
@@ -343,6 +344,11 @@ mod olympus {
         ///
         /// Requires the `protocol_owner` role.
         ///
+        /// # Example Scenario
+        ///
+        /// This method can be used to fund the incentive program with XRD and
+        /// deposit other assets as well.
+        ///
         /// # Arguments
         ///
         /// * `bucket`: [`FungibleBucket`] - A bucket of resources to deposit
@@ -370,6 +376,12 @@ mod olympus {
         ///
         /// Requires the `protocol_owner` role.
         ///
+        /// # Example Scenario
+        ///
+        /// This method can be used to end the incentive program by withdrawing
+        /// the XRD in the protocol. Additionally, it can be used for upgrading
+        /// the protocol by withdrawing the resources in the protocol.
+        ///
         /// # Arguments
         ///
         /// * `resource_address`: [`ResourceAddress`] - The address of the
@@ -388,6 +400,36 @@ mod olympus {
                 .get_mut(&resource_address)
                 .expect("Vault does not exist")
                 .take(amount)
+        }
+
+        /// Withdraws pool units from the protocol. This is primarily for any
+        /// upgradeability needs that the protocol has.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// This method can be used to withdraw the pool units from the protocol
+        /// for the purposes of upgradeability to move them to another component
+        ///
+        /// # Arguments
+        ///
+        /// * `id`: [`NonFungibleGlobalId`] - The global id of the non-fungible
+        /// liquidity position NFTs to withdraw the pool units associated with.
+        ///
+        /// # Returns
+        ///
+        /// * [`FungibleBucket`] - A bucket of the withdrawn tokens.
+        pub fn withdraw_pool_units(
+            &mut self,
+            id: NonFungibleGlobalId,
+        ) -> FungibleBucket {
+            self.pool_units
+                .get_mut(&id)
+                .expect("No pool units exist for id")
+                .take_all()
         }
     }
 }
