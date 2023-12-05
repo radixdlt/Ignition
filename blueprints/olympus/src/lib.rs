@@ -75,6 +75,7 @@ mod olympus {
             withdraw_pool_units => restrict_to: [protocol_owner];
             add_rate => restrict_to: [protocol_owner];
             remove_rate => restrict_to: [protocol_owner];
+            update_usd_resource_address => restrict_to: [protocol_owner];
         }
     }
 
@@ -150,6 +151,12 @@ mod olympus {
         /// when users contribute liquidity. A value of `dec!(1)` is 1%.
         rates: KeyValueStore<u32, Decimal>,
 
+        /// The resource address of the USDC, USDT, or any stablecoin. This
+        /// resource is needed when trying to find the value of the tokens
+        /// contributed by the user so we get their price with USD as the quote
+        /// currency.
+        usd_resource_address: ResourceAddress,
+
         /// Controls whether the opening of new liquidity positions is enabled.
         ///
         /// The "protocol_manager" role can set this to [`true`] or [`false`]
@@ -171,6 +178,7 @@ mod olympus {
             protocol_manager_role: AccessRule,
             /* Protocol Parameters */
             oracle: OracleAdapter,
+            usd_resource_address: ResourceAddress,
             /* Misc */
             address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<Olympus> {
@@ -219,6 +227,7 @@ mod olympus {
 
             Self {
                 oracle,
+                usd_resource_address,
                 allowed_pools: Default::default(),
                 pool_adapters: KeyValueStore::new(),
                 vaults: KeyValueStore::new(),
@@ -594,6 +603,38 @@ mod olympus {
         /// with the rewards rate that we would like to remove.
         pub fn remove_rate(&mut self, lockup_period: u32) {
             self.rates.remove(&lockup_period);
+        }
+
+        /// Updates the resource address of the USD resource to another address.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// USDT goes under and we need to replace everything with USDC, of
+        /// course this a disaster to Crypto, but still, we need to be able
+        /// to do such things!
+        ///
+        /// # Arguments
+        ///
+        /// * `usd_resource_address`: [`ResourceAddress`] - The address of the
+        /// USD resource.
+        ///
+        /// # Note
+        ///
+        /// This method does not checks whatsoever on whether this resource is
+        /// supported by the current oracle or not. It is the protocol owner's
+        /// role to make such a check before updating the resource address. If
+        /// an address is provided that is not supported by the oracle then this
+        /// would result in the component stopping to work: contributions and
+        /// redemptions would not work.
+        pub fn update_usd_resource_address(
+            &mut self,
+            usd_resource_address: ResourceAddress,
+        ) {
+            self.usd_resource_address = usd_resource_address;
         }
     }
 }
