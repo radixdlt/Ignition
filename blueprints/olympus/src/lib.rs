@@ -2,7 +2,39 @@ use adapters::oracle::*;
 use adapters::pool::*;
 use scrypto::prelude::*;
 
+/// The data of the liquidity positions given to the users of Olympus.
+#[derive(ScryptoSbor, NonFungibleData)]
+pub struct LiquidityPosition {
+    /* Metadata/NonFungibleData standard */
+    name: String,
+    description: String,
+    key_image_url: Url,
+
+    /* Display Data - Just for wallet display, no logic depends on this. */
+    /// A string of the lockup period of the liquidity provided through the
+    /// protocol (e.g., "6 Months").
+    lockup_period: String,
+
+    /* Application data */
+    /// The address of the resource that the user contributed through the
+    /// protocol.
+    contributed_resource: ResourceAddress,
+
+    /// The amount of the resource that the user contributed through the
+    /// protocol.
+    contributed_amount: Decimal,
+
+    /// This is the USDC value of the contribution that the user has made. By
+    /// extension of that, it is also the value of XRD that the protocol has
+    /// provided the user.
+    contribution_value: Decimal,
+
+    /// The date after which this liquidity position can be closed.
+    maturity_date: Instant,
+}
+
 #[blueprint]
+#[types(LiquidityPosition)]
 mod olympus {
     enable_method_auth! {
         roles {
@@ -41,6 +73,8 @@ mod olympus {
             deposit => restrict_to: [protocol_owner];
             withdraw => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
+            add_rate => restrict_to: [protocol_owner];
+            remove_rate => restrict_to: [protocol_owner];
         }
     }
 
@@ -130,6 +164,80 @@ mod olympus {
     }
 
     impl Olympus {
+        pub fn instantiate(
+            /* Access Rules */
+            owner_role: OwnerRole,
+            protocol_owner_role: AccessRule,
+            protocol_manager_role: AccessRule,
+            /* Protocol Parameters */
+            oracle: OracleAdapter,
+            /* Misc */
+            address_reservation: Option<GlobalAddressReservation>,
+        ) -> Global<Olympus> {
+            // If no address reservation is provided then reserve an address to
+            // globalize the component to - this is to provide us with a non
+            // branching way of globalizing the component.
+            let (address_reservation, component_address) =
+                match address_reservation {
+                    Some(address_reservation) => {
+                        let address = ComponentAddress::try_from(
+                            Runtime::get_reservation_address(
+                                &address_reservation,
+                            ),
+                        )
+                        .expect(
+                            "Allocated address is not a component address!",
+                        );
+
+                        (address_reservation, address)
+                    }
+                    None => Runtime::allocate_component_address(
+                        Olympus::blueprint_id(),
+                    ),
+                };
+
+            // Creating the liquidity position non-fungible resource. This
+            // resource can be minted and burned by this component and the
+            // "protocol_owner" role has the ability to update who can mint
+            // and burn the resource. This is to allow for upgradeability such
+            // that the mint and burn abilities can be given to newer versions
+            // of the protocol and taken away from older ones.
+            let this_component = global_caller(component_address);
+            let liquidity_position_resource =
+                ResourceBuilder::new_ruid_non_fungible_with_registered_type::<
+                    LiquidityPosition,
+                >(owner_role.clone())
+                .mint_roles(mint_roles! {
+                    minter => rule!(require(this_component.clone()));
+                    minter_updater => protocol_owner_role.clone();
+                })
+                .burn_roles(burn_roles! {
+                    burner => rule!(require(this_component.clone()));
+                    burner_updater => protocol_owner_role.clone();
+                })
+                .create_with_no_initial_supply();
+
+            Self {
+                oracle,
+                allowed_pools: Default::default(),
+                pool_adapters: KeyValueStore::new(),
+                vaults: KeyValueStore::new(),
+                liquidity_position_resource,
+                pool_units: KeyValueStore::new(),
+                is_open_liquidity_position_enabled: false,
+                is_close_liquidity_position_enabled: false,
+                rates: KeyValueStore::new(),
+            }
+            .instantiate()
+            .prepare_to_globalize(owner_role)
+            .roles(roles! {
+                protocol_owner => protocol_owner_role;
+                protocol_manager => protocol_manager_role;
+            })
+            .with_address(address_reservation)
+            .globalize()
+        }
+
         /// Updates the oracle used by the protocol to a different oracle.
         ///
         /// This method does _not_ check that the interface of the new oracle
