@@ -105,6 +105,17 @@ mod olympus {
         /// the pool units of different positions.
         pool_units: KeyValueStore<NonFungibleGlobalId, FungibleVault>,
 
+        /// The reward rates offered by the incentive program. This maps the
+        /// lockup time in seconds to the percentage. This means that there can
+        /// only be one percentage associated with any lockup period.
+        ///
+        /// Note the following:
+        /// * The key is a [`u32`] of the seconds of the lockup time. A u32
+        /// value of 1 equals 1 second.
+        /// * The value is a [`Decimal`] of the percentage to provide upfront
+        /// when users contribute liquidity. A value of `dec!(1)` is 1%.
+        rates: KeyValueStore<u32, Decimal>,
+
         /// Controls whether the opening of new liquidity positions is enabled.
         ///
         /// The "protocol_manager" role can set this to [`true`] or [`false`]
@@ -430,6 +441,51 @@ mod olympus {
                 .get_mut(&id)
                 .expect("No pool units exist for id")
                 .take_all()
+        }
+
+        /// Adds a rewards rate to the protocol.
+        ///
+        /// Given a certain lockup period in seconds and a percentage rewards
+        /// rate, this method adds this rate to the protocol allowing users to
+        /// choose this option when contributing liquidity.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// We might wish to add a new higher rate with a longer lockup period
+        /// to incentivize people to lock up their liquidity for even shorter.
+        /// Or, we might want to introduce a new 3 months category, or anything
+        /// in between.
+        ///
+        /// # Arguments
+        ///
+        /// * `lockup_period`: [`u32`] - The lockup period in seconds.
+        /// * `rate`: [`Decimal`] - The decimal of the rate percentage.
+        pub fn add_rate(&mut self, lockup_period: u32, rate: Decimal) {
+            self.rates.insert(lockup_period, rate);
+        }
+
+        /// Removes a rewards rate from the protocol.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// A certain rate might get used too much and we might want to switch
+        /// off this rate (even if temporarily). This allows us to remove this
+        /// rate and add it back later when we want to.
+        ///
+        /// # Arguments
+        ///
+        /// * `lockup_period`: [`u32`] - The lockup period in seconds associated
+        /// with the rewards rate that we would like to remove.
+        pub fn remove_rate(&mut self, lockup_period: u32) {
+            self.rates.remove(&lockup_period);
         }
     }
 }
