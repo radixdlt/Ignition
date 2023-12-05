@@ -215,6 +215,17 @@ mod olympus {
                 ResourceBuilder::new_ruid_non_fungible_with_registered_type::<
                     LiquidityPosition,
                 >(owner_role.clone())
+                .metadata(metadata! {
+                    init {
+                        // TODO: What should we put here - is this ok?
+                        // TODO: Should the fields be locked?
+                        "name" => "Olympus Liquidity Position", locked;
+                        "description" => "A non-fungible that represents a liquidity position in the Olympus incentive program.", locked;
+                        "tags" => Vec::<String>::new(), locked;
+                        "icon_url" => "https://www.example.com", locked;
+                        "info_url" => "https://www.example.com", locked;
+                    }
+                })
                 .mint_roles(mint_roles! {
                     minter => rule!(require(this_component.clone()));
                     minter_updater => protocol_owner_role.clone();
