@@ -1,8 +1,8 @@
 [package]
-name = "adapters"
+name = "adapters-interface"
 version = { workspace = true }
 edition = { workspace = true }
-description = "Defines the interface of the various adapters"
+description = "Defines the interface of the various adapters-interface"
 
 [dependencies]
 sbor = { workspace = true }

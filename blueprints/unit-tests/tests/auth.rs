@@ -3,7 +3,7 @@ mod utils;
 use scrypto_test::prelude::*;
 use utils::environments::*;
 
-use adapters::oracle::*;
+use adapters_interface::oracle::*;
 use olympus::test_bindings::*;
 
 test_access_rules!(update_oracle(FAUCET), protocol_manager);

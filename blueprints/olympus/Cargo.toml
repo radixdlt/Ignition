@@ -2,13 +2,13 @@
 name = "olympus"
 version = { workspace = true }
 edition = { workspace = true }
-description = "Defines the interface of the various adapters"
+description = "Defines the interface of the various adapters-interface"
 
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
 
-adapters = { path = "../adapters", features = ["scrypto"] }
+adapters-interface = { path = "../adapters-interface", features = ["scrypto"] }
 
 [features]
 default = []

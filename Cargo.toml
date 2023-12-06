@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     "blueprints/unit-tests",
-    "blueprints/adapters",
+    "blueprints/adapters-interface",
     "blueprints/olympus",
 ]
 

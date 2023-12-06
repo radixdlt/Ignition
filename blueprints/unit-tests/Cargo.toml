@@ -17,7 +17,7 @@ radix-engine-store-interface = { workspace = true }
 
 # Pull in the various blueprints to get their testing stubs
 olympus = { path = "../olympus", features = ["test"] }
-adapters = { path = "../adapters" }
+adapters-interface = { path = "../adapters-interface" }
 
 paste = { version = "1.0.14" }
 lazy_static = { version = "1.4.0" }

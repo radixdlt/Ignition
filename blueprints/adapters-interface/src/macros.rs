@@ -1,4 +1,4 @@
-//! Defines macros used in the definition of the interfaces of adapters.
+//! Defines macros used in the definition of the interfaces of adapters_interface.
 
 #[macro_export]
 macro_rules! define_adapter_stubs {

@@ -2,7 +2,7 @@
 
 mod utils;
 
-use adapters::oracle::*;
+use adapters_interface::oracle::*;
 use olympus::test_bindings::*;
 
 use scrypto_test::prelude::*;

@@ -1,7 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
-use adapters::oracle::*;
-use adapters::pool::*;
+use adapters_interface::oracle::*;
+use adapters_interface::pool::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Olympus.
@@ -84,7 +84,7 @@ mod olympus {
     pub struct Olympus {
         /// The oracle that Olympus uses to get the price of assets at any point
         /// of time. This blueprint requires that the oracle implements a
-        /// specific interface which is defined in the adapters interface crate.
+        /// specific interface which is defined in the adapters_interface interface crate.
         ///
         /// This field is updatable allowing us to switch to different oracles
         /// at any point of time. The only role that can update this field is
@@ -93,7 +93,7 @@ mod olympus {
         /// the compatibility of the interface.
         ///
         /// [OLYPS-12]: We need a mechanism for verifying that the various
-        /// adapters do indeed implement the interface that expect them to
+        /// adapters_interface do indeed implement the interface that expect them to
         /// implement. How do we verify that? Would off-chain verification
         /// be acceptable since we're the only admins?
         oracle: OracleAdapter,
@@ -110,7 +110,7 @@ mod olympus {
         /// this set by the time that they close it.
         allowed_pools: IndexSet<NodeId>,
 
-        /// A mapping of the adapters to use for each of the pool blueprints
+        /// A mapping of the adapters_interface to use for each of the pool blueprints
         /// supported by the protocol.
         ///
         /// The "protocol_manager" role can upsert new entries through the
@@ -118,9 +118,9 @@ mod olympus {
         /// `remove_pool_adapter` method.
         ///
         /// It is possible to remove an adapter while it is still in use and
-        /// the protocol makes no guarantees on the existence of adapters. This
+        /// the protocol makes no guarantees on the existence of adapters_interface. This
         /// should be managed off-ledger.
-        pool_adapters: KeyValueStore<BlueprintId, PoolAdapter>,
+        pool_adapters_interface: KeyValueStore<BlueprintId, PoolAdapter>,
 
         /// The vaults where XRD and the various other assets are stored to be
         /// used by the protocol.
@@ -242,7 +242,7 @@ mod olympus {
                 oracle,
                 usd_resource_address,
                 allowed_pools: Default::default(),
-                pool_adapters: KeyValueStore::new(),
+                pool_adapters_interface: KeyValueStore::new(),
                 vaults: KeyValueStore::new(),
                 liquidity_position_resource,
                 pool_units: KeyValueStore::new(),
@@ -343,7 +343,7 @@ mod olympus {
             blueprint_id: BlueprintId,
             adapter: ComponentAddress,
         ) {
-            self.pool_adapters
+            self.pool_adapters_interface
                 .insert(blueprint_id, PoolAdapter::from(adapter));
         }
 
@@ -368,7 +368,7 @@ mod olympus {
         /// * `blueprint_id`: [`BlueprintId`] - The package address and
         /// blueprint name of the pool blueprint to remove the adapter for.
         pub fn remove_pool_adapter(&mut self, blueprint_id: BlueprintId) {
-            self.pool_adapters.remove(&blueprint_id);
+            self.pool_adapters_interface.remove(&blueprint_id);
         }
 
         /// Adds an allowed pool to the protocol.
@@ -404,7 +404,7 @@ mod olympus {
         pub fn add_allowed_pool(&mut self, component: ComponentAddress) {
             let blueprint_id =
                 ScryptoVmV1Api::object_get_blueprint_id(component.as_node_id());
-            if self.pool_adapters.get(&blueprint_id).is_some() {
+            if self.pool_adapters_interface.get(&blueprint_id).is_some() {
                 self.allowed_pools.insert(component.into_node_id());
             } else {
                 let address_string = Runtime::bech32_encode_address(component);
