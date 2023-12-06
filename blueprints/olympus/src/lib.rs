@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use adapters::oracle::*;
 use adapters::pool::*;
 use scrypto::prelude::*;
