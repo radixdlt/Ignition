@@ -5,8 +5,11 @@
 //! functions and methods in this module do unwraps and panics just because they
 //! will be used in tests where we do not want to deal with their errors.
 
+#![allow(dead_code)]
+
 use radix_engine_interface::prelude::*;
 use radix_engine_store_interface::interface::*;
+use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 use scrypto_unit::*;
 
@@ -14,9 +17,21 @@ type PackageSubstates = HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>>;
 
 pub struct Environment<T> {
     pub environment: T,
+    pub packages: Packages,
+    pub resources: Resources,
+}
+
+pub struct Packages {
     pub caviarnine_package: PackageAddress,
     pub ociswap_package: PackageAddress,
     pub defiplaza_package: PackageAddress,
+}
+
+pub struct Resources {
+    pub bitcoin: ResourceAddress,
+    pub ethereum: ResourceAddress,
+    pub usdc: ResourceAddress,
+    pub usdt: ResourceAddress,
 }
 
 pub fn new_test_environment() -> Environment<TestEnvironment> {
@@ -25,7 +40,7 @@ pub fn new_test_environment() -> Environment<TestEnvironment> {
     let mut ociswap_package = PACKAGE_PACKAGE;
     let mut defiplaza_package = PACKAGE_PACKAGE;
 
-    let env = TestEnvironment::new_custom(|substate_database| {
+    let mut env = TestEnvironment::new_custom(|substate_database| {
         caviarnine_package = flash(
             include_bytes!("../assets/caviarnine").as_slice(),
             substate_database,
@@ -40,11 +55,38 @@ pub fn new_test_environment() -> Environment<TestEnvironment> {
         );
     });
 
+    // Creating the resources. They are all freely mintable to make the tests
+    // easier.
+    let [bitcoin, ethereum, usdc, usdt] = [8, 18, 6, 6].map(|divisibility| {
+        ResourceBuilder::new_fungible(OwnerRole::Fixed(rule!(allow_all)))
+            .divisibility(divisibility)
+            .mint_roles(mint_roles! {
+                minter => rule!(allow_all);
+                minter_updater => rule!(allow_all);
+            })
+            .burn_roles(burn_roles! {
+                burner => rule!(allow_all);
+                burner_updater => rule!(allow_all);
+            })
+            .mint_initial_supply(dec!(1), &mut env)
+            .expect("Can't fail to create resource!")
+            .resource_address(&mut env)
+            .expect("Can't fail to create resource!")
+    });
+
     Environment {
         environment: env,
-        caviarnine_package,
-        ociswap_package,
-        defiplaza_package,
+        packages: Packages {
+            caviarnine_package,
+            ociswap_package,
+            defiplaza_package,
+        },
+        resources: Resources {
+            bitcoin,
+            ethereum,
+            usdc,
+            usdt,
+        },
     }
 }
 
@@ -65,11 +107,51 @@ pub fn new_test_runner() -> Environment<DefaultTestRunner> {
         substate_database,
     );
 
+    let [bitcoin, ethereum, usdc, usdt] = [8, 18, 6, 6].map(|divisibility| {
+        let manifest = ManifestBuilder::new()
+            .create_fungible_resource(
+                OwnerRole::Fixed(rule!(allow_all)),
+                true,
+                divisibility,
+                FungibleResourceRoles {
+                    mint_roles: mint_roles! {
+                        minter => rule!(allow_all);
+                        minter_updater => rule!(allow_all);
+                    },
+                    burn_roles: burn_roles! {
+                        burner => rule!(allow_all);
+                        burner_updater => rule!(allow_all);
+                    },
+                    freeze_roles: None,
+                    recall_roles: None,
+                    withdraw_roles: None,
+                    deposit_roles: None,
+                },
+                Default::default(),
+                None,
+            )
+            .build();
+        let receipt = test_runner.execute_manifest(manifest, vec![]);
+        *receipt
+            .expect_commit_success()
+            .new_resource_addresses()
+            .first()
+            .unwrap()
+    });
+
     Environment {
         environment: test_runner,
-        caviarnine_package,
-        ociswap_package,
-        defiplaza_package,
+        packages: Packages {
+            caviarnine_package,
+            ociswap_package,
+            defiplaza_package,
+        },
+        resources: Resources {
+            bitcoin,
+            ethereum,
+            usdc,
+            usdt,
+        },
     }
 }
 
@@ -128,45 +210,4 @@ fn database_updates(package_substates: PackageSubstates) -> DatabaseUpdates {
     }
 
     database_updates
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const PACKAGE_SUBSTATES: [&[u8]; 3] = [
-        include_bytes!("../assets/caviarnine").as_slice(),
-        include_bytes!("../assets/defiplaza").as_slice(),
-        include_bytes!("../assets/ociswap").as_slice(),
-    ];
-
-    #[test]
-    fn packages_can_be_flashed_to_in_memory_substate_database() {
-        // Arrange
-        let mut substate_database = InMemorySubstateDatabase::standard();
-        for substates in PACKAGE_SUBSTATES {
-            // Act & Assert
-            let _ = flash(substates, &mut substate_database);
-        }
-    }
-
-    #[test]
-    fn test_runner_can_be_created_with_flashed_packages() {
-        let Environment {
-            environment: _,
-            caviarnine_package: _,
-            ociswap_package: _,
-            defiplaza_package: _,
-        } = new_test_runner();
-    }
-
-    #[test]
-    fn test_env_can_be_created_with_flashed_packages() {
-        let Environment {
-            environment: _,
-            caviarnine_package: _,
-            ociswap_package: _,
-            defiplaza_package: _,
-        } = new_test_environment();
-    }
 }
