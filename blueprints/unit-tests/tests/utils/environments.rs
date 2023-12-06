@@ -42,15 +42,15 @@ pub fn new_test_environment() -> Environment<TestEnvironment> {
 
     let mut env = TestEnvironment::new_custom(|substate_database| {
         caviarnine_package = flash(
-            include_bytes!("../assets/caviarnine").as_slice(),
+            include_bytes!("../../assets/caviarnine").as_slice(),
             substate_database,
         );
         ociswap_package = flash(
-            include_bytes!("../assets/ociswap").as_slice(),
+            include_bytes!("../../assets/ociswap").as_slice(),
             substate_database,
         );
         defiplaza_package = flash(
-            include_bytes!("../assets/defiplaza").as_slice(),
+            include_bytes!("../../assets/defiplaza").as_slice(),
             substate_database,
         );
     });
@@ -95,15 +95,15 @@ pub fn new_test_runner() -> Environment<DefaultTestRunner> {
     let substate_database = test_runner.substate_db_mut();
 
     let caviarnine_package = flash(
-        include_bytes!("../assets/caviarnine").as_slice(),
+        include_bytes!("../../assets/caviarnine").as_slice(),
         substate_database,
     );
     let ociswap_package = flash(
-        include_bytes!("../assets/ociswap").as_slice(),
+        include_bytes!("../../assets/ociswap").as_slice(),
         substate_database,
     );
     let defiplaza_package = flash(
-        include_bytes!("../assets/defiplaza").as_slice(),
+        include_bytes!("../../assets/defiplaza").as_slice(),
         substate_database,
     );
 

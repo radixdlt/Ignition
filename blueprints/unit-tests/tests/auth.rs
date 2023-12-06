@@ -1,8 +1,7 @@
-mod environments;
-mod package_loader;
+mod utils;
 
-use environments::*;
 use scrypto_test::prelude::*;
+use utils::environments::*;
 
 use adapters::oracle::*;
 use olympus::test_bindings::*;
@@ -109,9 +108,9 @@ macro_rules! test_access_rules {
                     let Environment {
                         environment: ref mut env,
                         ..
-                    } = environments::new_test_environment();
+                    } = utils::environments::new_test_environment();
 
-                    let (code, definition) = package_loader::PackageLoader::get("olympus");
+                    let (code, definition) = utils::package_loader::PackageLoader::get("olympus");
                     let (package_address, _) =
                         Package::publish(code, definition, Default::default(), env).unwrap();
 
@@ -170,9 +169,9 @@ macro_rules! test_access_rules {
                     let Environment {
                         environment: ref mut env,
                         ..
-                    } = environments::new_test_environment();
+                    } = utils::environments::new_test_environment();
 
-                    let (code, definition) = package_loader::PackageLoader::get("olympus");
+                    let (code, definition) = utils::package_loader::PackageLoader::get("olympus");
                     let (package_address, _) =
                         Package::publish(code, definition, Default::default(), env).unwrap();
 
