@@ -23,7 +23,7 @@ jobs:
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Run tests
-      run: cargo nextest run
+      run: cargo nextest run --features compile-blueprints-at-build-time
       env:
         # Enable sccache
         SCCACHE_GHA_ENABLED: "true"
