@@ -12,18 +12,18 @@ edition = "2021"
 description = "The implementation of project Olympus in Scrypto for the Radix Ledger"
 
 [workspace.dependencies]
-sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine-queries = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine-queries = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
 
-scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
-scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "b01818bde9632cf9520cf23f9590f5f9a26d1bfe" }
+scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
+scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "0d1952c8c981497f35bb6051f17394df265ca65e" }
 
 [profile.release]
 opt-level = 'z'

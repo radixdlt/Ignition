@@ -13,6 +13,12 @@ use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 use scrypto_unit::*;
 
+type BranchStore =
+    HashMap<DbNodeKey, HashMap<DbPartitionNum, HashMap<DbSortKey, Vec<u8>>>>;
+
+const PACKAGES_BINARY: &[u8] =
+    include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
+
 type PackageSubstates = HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>>;
 
 pub struct Environment<T> {
@@ -35,24 +41,16 @@ pub struct Resources {
 }
 
 pub fn new_test_environment() -> Environment<TestEnvironment> {
-    // Placeholders for initializations.
-    let mut caviarnine_package = PACKAGE_PACKAGE;
-    let mut ociswap_package = PACKAGE_PACKAGE;
-    let mut defiplaza_package = PACKAGE_PACKAGE;
+    let (addresses, branch_store) =
+        scrypto_decode::<(Vec<NodeId>, BranchStore)>(PACKAGES_BINARY)
+            .expect("Can't fail!");
+
+    let caviarnine_package = PackageAddress::try_from(addresses[0]).unwrap();
+    let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
+    let defiplaza_package = PackageAddress::try_from(addresses[2]).unwrap();
 
     let mut env = TestEnvironment::new_custom(|substate_database| {
-        caviarnine_package = flash(
-            include_bytes!("../../assets/caviarnine").as_slice(),
-            substate_database,
-        );
-        ociswap_package = flash(
-            include_bytes!("../../assets/ociswap").as_slice(),
-            substate_database,
-        );
-        defiplaza_package = flash(
-            include_bytes!("../../assets/defiplaza").as_slice(),
-            substate_database,
-        );
+        flash_branch_store(branch_store, substate_database)
     });
 
     // Creating the resources. They are all freely mintable to make the tests
@@ -94,18 +92,15 @@ pub fn new_test_runner() -> Environment<DefaultTestRunner> {
     let mut test_runner = TestRunnerBuilder::new().build();
     let substate_database = test_runner.substate_db_mut();
 
-    let caviarnine_package = flash(
-        include_bytes!("../../assets/caviarnine").as_slice(),
-        substate_database,
-    );
-    let ociswap_package = flash(
-        include_bytes!("../../assets/ociswap").as_slice(),
-        substate_database,
-    );
-    let defiplaza_package = flash(
-        include_bytes!("../../assets/defiplaza").as_slice(),
-        substate_database,
-    );
+    let substates =
+        scrypto_decode::<(Vec<PackageAddress>, BranchStore)>(PACKAGES_BINARY)
+            .expect("Can't fail!");
+
+    let caviarnine_package = substates.0[0];
+    let ociswap_package = substates.0[1];
+    let defiplaza_package = substates.0[2];
+
+    flash_branch_store(substates.1, substate_database);
 
     let [bitcoin, ethereum, usdc, usdt] = [8, 18, 6, 6].map(|divisibility| {
         let manifest = ManifestBuilder::new()
@@ -155,59 +150,44 @@ pub fn new_test_runner() -> Environment<DefaultTestRunner> {
     }
 }
 
-fn flash<S: CommittableSubstateDatabase>(
-    package_substates: &[u8],
+fn flash_branch_store<S: CommittableSubstateDatabase>(
+    branch_store: BranchStore,
     substate_database: &mut S,
-) -> PackageAddress {
-    let package_substates = decode_package_substates(package_substates);
-    let package_address = extract_package_address(&package_substates);
-    let database_updates = database_updates(package_substates);
+) {
+    let database_updates = database_updates(branch_store);
     substate_database.commit(&database_updates);
-    package_address
 }
 
-fn decode_package_substates(
-    package_substates: &[u8],
-) -> HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>> {
-    scrypto_decode(package_substates)
-        .expect("Decoding of package can not fail!")
-}
-
-fn extract_package_address(
-    package_substates: &PackageSubstates,
-) -> PackageAddress {
-    package_substates
-        .keys()
-        .map(|item| {
-            PackageAddress::try_from(
-                SpreadPrefixKeyMapper::from_db_partition_key(item).0,
-            )
-            .unwrap()
-        })
-        .next()
-        .unwrap()
-}
-
-fn database_updates(package_substates: PackageSubstates) -> DatabaseUpdates {
-    let mut database_updates = DatabaseUpdates::default();
-
-    for (partition_key, substate_values) in package_substates.into_iter() {
-        for (sort_key, substate_value) in substate_values.into_iter() {
-            let PartitionDatabaseUpdates::Delta { substate_updates } =
-                database_updates
-                    .node_updates
-                    .entry(partition_key.node_key.clone())
-                    .or_default()
-                    .partition_updates
-                    .entry(partition_key.partition_num)
-                    .or_default()
-            else {
-                panic!("Can't happen!")
-            };
-            substate_updates
-                .insert(sort_key, DatabaseUpdate::Set(substate_value));
-        }
+fn database_updates(branch_store: BranchStore) -> DatabaseUpdates {
+    DatabaseUpdates {
+        node_updates: branch_store
+            .into_iter()
+            .map(|(db_node_key, partition_num_to_updates_mapping)| {
+                (
+                    db_node_key,
+                    NodeDatabaseUpdates {
+                        partition_updates: partition_num_to_updates_mapping
+                            .into_iter()
+                            .map(|(partition_num, substates)| {
+                                (
+                                    partition_num,
+                                    PartitionDatabaseUpdates::Delta {
+                                        substate_updates: substates
+                                            .into_iter()
+                                            .map(|(db_sort_key, value)| {
+                                                (
+                                                    db_sort_key,
+                                                    DatabaseUpdate::Set(value),
+                                                )
+                                            })
+                                            .collect(),
+                                    },
+                                )
+                            })
+                            .collect(),
+                    },
+                )
+            })
+            .collect(),
     }
-
-    database_updates
 }

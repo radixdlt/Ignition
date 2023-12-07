@@ -25,6 +25,7 @@ lazy_static = { version = "1.4.0" }
 [build-dependencies]
 walkdir = { version = "2.3.3", optional = true }
 cargo_toml = { version = "0.15.3", optional = true }
+flate2 = { version = "1.0.28" }
 scrypto = { workspace = true }
 scrypto-unit = { workspace = true }
 
