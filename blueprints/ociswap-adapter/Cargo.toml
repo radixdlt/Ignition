@@ -1,0 +1,18 @@
+[package]
+name = "ociswap-adapter"
+version = { workspace = true }
+edition = { workspace = true }
+description = "Defines the adapter for Ociswap"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+
+adapters-interface = { path = "../adapters-interface", features = ["scrypto"] }
+
+[features]
+default = []
+test = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
