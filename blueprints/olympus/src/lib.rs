@@ -1,8 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
+mod percent;
+
 use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
+
+use percent::*;
 
 /// The data of the liquidity positions given to the users of Olympus.
 #[derive(ScryptoSbor, NonFungibleData)]
@@ -158,9 +162,8 @@ mod olympus {
         /// Note the following:
         /// * The key is a [`u32`] of the seconds of the lockup time. A u32
         /// value of 1 equals 1 second.
-        /// * The value is a [`Decimal`] of the percentage to provide upfront
-        /// when users contribute liquidity. A value of `dec!(1)` is 1%.
-        reward_rates: KeyValueStore<u32, Decimal>,
+        /// * The value is a [`Percent`] which is a decimal between 0 and 1.
+        reward_rates: KeyValueStore<u32, Percent>,
 
         /// The resource address of the USDC, USDT, or any stablecoin. This
         /// resource is needed when trying to find the value of the tokens
@@ -608,8 +611,8 @@ mod olympus {
         /// # Arguments
         ///
         /// * `lockup_period`: [`u32`] - The lockup period in seconds.
-        /// * `rate`: [`Decimal`] - The decimal of the rate percentage.
-        pub fn add_rewards_rate(&mut self, lockup_period: u32, rate: Decimal) {
+        /// * `rate`: [`Percent`] - The rewards rate as a percent.
+        pub fn add_rewards_rate(&mut self, lockup_period: u32, rate: Percent) {
             self.reward_rates.insert(lockup_period, rate);
         }
 
