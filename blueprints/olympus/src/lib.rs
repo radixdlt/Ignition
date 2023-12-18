@@ -88,7 +88,8 @@ mod olympus {
     pub struct Olympus {
         /// The oracle that Olympus uses to get the price of assets at any point
         /// of time. This blueprint requires that the oracle implements a
-        /// specific interface which is defined in the adapters_interface interface crate.
+        /// specific interface which is defined in the adapters_interface
+        /// interface crate.
         ///
         /// This field is updatable allowing us to switch to different oracles
         /// at any point of time. The only role that can update this field is
@@ -97,9 +98,9 @@ mod olympus {
         /// the compatibility of the interface.
         ///
         /// [OLYPS-12]: We need a mechanism for verifying that the various
-        /// adapters_interface do indeed implement the interface that expect them to
-        /// implement. How do we verify that? Would off-chain verification
-        /// be acceptable since we're the only admins?
+        /// adapters_interface do indeed implement the interface that expect
+        /// them to implement. How do we verify that? Would off-chain
+        /// verification be acceptable since we're the only admins?
         oracle: OracleAdapter,
 
         /// The set of all of the pools that are supported by the incentive
@@ -114,16 +115,16 @@ mod olympus {
         /// this set by the time that they close it.
         allowed_pools: IndexSet<NodeId>,
 
-        /// A mapping of the adapters_interface to use for each of the pool blueprints
-        /// supported by the protocol.
+        /// A mapping of the adapters_interface to use for each of the pool
+        /// blueprints supported by the protocol.
         ///
         /// The "protocol_manager" role can upsert new entries through the
         /// `add_pool_adapter` method and can remove entries through the
         /// `remove_pool_adapter` method.
         ///
         /// It is possible to remove an adapter while it is still in use and
-        /// the protocol makes no guarantees on the existence of adapters_interface. This
-        /// should be managed off-ledger.
+        /// the protocol makes no guarantees on the existence of
+        /// adapters_interface. This should be managed off-ledger.
         pool_adapters_interface: KeyValueStore<BlueprintId, PoolAdapter>,
 
         /// The vaults where XRD and the various other assets are stored to be

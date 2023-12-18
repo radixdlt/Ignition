@@ -1,4 +1,5 @@
-//! Defines macros used in the definition of the interfaces of adapters_interface.
+//! Defines macros used in the definition of the interfaces of
+//! adapters_interface.
 
 #[macro_export]
 macro_rules! define_adapter_stubs {
@@ -14,6 +15,8 @@ macro_rules! define_adapter_stubs {
         /* Scrypto stubs */
         #[cfg(feature = "scrypto")]
         mod scrypto {
+            use super::*;
+
             #[derive(::scrypto::prelude::ScryptoSbor)]
             #[sbor(transparent)]
             pub struct $adapter_name(pub ::scrypto::prelude::Reference);
@@ -70,7 +73,7 @@ macro_rules! define_functions {
         ) $(-> $rtn_type: ty)? ; $($tokens: tt)*
     ) => {
         $(#[$meta])*
-        pub fn $fn_name( &mut self, $( $arg_name: $arg_type, )* ) -> resolve_return_type!($(-> $rtn_type)?) {
+        pub fn $fn_name( &mut self, $( $arg_name: $arg_type, )* ) -> $crate::resolve_return_type!($(-> $rtn_type)?) {
             ::scrypto::prelude::scrypto_decode(
                 &::scrypto::prelude::ScryptoVmV1Api::object_call(
                     &self.0.as_node_id(),

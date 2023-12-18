@@ -1,4 +1,5 @@
 use crate::define_adapter_stubs;
+use ::scrypto::prelude::*;
 
 define_adapter_stubs! {
     name: OracleAdapter,
@@ -7,8 +8,8 @@ define_adapter_stubs! {
         /// and an instant of when it was last updated.
         fn get_price(
             &self,
-            base: scrypto::prelude::ResourceAddress,
-            quote: scrypto::prelude::ResourceAddress,
-        ) -> (scrypto::prelude::Decimal, scrypto::prelude::Instant);
+            base: ResourceAddress,
+            quote: ResourceAddress,
+        ) -> (Decimal, Instant);
     ]
 }
