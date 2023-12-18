@@ -685,5 +685,43 @@ mod olympus {
         ) {
             self.usd_resource_address = usd_resource_address;
         }
+
+        /// Gets the price of the `base` asset in terms of the `quote` asset
+        /// from the currently configured oracle, checks for staleness, and
+        /// returns the price.
+        ///
+        /// # Arguments
+        ///
+        /// * `base`: [`ResourceAddress`] - The base resource address.
+        /// * `quote`: [`ResourceAddress`] - The quote resource address.
+        ///
+        /// # Returns
+        ///
+        /// [`Decimal`] - The price of the base asset in terms of the quote
+        /// asset.
+        fn get_price(
+            &self,
+            base: ResourceAddress,
+            quote: ResourceAddress,
+        ) -> Decimal {
+            // Get the price
+            let (price, instant) = self.oracle.get_price(base, quote);
+
+            // Check for staleness
+            if Clock::current_time(TimePrecision::Minute)
+                .seconds_since_unix_epoch
+                - instant.seconds_since_unix_epoch
+                > self.maximum_allowed_price_staleness
+                && Clock::current_time_is_at_or_after(
+                    instant,
+                    TimePrecision::Minute,
+                )
+            {
+                panic!("Maximum allowed price staleness exceeded for {base:?}-{quote:?}")
+            }
+
+            // Return price
+            price
+        }
     }
 }
