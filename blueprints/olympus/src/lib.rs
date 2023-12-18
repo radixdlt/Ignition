@@ -84,6 +84,10 @@ mod olympus {
                 protocol_owner,
                 protocol_manager
             ];
+            update_maximum_allowed_price_difference => restrict_to: [
+                protocol_owner,
+                protocol_manager
+            ];
             deposit => restrict_to: [protocol_owner];
             withdraw => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
@@ -176,6 +180,12 @@ mod olympus {
         /// cause a panic.
         maximum_allowed_price_staleness: i64,
 
+        /// The maximum allowed difference between the oracle price and the pool
+        /// price. If the price difference is above this protocol parameter,
+        /// then the opening and closing of liquidity positions is not allowed
+        /// and fails at runtime.
+        maximum_allowed_price_difference: Percent,
+
         /// Controls whether the opening of new liquidity positions is enabled.
         ///
         /// The "protocol_manager" role can set this to [`true`] or [`false`]
@@ -267,6 +277,8 @@ mod olympus {
                 is_close_liquidity_position_enabled: false,
                 reward_rates: KeyValueStore::new(),
                 maximum_allowed_price_staleness: 5 * 60, /* 5 Minutes */
+                maximum_allowed_price_difference: Percent::new(dec!(0.05))
+                    .unwrap(), /* 5% price difference allowed */
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -655,6 +667,28 @@ mod olympus {
         /// seconds.
         pub fn update_maximum_allowed_price_staleness(&mut self, value: i64) {
             self.maximum_allowed_price_staleness = value;
+        }
+
+        /// Updates the value of the maximum allowed price difference between
+        /// the pool and the oracle.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` or `protocol_manager` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// As more and more arbitrage bots get created, we may want to make the
+        /// price difference allowed narrower and narrower.
+        ///
+        /// # Arguments
+        ///
+        /// `value`: [`Percent`] - The maximum allowed percentage difference.
+        pub fn update_maximum_allowed_price_difference(
+            &mut self,
+            value: Percent,
+        ) {
+            self.maximum_allowed_price_difference = value;
         }
 
         /// Updates the resource address of the USD resource to another address.
