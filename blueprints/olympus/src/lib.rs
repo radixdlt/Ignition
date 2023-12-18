@@ -76,6 +76,10 @@ mod olympus {
                 protocol_owner,
                 protocol_manager
             ];
+            update_maximum_allowed_price_staleness => restrict_to: [
+                protocol_owner,
+                protocol_manager
+            ];
             deposit => restrict_to: [protocol_owner];
             withdraw => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
@@ -163,6 +167,11 @@ mod olympus {
         /// contributed by the user so we get their price with USD as the quote
         /// currency.
         usd_resource_address: ResourceAddress,
+
+        /// The maximum allowed staleness of prices in seconds. If a price is
+        /// found to be older than this, then it will be deemed invalid and will
+        /// cause a panic.
+        maximum_allowed_price_staleness: i64,
 
         /// Controls whether the opening of new liquidity positions is enabled.
         ///
@@ -254,6 +263,7 @@ mod olympus {
                 is_open_liquidity_position_enabled: false,
                 is_close_liquidity_position_enabled: false,
                 reward_rates: KeyValueStore::new(),
+                maximum_allowed_price_staleness: 5 * 60, /* 5 Minutes */
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -621,6 +631,27 @@ mod olympus {
         /// with the rewards rate that we would like to remove.
         pub fn remove_rewards_rate(&mut self, lockup_period: u32) {
             self.reward_rates.remove(&lockup_period);
+        }
+
+        /// Updates the value of the maximum allowed price staleness by the
+        /// protocol.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` or `protocol_manager` role.
+        ///
+        /// # Example Scenario
+        ///
+        /// We may wish to change the allowed staleness of prices to a very
+        /// short period if we get an oracle that operates at realtime speeds
+        /// or if we change oracle vendors.
+        ///
+        /// # Arguments
+        ///
+        /// * `value`: [`i64`] - The maximum allowed staleness period in
+        /// seconds.
+        pub fn update_maximum_allowed_price_staleness(&mut self, value: i64) {
+            self.maximum_allowed_price_staleness = value;
         }
 
         /// Updates the resource address of the USD resource to another address.
