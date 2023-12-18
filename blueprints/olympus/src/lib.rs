@@ -17,6 +17,9 @@ pub struct LiquidityPosition {
     /// protocol (e.g., "6 Months").
     lockup_period: String,
 
+    /// A url linking to where we redeem
+    redemption_url: Url,
+
     /* Application data */
     /// The address of the resource that the user contributed through the
     /// protocol.
@@ -32,6 +35,7 @@ pub struct LiquidityPosition {
     contribution_value: Decimal,
 
     /// The date after which this liquidity position can be closed.
+    //TODO: Wallet should display this as time and not unix timestamp.
     maturity_date: Instant,
 }
 
