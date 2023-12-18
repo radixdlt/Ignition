@@ -129,7 +129,7 @@ mod olympus {
         /// It is possible to remove an adapter while it is still in use and
         /// the protocol makes no guarantees on the existence of
         /// adapters_interface. This should be managed off-ledger.
-        pool_adapters_interface: KeyValueStore<BlueprintId, PoolAdapter>,
+        pool_adapters: KeyValueStore<BlueprintId, PoolAdapter>,
 
         /// The vaults where XRD and the various other assets are stored to be
         /// used by the protocol.
@@ -256,7 +256,7 @@ mod olympus {
                 oracle,
                 usd_resource_address,
                 allowed_pools: Default::default(),
-                pool_adapters_interface: KeyValueStore::new(),
+                pool_adapters: KeyValueStore::new(),
                 vaults: KeyValueStore::new(),
                 liquidity_position_resource,
                 pool_units: KeyValueStore::new(),
@@ -358,7 +358,7 @@ mod olympus {
             blueprint_id: BlueprintId,
             adapter: ComponentAddress,
         ) {
-            self.pool_adapters_interface
+            self.pool_adapters
                 .insert(blueprint_id, PoolAdapter::from(adapter));
         }
 
@@ -383,7 +383,7 @@ mod olympus {
         /// * `blueprint_id`: [`BlueprintId`] - The package address and
         /// blueprint name of the pool blueprint to remove the adapter for.
         pub fn remove_pool_adapter(&mut self, blueprint_id: BlueprintId) {
-            self.pool_adapters_interface.remove(&blueprint_id);
+            self.pool_adapters.remove(&blueprint_id);
         }
 
         /// Adds an allowed pool to the protocol.
@@ -419,7 +419,7 @@ mod olympus {
         pub fn add_allowed_pool(&mut self, component: ComponentAddress) {
             let blueprint_id =
                 ScryptoVmV1Api::object_get_blueprint_id(component.as_node_id());
-            if self.pool_adapters_interface.get(&blueprint_id).is_some() {
+            if self.pool_adapters.get(&blueprint_id).is_some() {
                 self.allowed_pools.insert(component.into_node_id());
             } else {
                 let address_string = Runtime::bech32_encode_address(component);
