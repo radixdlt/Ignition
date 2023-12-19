@@ -1,47 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
-mod percent;
+mod types;
 
 use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 
-use percent::*;
-
-/// The data of the liquidity positions given to the users of Olympus.
-#[derive(ScryptoSbor, NonFungibleData)]
-pub struct LiquidityPosition {
-    /* Metadata/NonFungibleData standard */
-    name: String,
-    description: String,
-    key_image_url: Url,
-
-    /* Display Data - Just for wallet display, no logic depends on this. */
-    /// A string of the lockup period of the liquidity provided through the
-    /// protocol (e.g., "6 Months").
-    lockup_period: String,
-
-    /// A url linking to where we redeem
-    redemption_url: Url,
-
-    /* Application data */
-    /// The address of the resource that the user contributed through the
-    /// protocol.
-    contributed_resource: ResourceAddress,
-
-    /// The amount of the resource that the user contributed through the
-    /// protocol.
-    contributed_amount: Decimal,
-
-    /// This is the USDC value of the contribution that the user has made. By
-    /// extension of that, it is also the value of XRD that the protocol has
-    /// provided the user.
-    contribution_value: Decimal,
-
-    /// The date after which this liquidity position can be closed.
-    //TODO: Wallet should display this as time and not unix timestamp.
-    maturity_date: Instant,
-}
+use types::*;
 
 #[blueprint]
 #[types(LiquidityPosition)]

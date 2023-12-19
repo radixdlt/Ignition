@@ -11,6 +11,8 @@ radix-engine-derive = { workspace = true }
 
 adapters-interface = { path = "../adapters-interface", features = ["scrypto"] }
 
+humantime = { version = "2.1.0" }
+
 [features]
 default = []
 test = []
