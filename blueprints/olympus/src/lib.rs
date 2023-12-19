@@ -1,12 +1,12 @@
 #![allow(clippy::too_many_arguments)]
 
-mod types;
+pub mod types;
 
 use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 
-use types::*;
+pub use types::*;
 
 #[blueprint]
 #[types(LiquidityPosition)]
@@ -59,6 +59,7 @@ mod olympus {
             add_rewards_rate => restrict_to: [protocol_owner];
             remove_rewards_rate => restrict_to: [protocol_owner];
             update_usd_resource_address => restrict_to: [protocol_owner];
+            open_liquidity_position => PUBLIC;
         }
     }
 
@@ -122,7 +123,7 @@ mod olympus {
         /// positions in multiple different vaults that are indexed by the
         /// non-fungible global id of the position non-fungible. This separates
         /// the pool units of different positions.
-        pool_units: KeyValueStore<NonFungibleGlobalId, FungibleVault>,
+        pool_units: KeyValueStore<NonFungibleGlobalId, Vault>,
 
         /// The reward rates offered by the incentive program. This maps the
         /// lockup time in seconds to the percentage. This means that there can
@@ -253,6 +254,193 @@ mod olympus {
             })
             .with_address(address_reservation)
             .globalize()
+        }
+
+        /// Opens a liquidity position for the user.
+        ///
+        /// Given some bucket of tokens, this method matches this bucket with
+        /// XRD of the same value and contributes that XRD to the pool specified
+        /// as an argument. The liquidity is locked in that pool for the lockup
+        /// period specified as an argument and the user is given back a non
+        /// fungible token that represents their portion in the pool.
+        ///
+        /// If opening a liquidity pool returns more than the pool units and the
+        /// change, then these additional tokens are returned back to the caller
+        /// and not kept by the protocol.
+        ///
+        /// # Panics
+        ///
+        /// There are a number of situations when this method panics and leads
+        /// the transaction to fail. Some of them are:
+        ///
+        /// * If the specified pool is not a registered pool in Olympus and
+        /// thus, no liquidity is allowed to be provided to this pool.
+        /// * If the lockup period specified by the caller has no corresponding
+        /// upfront rewards percentage, and thus it is not a recognized lockup
+        /// period by the pool.
+        /// * If no adapter is registered for the liquidity pool.
+        /// * If the price difference between the pool and the oracle is higher
+        /// than what is allowed by the protocol.
+        ///
+        /// # Arguments
+        ///
+        /// * `pool_address`: [`ComponentAddress`] - The address of the pool to
+        /// contribute to, this must be a valid pool that is registered in the
+        /// protocol and that has an adapter.
+        /// * `bucket`: [`FungibleBucket`] - A fungible bucket of tokens to
+        /// contribute to the pool. Olympus will match the value of this bucket
+        /// in XRD and contribute it alongside it to the specified pool.
+        /// * `lockup_period`: [`u32`] - The amount of time (in seconds) to
+        /// lockup the liquidity. This must be a registered lockup period with a
+        /// defined upfront rewards rate.
+        ///
+        /// # Returns
+        ///
+        /// * [`NonFungibleBucket`] - A non-fungible bucket of the liquidity
+        /// position resource that gives the holder the right to close their
+        /// liquidity position when the lockup period is up.
+        /// * [`FungibleBucket`] - A bucket of the change.
+        /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
+        /// return upon contribution, this can be their rewards tokens or
+        /// anything else.
+        pub fn open_liquidity_position(
+            &mut self,
+            pool_address: ComponentAddress,
+            bucket: FungibleBucket,
+            lockup_period: u32,
+        ) -> (NonFungibleBucket, FungibleBucket, Vec<Bucket>) {
+            // Contributions can only happen when the protocol is allowing them.
+            // If not, then disable contributions.
+            if !self.is_open_liquidity_position_enabled {
+                panic!(
+                    "Opening liquidity positions is not allowed at this time."
+                )
+            }
+
+            // Only contributions allowed are to pools that the protocol allows.
+            // If this pool is not in that set of allowed pools, then panic and
+            // fail the transaction.
+            if !self.allowed_pools.contains(pool_address.as_node_id()) {
+                panic!(
+                    "Pool {} is not found in the list of allowed pools",
+                    Runtime::bech32_encode_address(pool_address)
+                )
+            }
+
+            // Get the amounts and the resource addresses
+            let input_resource_address = bucket.resource_address();
+            let input_amount = bucket.amount();
+
+            // Calculate the price of the input - base is the input asset and
+            // the quote is XRD.
+            let price_input_base_xrd_quote =
+                self.get_price(input_resource_address, XRD);
+            let input_value_in_xrd = input_amount * price_input_base_xrd_quote;
+
+            // Based on the lockup period they specified, calculate the amount
+            // of XRD to give them upfront.
+            let upfront_xrd_reward = self
+                .reward_rates
+                .get(&lockup_period)
+                .map(|percent| input_value_in_xrd * **percent)
+                .map(|reward_amount| self.withdraw(XRD, reward_amount))
+                .expect("No reward percentage associated with lockup period.");
+
+            // Calculate the maximum amount of XRD we're willing to contribute
+            // based on the maximum amount of price difference we allow.
+            let maximum_amount_of_xrd_to_contribute = input_value_in_xrd
+                * (Decimal::ONE + *self.maximum_allowed_price_difference);
+            let xrd_to_contribute =
+                self.withdraw(XRD, maximum_amount_of_xrd_to_contribute).0;
+
+            let OpenLiquidityPositionOutput {
+                pool_units,
+                change,
+                others,
+            } = self
+                .pool_adapters
+                .get_mut(&ScryptoVmV1Api::object_get_blueprint_id(
+                    pool_address.as_node_id(),
+                ))
+                .map(|mut adapter| {
+                    adapter.open_liquidity_position(
+                        pool_address,
+                        (bucket.0, xrd_to_contribute),
+                    )
+                })
+                .expect("No adapter found for liquidity pool");
+
+            // Each contribution can result in some change. Calculate how much
+            // we actually contributed of the two assets.
+            let actual_input_contribution = input_amount
+                - change
+                    .get(&input_resource_address)
+                    .map(Bucket::amount)
+                    .unwrap_or_default();
+            let actual_xrd_contribution = maximum_amount_of_xrd_to_contribute
+                - change.get(&XRD).map(Bucket::amount).unwrap_or_default();
+
+            // Calculate the price in terms of quote and base based on how much
+            // we contributed.
+            let actual_price_input_base_xrd_quote =
+                actual_xrd_contribution / actual_input_contribution;
+
+            // Find the percentage difference between the oracle reported price
+            // and that which was reported through the contribution. Difference
+            // must be smaller than the maximum amount allowed for by the
+            // protocol.
+            let percentage_difference = (actual_price_input_base_xrd_quote
+                - price_input_base_xrd_quote)
+                .checked_abs()
+                .unwrap()
+                / actual_price_input_base_xrd_quote;
+            if percentage_difference > *self.maximum_allowed_price_difference {
+                panic!(
+                    "Found a {}% difference in the price of {}/{} when the maximum allowed is: {}",
+                    percentage_difference * dec!(100),
+                    Runtime::bech32_encode_address(input_resource_address),
+                    Runtime::bech32_encode_address(XRD),
+                    self.maximum_allowed_price_difference
+                );
+            }
+
+            // Creating the liquidity position NFT and minting it
+            let liquidity_position_nft = {
+                let data = LiquidityPosition::new(
+                    lockup_period,
+                    input_resource_address,
+                    actual_input_contribution,
+                    actual_xrd_contribution,
+                );
+                self.liquidity_position_resource
+                    .mint_ruid_non_fungible(data)
+                    .as_non_fungible()
+            };
+            let liquidity_position_nft_global_id = NonFungibleGlobalId::new(
+                self.liquidity_position_resource.address(),
+                liquidity_position_nft.non_fungible_local_id(),
+            );
+
+            // Depositing the pool units into the protocol indexed by the
+            // global id of the liquidity position NFT.
+            self.pool_units.insert(
+                liquidity_position_nft_global_id,
+                Vault::with_bucket(pool_units),
+            );
+
+            // Constructing the vector of all of the buckets to return back to
+            // the caller.
+            let mut return_buckets = vec![];
+            for (resource_address, bucket) in change.into_iter() {
+                if resource_address == XRD {
+                    self.deposit(FungibleBucket(bucket))
+                } else {
+                    return_buckets.push(bucket)
+                }
+            }
+            return_buckets.extend(others);
+
+            (liquidity_position_nft, upfront_xrd_reward, return_buckets)
         }
 
         /// Updates the oracle used by the protocol to a different oracle.
@@ -557,11 +745,11 @@ mod olympus {
         ///
         /// # Returns
         ///
-        /// * [`FungibleBucket`] - A bucket of the withdrawn tokens.
+        /// * [`Bucket`] - A bucket of the withdrawn tokens.
         pub fn withdraw_pool_units(
             &mut self,
             id: NonFungibleGlobalId,
-        ) -> FungibleBucket {
+        ) -> Bucket {
             self.pool_units
                 .get_mut(&id)
                 .expect("No pool units exist for id")

@@ -5,6 +5,7 @@ use utils::environments::*;
 
 use adapters_interface::oracle::*;
 use olympus::test_bindings::*;
+use olympus::types::*;
 
 test_access_rules!(update_oracle(FAUCET), protocol_manager);
 test_access_rules!(update_oracle(FAUCET), protocol_owner);
@@ -88,8 +89,11 @@ test_access_rules!(withdraw_pool_units(NonFungibleGlobalId::new(
     ACCOUNT_OWNER_BADGE,
     NonFungibleLocalId::integer(0)
 )));
-test_access_rules!(add_rewards_rate(10, dec!(10)), protocol_owner);
-test_access_rules!(add_rewards_rate(10, dec!(10)));
+test_access_rules!(
+    add_rewards_rate(10, Percent::new(dec!(10)).unwrap()),
+    protocol_owner
+);
+test_access_rules!(add_rewards_rate(10, Percent::new(dec!(10)).unwrap()));
 test_access_rules!(remove_rewards_rate(10), protocol_owner);
 test_access_rules!(remove_rewards_rate(10));
 test_access_rules!(update_usd_resource_address(XRD), protocol_owner);
