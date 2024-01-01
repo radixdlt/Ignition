@@ -18,6 +18,7 @@ radix-engine-store-interface = { workspace = true }
 
 # Pull in the various blueprints to get their testing stubs
 olympus = { path = "../olympus", features = ["test"] }
+ociswap-adapter = { path = "../ociswap-adapter", features = ["test"] }
 adapters-interface = { path = "../adapters-interface" }
 
 paste = { version = "1.0.14" }

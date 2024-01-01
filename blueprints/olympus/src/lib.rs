@@ -130,10 +130,10 @@ mod olympus {
         /// only be one percentage associated with any lockup period.
         ///
         /// Note the following:
-        /// * The key is a [`u32`] of the seconds of the lockup time. A u32
-        /// value of 1 equals 1 second.
+        /// * The key is a [`LockupPeriod`] of the seconds of the lockup time.
+        /// A u32 value of 1 equals 1 second.
         /// * The value is a [`Percent`] which is a decimal between 0 and 1.
-        reward_rates: KeyValueStore<u32, Percent>,
+        reward_rates: KeyValueStore<LockupPeriod, Percent>,
 
         /// The resource address of the USDC, USDT, or any stablecoin. This
         /// resource is needed when trying to find the value of the tokens
@@ -307,7 +307,7 @@ mod olympus {
             &mut self,
             pool_address: ComponentAddress,
             bucket: FungibleBucket,
-            lockup_period: u32,
+            lockup_period: LockupPeriod,
         ) -> (NonFungibleBucket, FungibleBucket, Vec<Bucket>) {
             // Contributions can only happen when the protocol is allowing them.
             // If not, then disable contributions.
@@ -775,9 +775,13 @@ mod olympus {
         ///
         /// # Arguments
         ///
-        /// * `lockup_period`: [`u32`] - The lockup period in seconds.
+        /// * `lockup_period`: [`LockupPeriod`] - The lockup period.
         /// * `rate`: [`Percent`] - The rewards rate as a percent.
-        pub fn add_rewards_rate(&mut self, lockup_period: u32, rate: Percent) {
+        pub fn add_rewards_rate(
+            &mut self,
+            lockup_period: LockupPeriod,
+            rate: Percent,
+        ) {
             self.reward_rates.insert(lockup_period, rate);
         }
 
@@ -795,9 +799,9 @@ mod olympus {
         ///
         /// # Arguments
         ///
-        /// * `lockup_period`: [`u32`] - The lockup period in seconds associated
-        /// with the rewards rate that we would like to remove.
-        pub fn remove_rewards_rate(&mut self, lockup_period: u32) {
+        /// * `lockup_period`: [`LockupPeriod`] - The lockup period in seconds
+        /// associated with the rewards rate that we would like to remove.
+        pub fn remove_rewards_rate(&mut self, lockup_period: LockupPeriod) {
             self.reward_rates.remove(&lockup_period);
         }
 

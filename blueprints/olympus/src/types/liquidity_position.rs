@@ -1,6 +1,4 @@
-use std::time::Duration;
-
-use humantime::format_duration;
+use crate::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Olympus.
@@ -39,22 +37,20 @@ pub struct LiquidityPosition {
 
 impl LiquidityPosition {
     pub fn new(
-        lockup_period: u32,
+        lockup_period: LockupPeriod,
         contributed_resource: ResourceAddress,
         contributed_amount: Decimal,
         matched_xrd_amount: Decimal,
     ) -> Self {
-        let string_lockup_period =
-            format_duration(Duration::new(lockup_period as u64, 0)).to_string();
         let maturity_date = Clock::current_time_rounded_to_minutes()
-            .add_seconds(lockup_period as i64)
+            .add_seconds(*lockup_period.seconds() as i64)
             .unwrap();
 
         Self {
             name: "Olympus Liquidity Position".to_string(),
             description: "A non-fungible representing an open liquidity position in the Olympus protocol.".to_string(),
             key_image_url: Url::of("https://www.google.com"),
-            lockup_period: string_lockup_period,
+            lockup_period: lockup_period.to_string(),
             redemption_url: Url::of("https://www.google.com"),
             contributed_resource,
             contributed_amount,

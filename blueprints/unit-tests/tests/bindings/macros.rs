@@ -105,6 +105,15 @@ macro_rules! test_bindings {
 
                 external_methods!{$($method_contents)*}
 
+                pub fn blueprint_id(
+                    package_address: ::scrypto::prelude::PackageAddress
+                ) -> ::scrypto::prelude::BlueprintId {
+                    ::scrypto::prelude::BlueprintId {
+                        package_address,
+                        blueprint_name: stringify!($blueprint).into()
+                    }
+                }
+
                 fn call_function<Y, E>(
                     package_address: ::scrypto::prelude::PackageAddress,
                     function: &str,

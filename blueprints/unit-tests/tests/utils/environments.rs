@@ -17,6 +17,7 @@ use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 
 use adapters_interface::oracle::*;
+use ociswap_adapter::test_bindings::*;
 use olympus::test_bindings::*;
 
 const PACKAGES_BINARY: &[u8] =
@@ -26,23 +27,33 @@ type PackageSubstates = HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>>;
 
 pub struct Environment<T> {
     pub environment: TestEnvironment,
-    pub olympus: Olympus,
     pub packages: Packages,
     pub resources: Resources,
+    pub components: Components,
     pub additional_data: T,
 }
 
+pub struct Components {
+    /* Core */
+    pub olympus: Olympus,
+    /* Adapters */
+    pub ociswap_adapter: OciswapAdapter,
+}
+
 pub struct Packages {
+    /* DEXs */
     pub caviarnine_package: PackageAddress,
     pub ociswap_package: PackageAddress,
     pub defiplaza_package: PackageAddress,
+    /* Adapters */
+    pub ociswap_adapter_package: PackageAddress,
 }
 
 pub struct Resources {
-    pub bitcoin: ResourceAddress,
-    pub ethereum: ResourceAddress,
-    pub usdc: ResourceAddress,
-    pub usdt: ResourceAddress,
+    pub bitcoin: ResourceManager,
+    pub ethereum: ResourceManager,
+    pub usdc: ResourceManager,
+    pub usdt: ResourceManager,
 }
 
 impl Environment<()> {
@@ -117,10 +128,6 @@ impl<T> Environment<T> {
             scrypto_decode::<(Vec<NodeId>, DbFlash)>(PACKAGES_BINARY)
                 .expect("Can't fail!");
 
-        for item in addresses.iter() {
-            println!("{item:?}")
-        }
-
         let caviarnine_package =
             PackageAddress::try_from(addresses[0]).unwrap();
         let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
@@ -144,7 +151,7 @@ impl<T> Environment<T> {
                     burner => rule!(allow_all);
                     burner_updater => rule!(allow_all);
                 })
-                .mint_initial_supply(dec!(1), &mut env)
+                .mint_initial_supply(dec!(0), &mut env)
                 .expect("Can't fail to create resource!")
                 .resource_address(&mut env)
                 .expect("Can't fail to create resource!")
@@ -157,7 +164,7 @@ impl<T> Environment<T> {
         // Publishing the Olympus package and instantiating an Olympus component
         let (code, definition) =
             super::package_loader::PackageLoader::get("olympus");
-        let (package_address, _) =
+        let (olympus_package_address, _) =
             Package::publish(code, definition, Default::default(), &mut env)
                 .unwrap();
 
@@ -168,23 +175,44 @@ impl<T> Environment<T> {
             configuration.oracle,
             configuration.usd_resource_address,
             configuration.address_reservation,
-            package_address,
+            olympus_package_address,
+            &mut env,
+        )?;
+
+        let (code, definition) =
+            super::package_loader::PackageLoader::get("ociswap-adapter");
+        let (ociswap_adapter_package_address, _) =
+            Package::publish(code, definition, Default::default(), &mut env)
+                .unwrap();
+
+        let ociswap_adapter = OciswapAdapter::instantiate(
+            OwnerRole::None,
+            None,
+            ociswap_adapter_package_address,
             &mut env,
         )?;
 
         Ok(Environment {
             environment: env,
-            olympus,
             packages: Packages {
+                /* DEXs */
                 caviarnine_package,
                 ociswap_package,
                 defiplaza_package,
+                /* Adapters */
+                ociswap_adapter_package: ociswap_adapter_package_address,
             },
             resources: Resources {
-                bitcoin,
-                ethereum,
-                usdc,
-                usdt,
+                bitcoin: ResourceManager(bitcoin),
+                ethereum: ResourceManager(ethereum),
+                usdc: ResourceManager(usdc),
+                usdt: ResourceManager(usdt),
+            },
+            components: Components {
+                /* Core */
+                olympus,
+                /* Adapters */
+                ociswap_adapter,
             },
             additional_data,
         })

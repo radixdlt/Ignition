@@ -38,13 +38,21 @@ extern_blueprint_internal! {
 
 #[blueprint]
 mod adapter {
-    struct OciswapAdapter {}
+    struct OciswapAdapter;
 
     impl OciswapAdapter {
         pub fn instantiate(
             owner_role: OwnerRole,
-            address_reservation: GlobalAddressReservation,
+            address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<OciswapAdapter> {
+            let address_reservation = address_reservation.unwrap_or(
+                Runtime::allocate_component_address(BlueprintId {
+                    package_address: Runtime::package_address(),
+                    blueprint_name: Runtime::blueprint_name(),
+                })
+                .0,
+            );
+
             Self {}
                 .instantiate()
                 .prepare_to_globalize(owner_role)

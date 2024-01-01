@@ -4,9 +4,7 @@
 mod environments;
 mod errors;
 mod package_loader;
-mod types;
 
 pub use environments::*;
 pub use errors::*;
 pub use package_loader::*;
-pub use types::*;
