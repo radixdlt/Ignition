@@ -90,10 +90,10 @@ test_access_rules!(withdraw_pool_units(NonFungibleGlobalId::new(
     NonFungibleLocalId::integer(0)
 )));
 test_access_rules!(
-    add_rewards_rate(10, Percent::new(dec!(10)).unwrap()),
+    add_rewards_rate(10, Percent::new(dec!(0.5)).unwrap()),
     protocol_owner
 );
-test_access_rules!(add_rewards_rate(10, Percent::new(dec!(10)).unwrap()));
+test_access_rules!(add_rewards_rate(10, Percent::new(dec!(0.5)).unwrap()));
 test_access_rules!(remove_rewards_rate(10), protocol_owner);
 test_access_rules!(remove_rewards_rate(10));
 test_access_rules!(update_usd_resource_address(XRD), protocol_owner);
