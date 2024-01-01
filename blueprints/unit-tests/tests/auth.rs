@@ -1,10 +1,11 @@
+#![allow(unused_variables)]
+
 mod utils;
 
 use scrypto_test::prelude::*;
 use utils::environments::*;
 
 use adapters_interface::oracle::*;
-use olympus::test_bindings::*;
 use olympus::types::*;
 
 test_access_rules!(update_oracle(FAUCET), protocol_manager);
@@ -111,36 +112,40 @@ macro_rules! test_access_rules {
                     // Arrange
                     let Environment {
                         environment: ref mut env,
+                        mut olympus,
+                        additional_data: (protocol_manager_badge, protocol_owner_badge),
                         ..
-                    } = utils::environments::new_test_environment();
+                    } = Environment::new_with_olympus_config(
+                        |env| {
+                            let protocol_manager_badge =
+                                ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
+                                    .divisibility(0)
+                                    .mint_initial_supply(1, env)?;
+                            let protocol_owner_badge =
+                                ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
+                                    .divisibility(0)
+                                    .mint_initial_supply(1, env)?;
 
-                    let (code, definition) = utils::package_loader::PackageLoader::get("olympus");
-                    let (package_address, _) =
-                        Package::publish(code, definition, Default::default(), env).unwrap();
+                            let protocol_manager_resource_address =
+                                protocol_manager_badge.resource_address(env)?;
+                            let protocol_owner_resource_address =
+                                protocol_owner_badge.resource_address(env)?;
 
-                    let protocol_manager_badge =
-                        ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
-                            .divisibility(0)
-                            .mint_initial_supply(1, env)?;
-                    let protocol_owner_badge =
-                        ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
-                            .divisibility(0)
-                            .mint_initial_supply(1, env)?;
-
-                    let protocol_manager_resource_address =
-                        protocol_manager_badge.resource_address(env)?;
-                    let protocol_owner_resource_address =
-                        protocol_owner_badge.resource_address(env)?;
-
-                    let mut olympus = Olympus::instantiate(
-                        OwnerRole::None,
-                        rule!(require(protocol_owner_resource_address)),
-                        rule!(require(protocol_manager_resource_address)),
-                        OracleAdapter(Reference(FAUCET.into_node_id())),
-                        XRD,
-                        None,
-                        package_address,
-                        env,
+                            Ok((
+                                OlympusConfiguration {
+                                    owner_role: OwnerRole::None,
+                                    protocol_owner_role: rule!(require(protocol_owner_resource_address)),
+                                    protocol_manager_role: rule!(require(protocol_manager_resource_address)),
+                                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                                    usd_resource_address: XRD,
+                                    address_reservation: None,
+                                },
+                                (
+                                    protocol_manager_badge,
+                                    protocol_owner_badge
+                                )
+                            ))
+                        }
                     )?;
 
                     let proof = [< $role _badge >].create_proof_of_all(env)?;
@@ -172,36 +177,40 @@ macro_rules! test_access_rules {
                     // Arrange
                     let Environment {
                         environment: ref mut env,
+                        mut olympus,
+                        additional_data: (protocol_manager_badge, protocol_owner_badge),
                         ..
-                    } = utils::environments::new_test_environment();
+                    } = Environment::new_with_olympus_config(
+                        |env| {
+                            let protocol_manager_badge =
+                                ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
+                                    .divisibility(0)
+                                    .mint_initial_supply(1, env)?;
+                            let protocol_owner_badge =
+                                ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
+                                    .divisibility(0)
+                                    .mint_initial_supply(1, env)?;
 
-                    let (code, definition) = utils::package_loader::PackageLoader::get("olympus");
-                    let (package_address, _) =
-                        Package::publish(code, definition, Default::default(), env).unwrap();
+                            let protocol_manager_resource_address =
+                                protocol_manager_badge.resource_address(env)?;
+                            let protocol_owner_resource_address =
+                                protocol_owner_badge.resource_address(env)?;
 
-                    let protocol_manager_badge =
-                        ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
-                            .divisibility(0)
-                            .mint_initial_supply(1, env)?;
-                    let protocol_owner_badge =
-                        ::scrypto_test::prelude::ResourceBuilder::new_fungible(OwnerRole::None)
-                            .divisibility(0)
-                            .mint_initial_supply(1, env)?;
-
-                    let protocol_manager_resource_address =
-                        protocol_manager_badge.resource_address(env)?;
-                    let protocol_owner_resource_address =
-                        protocol_owner_badge.resource_address(env)?;
-
-                    let mut olympus = Olympus::instantiate(
-                        OwnerRole::None,
-                        rule!(require(protocol_owner_resource_address)),
-                        rule!(require(protocol_manager_resource_address)),
-                        OracleAdapter(Reference(FAUCET.into_node_id())),
-                        XRD,
-                        None,
-                        package_address,
-                        env,
+                            Ok((
+                                OlympusConfiguration {
+                                    owner_role: OwnerRole::None,
+                                    protocol_owner_role: rule!(require(protocol_owner_resource_address)),
+                                    protocol_manager_role: rule!(require(protocol_manager_resource_address)),
+                                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                                    usd_resource_address: XRD,
+                                    address_reservation: None,
+                                },
+                                (
+                                    protocol_manager_badge,
+                                    protocol_owner_badge
+                                )
+                            ))
+                        }
                     )?;
 
                     // Act

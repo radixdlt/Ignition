@@ -11,7 +11,9 @@ use radix_engine_interface::prelude::*;
 use radix_engine_store_interface::interface::*;
 use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
-use scrypto_unit::*;
+
+use adapters_interface::oracle::*;
+use olympus::test_bindings::*;
 
 type BranchStore =
     HashMap<DbNodeKey, HashMap<DbPartitionNum, HashMap<DbSortKey, Vec<u8>>>>;
@@ -22,9 +24,11 @@ const PACKAGES_BINARY: &[u8] =
 type PackageSubstates = HashMap<DbPartitionKey, HashMap<DbSortKey, Vec<u8>>>;
 
 pub struct Environment<T> {
-    pub environment: T,
+    pub environment: TestEnvironment,
+    pub olympus: Olympus,
     pub packages: Packages,
     pub resources: Resources,
+    pub additional_data: T,
 }
 
 pub struct Packages {
@@ -40,114 +44,115 @@ pub struct Resources {
     pub usdt: ResourceAddress,
 }
 
-pub fn new_test_environment() -> Environment<TestEnvironment> {
-    let (addresses, branch_store) =
-        scrypto_decode::<(Vec<NodeId>, BranchStore)>(PACKAGES_BINARY)
-            .expect("Can't fail!");
-
-    let caviarnine_package = PackageAddress::try_from(addresses[0]).unwrap();
-    let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
-    let defiplaza_package = PackageAddress::try_from(addresses[2]).unwrap();
-
-    let mut env = TestEnvironment::new_custom(|substate_database| {
-        flash_branch_store(branch_store, substate_database)
-    });
-
-    // Creating the resources. They are all freely mintable to make the tests
-    // easier.
-    let [bitcoin, ethereum, usdc, usdt] = [8, 18, 6, 6].map(|divisibility| {
-        ResourceBuilder::new_fungible(OwnerRole::Fixed(rule!(allow_all)))
-            .divisibility(divisibility)
-            .mint_roles(mint_roles! {
-                minter => rule!(allow_all);
-                minter_updater => rule!(allow_all);
-            })
-            .burn_roles(burn_roles! {
-                burner => rule!(allow_all);
-                burner_updater => rule!(allow_all);
-            })
-            .mint_initial_supply(dec!(1), &mut env)
-            .expect("Can't fail to create resource!")
-            .resource_address(&mut env)
-            .expect("Can't fail to create resource!")
-    });
-
-    Environment {
-        environment: env,
-        packages: Packages {
-            caviarnine_package,
-            ociswap_package,
-            defiplaza_package,
-        },
-        resources: Resources {
-            bitcoin,
-            ethereum,
-            usdc,
-            usdt,
-        },
+impl Environment<()> {
+    pub fn new() -> Result<Environment<()>, RuntimeError> {
+        Self::new_with_olympus_config(|_| {
+            Ok((
+                OlympusConfiguration {
+                    owner_role: OwnerRole::None,
+                    protocol_owner_role: rule!(allow_all),
+                    protocol_manager_role: rule!(allow_all),
+                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                    usd_resource_address: XRD,
+                    address_reservation: None,
+                },
+                (),
+            ))
+        })
     }
 }
 
-pub fn new_test_runner() -> Environment<DefaultTestRunner> {
-    let mut test_runner = TestRunnerBuilder::new().build();
-    let substate_database = test_runner.substate_db_mut();
+impl<T> Environment<T> {
+    pub fn new_with_olympus_config<F>(callback: F) -> Result<Self, RuntimeError>
+    where
+        F: Fn(
+            &mut TestEnvironment,
+        ) -> Result<(OlympusConfiguration, T), RuntimeError>,
+    {
+        let (addresses, branch_store) =
+            scrypto_decode::<(Vec<NodeId>, BranchStore)>(PACKAGES_BINARY)
+                .expect("Can't fail!");
 
-    let substates =
-        scrypto_decode::<(Vec<PackageAddress>, BranchStore)>(PACKAGES_BINARY)
-            .expect("Can't fail!");
+        let caviarnine_package =
+            PackageAddress::try_from(addresses[0]).unwrap();
+        let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
+        let defiplaza_package = PackageAddress::try_from(addresses[2]).unwrap();
 
-    let caviarnine_package = substates.0[0];
-    let ociswap_package = substates.0[1];
-    let defiplaza_package = substates.0[2];
+        let mut env = TestEnvironment::new_custom(|substate_database| {
+            flash_branch_store(branch_store, substate_database)
+        });
 
-    flash_branch_store(substates.1, substate_database);
+        // Creating the resources. They are all freely mintable to make the tests
+        // easier.
+        let [bitcoin, ethereum, usdc, usdt] =
+            [8, 18, 6, 6].map(|divisibility| {
+                ResourceBuilder::new_fungible(OwnerRole::Fixed(rule!(
+                    allow_all
+                )))
+                .divisibility(divisibility)
+                .mint_roles(mint_roles! {
+                    minter => rule!(allow_all);
+                    minter_updater => rule!(allow_all);
+                })
+                .burn_roles(burn_roles! {
+                    burner => rule!(allow_all);
+                    burner_updater => rule!(allow_all);
+                })
+                .mint_initial_supply(dec!(1), &mut env)
+                .expect("Can't fail to create resource!")
+                .resource_address(&mut env)
+                .expect("Can't fail to create resource!")
+            });
 
-    let [bitcoin, ethereum, usdc, usdt] = [8, 18, 6, 6].map(|divisibility| {
-        let manifest = ManifestBuilder::new()
-            .create_fungible_resource(
-                OwnerRole::Fixed(rule!(allow_all)),
-                true,
-                divisibility,
-                FungibleResourceRoles {
-                    mint_roles: mint_roles! {
-                        minter => rule!(allow_all);
-                        minter_updater => rule!(allow_all);
-                    },
-                    burn_roles: burn_roles! {
-                        burner => rule!(allow_all);
-                        burner_updater => rule!(allow_all);
-                    },
-                    freeze_roles: None,
-                    recall_roles: None,
-                    withdraw_roles: None,
-                    deposit_roles: None,
-                },
-                Default::default(),
-                None,
-            )
-            .build();
-        let receipt = test_runner.execute_manifest(manifest, vec![]);
-        *receipt
-            .expect_commit_success()
-            .new_resource_addresses()
-            .first()
-            .unwrap()
-    });
+        // Get the configuration to use for the Olympus component from the
+        // callback
+        let (configuration, additional_data) = callback(&mut env)?;
 
-    Environment {
-        environment: test_runner,
-        packages: Packages {
-            caviarnine_package,
-            ociswap_package,
-            defiplaza_package,
-        },
-        resources: Resources {
-            bitcoin,
-            ethereum,
-            usdc,
-            usdt,
-        },
+        // Publishing the Olympus package and instantiating an Olympus component
+        let (code, definition) =
+            super::package_loader::PackageLoader::get("olympus");
+        let (package_address, _) =
+            Package::publish(code, definition, Default::default(), &mut env)
+                .unwrap();
+
+        let olympus = Olympus::instantiate(
+            configuration.owner_role,
+            configuration.protocol_owner_role,
+            configuration.protocol_manager_role,
+            configuration.oracle,
+            configuration.usd_resource_address,
+            configuration.address_reservation,
+            package_address,
+            &mut env,
+        )?;
+
+        Ok(Environment {
+            environment: env,
+            olympus,
+            packages: Packages {
+                caviarnine_package,
+                ociswap_package,
+                defiplaza_package,
+            },
+            resources: Resources {
+                bitcoin,
+                ethereum,
+                usdc,
+                usdt,
+            },
+            additional_data,
+        })
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct OlympusConfiguration {
+    pub owner_role: OwnerRole,
+    pub protocol_owner_role: AccessRule,
+    pub protocol_manager_role: AccessRule,
+    pub oracle: OracleAdapter,
+    pub usd_resource_address: ResourceAddress,
+    pub address_reservation: Option<GlobalAddressReservation>,
 }
 
 fn flash_branch_store<S: CommittableSubstateDatabase>(

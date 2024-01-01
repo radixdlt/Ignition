@@ -17,7 +17,17 @@ macro_rules! define_adapter_stubs {
         mod scrypto {
             use super::*;
 
-            #[derive(::scrypto::prelude::ScryptoSbor)]
+            #[derive(
+                ::scrypto::prelude::ScryptoSbor,
+                Clone,
+                Copy,
+                Debug,
+                PartialEq,
+                Eq,
+                PartialOrd,
+                Ord,
+                Hash
+            )]
             #[sbor(transparent)]
             pub struct $adapter_name(pub ::scrypto::prelude::Reference);
 
