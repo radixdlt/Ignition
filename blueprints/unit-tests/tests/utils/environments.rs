@@ -5,6 +5,10 @@
 //! functions and methods in this module do unwraps and panics just because they
 //! will be used in tests where we do not want to deal with their errors.
 
+// TODO: It would be great to have an Environment builder that leverages the
+// type system to provide an environment based on what's specified during the
+// building process.
+
 #![allow(dead_code)]
 
 use radix_engine_interface::prelude::*;
@@ -57,6 +61,49 @@ impl Environment<()> {
                     address_reservation: None,
                 },
                 (),
+            ))
+        })
+    }
+}
+
+impl Environment<OlympusBadges> {
+    pub fn new_create_badges() -> Result<Self, RuntimeError> {
+        Environment::new_with_olympus_config(|env| {
+            let protocol_manager_badge =
+                ::scrypto_test::prelude::ResourceBuilder::new_fungible(
+                    OwnerRole::None,
+                )
+                .divisibility(0)
+                .mint_initial_supply(1, env)?;
+            let protocol_owner_badge =
+                ::scrypto_test::prelude::ResourceBuilder::new_fungible(
+                    OwnerRole::None,
+                )
+                .divisibility(0)
+                .mint_initial_supply(1, env)?;
+
+            let protocol_manager_resource_address =
+                protocol_manager_badge.resource_address(env)?;
+            let protocol_owner_resource_address =
+                protocol_owner_badge.resource_address(env)?;
+
+            Ok((
+                OlympusConfiguration {
+                    owner_role: OwnerRole::None,
+                    protocol_owner_role: rule!(require(
+                        protocol_owner_resource_address
+                    )),
+                    protocol_manager_role: rule!(require(
+                        protocol_manager_resource_address
+                    )),
+                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                    usd_resource_address: XRD,
+                    address_reservation: None,
+                },
+                OlympusBadges {
+                    protocol_manager: protocol_manager_badge,
+                    protocol_owner: protocol_owner_badge,
+                },
             ))
         })
     }
@@ -153,6 +200,12 @@ pub struct OlympusConfiguration {
     pub oracle: OracleAdapter,
     pub usd_resource_address: ResourceAddress,
     pub address_reservation: Option<GlobalAddressReservation>,
+}
+
+#[derive(Debug)]
+pub struct OlympusBadges {
+    pub protocol_owner: Bucket,
+    pub protocol_manager: Bucket,
 }
 
 fn flash_branch_store<S: CommittableSubstateDatabase>(
