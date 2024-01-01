@@ -1,11 +1,10 @@
 #![allow(unused_variables)]
 
 mod utils;
-
-use scrypto_test::prelude::*;
-use utils::environments::*;
+use utils::*;
 
 use olympus::types::*;
+use scrypto_test::prelude::*;
 
 test_access_rules!(update_oracle(FAUCET), protocol_manager);
 test_access_rules!(update_oracle(FAUCET), protocol_owner);

@@ -19,9 +19,6 @@ use scrypto_test::prelude::*;
 use adapters_interface::oracle::*;
 use olympus::test_bindings::*;
 
-type BranchStore =
-    HashMap<DbNodeKey, HashMap<DbPartitionNum, HashMap<DbSortKey, Vec<u8>>>>;
-
 const PACKAGES_BINARY: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
 
@@ -116,18 +113,20 @@ impl<T> Environment<T> {
             &mut TestEnvironment,
         ) -> Result<(OlympusConfiguration, T), RuntimeError>,
     {
-        let (addresses, branch_store) =
-            scrypto_decode::<(Vec<NodeId>, BranchStore)>(PACKAGES_BINARY)
+        let (addresses, db_flash) =
+            scrypto_decode::<(Vec<NodeId>, DbFlash)>(PACKAGES_BINARY)
                 .expect("Can't fail!");
+
+        for item in addresses.iter() {
+            println!("{item:?}")
+        }
 
         let caviarnine_package =
             PackageAddress::try_from(addresses[0]).unwrap();
         let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
         let defiplaza_package = PackageAddress::try_from(addresses[2]).unwrap();
 
-        let mut env = TestEnvironment::new_custom(|substate_database| {
-            flash_branch_store(branch_store, substate_database)
-        });
+        let mut env = TestEnvironmentBuilder::new().flash(db_flash).build();
 
         // Creating the resources. They are all freely mintable to make the tests
         // easier.
@@ -206,46 +205,4 @@ pub struct OlympusConfiguration {
 pub struct OlympusBadges {
     pub protocol_owner: Bucket,
     pub protocol_manager: Bucket,
-}
-
-fn flash_branch_store<S: CommittableSubstateDatabase>(
-    branch_store: BranchStore,
-    substate_database: &mut S,
-) {
-    let database_updates = database_updates(branch_store);
-    substate_database.commit(&database_updates);
-}
-
-fn database_updates(branch_store: BranchStore) -> DatabaseUpdates {
-    DatabaseUpdates {
-        node_updates: branch_store
-            .into_iter()
-            .map(|(db_node_key, partition_num_to_updates_mapping)| {
-                (
-                    db_node_key,
-                    NodeDatabaseUpdates {
-                        partition_updates: partition_num_to_updates_mapping
-                            .into_iter()
-                            .map(|(partition_num, substates)| {
-                                (
-                                    partition_num,
-                                    PartitionDatabaseUpdates::Delta {
-                                        substate_updates: substates
-                                            .into_iter()
-                                            .map(|(db_sort_key, value)| {
-                                                (
-                                                    db_sort_key,
-                                                    DatabaseUpdate::Set(value),
-                                                )
-                                            })
-                                            .collect(),
-                                    },
-                                )
-                            })
-                            .collect(),
-                    },
-                )
-            })
-            .collect(),
-    }
 }

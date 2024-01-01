@@ -6,6 +6,7 @@ description = "Unit tests of the Olympus protocol and accompanying blueprints"
 build = "build.rs"
 
 [dev-dependencies]
+sbor = { workspace = true }
 scrypto = { workspace = true }
 scrypto-test = { workspace = true }
 scrypto-unit = { workspace = true }
