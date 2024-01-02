@@ -65,6 +65,16 @@ macro_rules! define_interface {
                 }
             }
 
+            $crate::impl_try_from! {
+                [< $struct_ident InterfaceScryptoStub >] => [
+                    ::radix_engine_interface::prelude::ComponentAddress,
+                    ::radix_engine_interface::prelude::ResourceAddress,
+                    ::radix_engine_interface::prelude::PackageAddress,
+                    ::radix_engine_interface::prelude::InternalAddress,
+                    ::radix_engine_interface::prelude::GlobalAddress,
+                ]
+            }
+
             // Creating the ScryptoTestStubs for the given interface.
             #[derive(
                 ::radix_engine_interface::prelude::ScryptoSbor,
@@ -89,6 +99,16 @@ macro_rules! define_interface {
                 fn from(value: T) -> Self {
                     Self(::radix_engine_interface::prelude::Reference(value.into()))
                 }
+            }
+
+            $crate::impl_try_from! {
+                [< $struct_ident InterfaceScryptoTestStub >] => [
+                    ::radix_engine_interface::prelude::ComponentAddress,
+                    ::radix_engine_interface::prelude::ResourceAddress,
+                    ::radix_engine_interface::prelude::PackageAddress,
+                    ::radix_engine_interface::prelude::InternalAddress,
+                    ::radix_engine_interface::prelude::GlobalAddress,
+                ]
             }
 
             impl [< $struct_ident InterfaceScryptoStub >] {
@@ -130,6 +150,34 @@ macro_rules! define_interface {
                 }
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_try_from {
+    (
+        $type: ty => [
+            $($from_type: ty),* $(,)*
+        ]
+    ) => {
+        $(
+            impl TryFrom<$type>
+                for $from_type
+            {
+                type Error = <
+                    $from_type as TryFrom<::radix_engine_interface::prelude::NodeId>
+                >::Error;
+
+                fn try_from(
+                    value: $type
+                ) -> Result<Self, Self::Error>
+                {
+                    <$from_type>::try_from(
+                        *value.0.as_node_id()
+                    )
+                }
+            }
+        )*
     };
 }
 
