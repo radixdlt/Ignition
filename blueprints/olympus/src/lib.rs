@@ -175,7 +175,7 @@ mod olympus {
             protocol_owner_role: AccessRule,
             protocol_manager_role: AccessRule,
             /* Protocol Parameters */
-            oracle: OracleAdapter,
+            oracle: ComponentAddress,
             usd_resource_address: ResourceAddress,
             /* Misc */
             address_reservation: Option<GlobalAddressReservation>,
@@ -235,7 +235,7 @@ mod olympus {
                 .create_with_no_initial_supply();
 
             Self {
-                oracle,
+                oracle: OracleAdapter::from(oracle),
                 usd_resource_address,
                 allowed_pools: Default::default(),
                 pool_adapters: KeyValueStore::new(),
