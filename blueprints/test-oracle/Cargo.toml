@@ -1,8 +1,8 @@
 [package]
-name = "olympus"
+name = "test-oracle"
 version = { workspace = true }
 edition = { workspace = true }
-description = "The implementation of the Olympus protocol"
+description = "A simple oracle used in tests."
 
 [dependencies]
 sbor = { workspace = true }

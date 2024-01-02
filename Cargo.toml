@@ -1,10 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "blueprints/unit-tests",
+    # Protocol Core
+    "blueprints/olympus",
+    # Interfaces
     "blueprints/adapters-interface",
     "blueprints/ociswap-adapter",
-    "blueprints/olympus",
+    # Testing
+    "blueprints/unit-tests",
+    "blueprints/test-oracle",
 ]
 
 [workspace.package]

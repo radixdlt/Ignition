@@ -19,6 +19,7 @@ use scrypto_test::prelude::*;
 use adapters_interface::oracle::*;
 use ociswap_adapter::test_bindings::*;
 use olympus::test_bindings::*;
+use test_oracle::test_bindings::*;
 
 const PACKAGES_BINARY: &[u8] =
     include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
@@ -38,6 +39,8 @@ pub struct Components {
     pub olympus: Olympus,
     /* Adapters */
     pub ociswap_adapter: OciswapAdapter,
+    /* Test Components */
+    pub test_oracle: TestOracle,
 }
 
 pub struct Packages {
@@ -47,6 +50,8 @@ pub struct Packages {
     pub defiplaza_package: PackageAddress,
     /* Adapters */
     pub ociswap_adapter_package: PackageAddress,
+    /* Test Packages */
+    pub test_oracle_package: PackageAddress,
 }
 
 pub struct Resources {
@@ -171,7 +176,7 @@ impl<T> Environment<T> {
         let olympus = Olympus::instantiate(
             configuration.owner_role,
             configuration.protocol_owner_role,
-            configuration.protocol_manager_role,
+            configuration.protocol_manager_role.clone(),
             configuration.oracle,
             configuration.usd_resource_address,
             configuration.address_reservation,
@@ -192,6 +197,20 @@ impl<T> Environment<T> {
             &mut env,
         )?;
 
+        let (code, definition) =
+            super::package_loader::PackageLoader::get("test-oracle");
+        let (test_oracle_package_address, _) =
+            Package::publish(code, definition, Default::default(), &mut env)
+                .unwrap();
+
+        let test_oracle = TestOracle::instantiate(
+            configuration.protocol_manager_role.clone(),
+            OwnerRole::None,
+            None,
+            test_oracle_package_address,
+            &mut env,
+        )?;
+
         Ok(Environment {
             environment: env,
             packages: Packages {
@@ -201,6 +220,8 @@ impl<T> Environment<T> {
                 defiplaza_package,
                 /* Adapters */
                 ociswap_adapter_package: ociswap_adapter_package_address,
+                /* Test Packages */
+                test_oracle_package: test_oracle_package_address,
             },
             resources: Resources {
                 bitcoin: ResourceManager(bitcoin),
@@ -213,6 +234,8 @@ impl<T> Environment<T> {
                 olympus,
                 /* Adapters */
                 ociswap_adapter,
+                /* Test Components */
+                test_oracle,
             },
             additional_data,
         })

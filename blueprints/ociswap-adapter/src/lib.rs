@@ -66,7 +66,7 @@ mod adapter {
             buckets: (Bucket, Bucket),
         ) -> OpenLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
-            let mut basic_pool = Global::<BasicPool>::from(pool_address);
+            let mut basic_pool = Self::global_pool(pool_address);
 
             // Add liquidity to the pool.
             // TODO: Is this actually pool units and change?
@@ -93,7 +93,7 @@ mod adapter {
             pool_units: Bucket,
         ) -> CloseLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
-            let mut basic_pool = Global::<BasicPool>::from(pool_address);
+            let mut basic_pool = Self::global_pool(pool_address);
 
             // Remove the liquidity
             let buckets = basic_pool.remove_liquidity(pool_units);
@@ -106,6 +106,12 @@ mod adapter {
                 },
                 others: vec![],
             }
+        }
+
+        fn global_pool(pool_address: ComponentAddress) -> Global<BasicPool> {
+            Global(BasicPool {
+                handle: ObjectStubHandle::Global(pool_address.into()),
+            })
         }
     }
 }

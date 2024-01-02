@@ -71,6 +71,7 @@ fn decompress_state() {
     use std::path::*;
     use std::str::FromStr;
 
+    println!("cargo:rerun-if-changed=\"./assets/state\"");
     let compressed = include_bytes!("./assets/state");
     let mut decoder = GzDecoder::new(&compressed[..]);
     let mut uncompressed = Vec::new();

@@ -18,6 +18,7 @@ radix-engine-store-interface = { workspace = true }
 
 # Pull in the various blueprints to get their testing stubs
 olympus = { path = "../olympus", features = ["test"] }
+test-oracle = { path = "../test-oracle", features = ["test"] }
 ociswap-adapter = { path = "../ociswap-adapter", features = ["test"] }
 adapters-interface = { path = "../adapters-interface" }
 
@@ -35,6 +36,8 @@ scrypto-unit = { workspace = true }
 crate-type = ["cdylib", "lib"]
 
 [features]
-# If this feature is enabled, this crate will compile all of the blueprints ahead of time and make
-# them available for use.
+default = ["compile-blueprints-at-build-time"]
+# If this feature is enabled, this crate will compile all of the blueprints 
+# at compilation time and no additional time will be spent on compilation at
+# runtime.
 compile-blueprints-at-build-time = ["dep:walkdir", "dep:cargo_toml"]
