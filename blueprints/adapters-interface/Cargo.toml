@@ -6,11 +6,14 @@ description = "Defines the interface of the various adapters-interface"
 
 [dependencies]
 sbor = { workspace = true }
-scrypto = { workspace = true }
+scrypto = { workspace = true, optional = true }
+scrypto-test = { workspace = true, optional = true }
 radix-engine-common = { workspace = true }
+radix-engine-interface = { workspace = true }
 
 [features]
-scrypto = []
+scrypto = ["dep:scrypto"]
+scrypto-test = ["dep:scrypto-test"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

@@ -1,5 +1,5 @@
 use crate::define_adapter_stubs;
-use ::scrypto::prelude::*;
+use ::radix_engine_common::prelude::*;
 
 define_adapter_stubs! {
     name: OracleAdapter,

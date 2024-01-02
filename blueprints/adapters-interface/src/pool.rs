@@ -1,5 +1,6 @@
 use crate::define_adapter_stubs;
-use ::scrypto::prelude::*;
+use ::radix_engine_common::prelude::*;
+use ::radix_engine_interface::prelude::*;
 
 #[derive(Debug, ScryptoSbor)]
 pub struct OpenLiquidityPositionOutput {
