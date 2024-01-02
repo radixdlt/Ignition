@@ -2,16 +2,16 @@
 resolver = "2"
 members = [
     # Protocol Core
-    "blueprints/olympus",
+    "olympus",
     # Core Libraries
-    "blueprints/scrypto-interface",
-    "blueprints/scrypto-interface-proc-macros",
+    "scrypto-interface",
+    "scrypto-interface-proc-macros",
     # Interfaces
-    "blueprints/adapters-interface",
-    "blueprints/ociswap-adapter",
+    "adapters-interface",
+    "ociswap-adapter",
     # Testing
-    "blueprints/unit-tests",
-    "blueprints/test-oracle",
+    "unit-tests",
+    "test-oracle",
 ]
 
 [workspace.package]
