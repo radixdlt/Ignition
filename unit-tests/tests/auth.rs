@@ -13,24 +13,25 @@ macro_rules! test_access_rules {
             paste::paste! {
                 #[test]
                 fn [< can_call_ $method_name _with_ $role _role >]()
-                    -> ::std::result::Result<(), ::scrypto_test::prelude::RuntimeError>
+                    -> ::std::result::Result<
+                        (),
+                        ::scrypto_test::prelude::RuntimeError
+                    >
                 {
                     // Arrange
                     let Environment {
                         environment: ref mut env,
-                        components: Components { mut olympus, .. },
-                        additional_data: OlympusBadges {
-                            protocol_manager: protocol_manager_badge,
-                            protocol_owner: protocol_owner_badge
-                        },
+                        mut protocol,
+                        ociswap,
                         ..
-                    } = Environment::new_create_badges()?;
+                    } = Environment::new()?;
+                    env.enable_auth_module();
 
-                    let proof = [< $role _badge >].create_proof_of_all(env)?;
+                    let proof = protocol.[< $role _badge >].create_proof_of_all(env)?;
                     LocalAuthZone::push(proof, env)?;
 
                     // Act
-                    let rtn = olympus.$method_name( $( $arg ),* , env);
+                    let rtn = protocol.olympus.$method_name( $( $arg ),* , env);
 
                     // Assert
                     assert!(!matches!(
@@ -55,16 +56,14 @@ macro_rules! test_access_rules {
                     // Arrange
                     let Environment {
                         environment: ref mut env,
-                        components: Components { mut olympus, .. },
-                        additional_data: OlympusBadges {
-                            protocol_manager: protocol_manager_badge,
-                            protocol_owner: protocol_owner_badge
-                        },
+                        mut protocol,
+                        ociswap,
                         ..
-                    } = Environment::new_create_badges()?;
+                    } = Environment::new()?;
+                    env.enable_auth_module();
 
                     // Act
-                    let rtn = olympus.$method_name( $( $arg ),* , env);
+                    let rtn = protocol.olympus.$method_name( $( $arg ),* , env);
 
                     // Assert
                     assert!(matches!(
