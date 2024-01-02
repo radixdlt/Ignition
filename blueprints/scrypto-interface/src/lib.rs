@@ -35,7 +35,7 @@ macro_rules! define_interface {
     ) => {
         paste::paste! {
             // Creating a trait for the given interface.
-            pub trait [< $blueprint_ident InterfaceTrait >] {
+            pub trait [< $struct_ident InterfaceTrait >]: Sized {
                 $crate::handle_functions_trait!( $($functions)* );
             }
 
@@ -52,9 +52,18 @@ macro_rules! define_interface {
                 Hash
             )]
             #[sbor(transparent)]
-            pub struct [< $blueprint_ident InterfaceScryptoStub >](
+            pub struct [< $struct_ident InterfaceScryptoStub >](
                 ::radix_engine_interface::prelude::Reference
             );
+
+            impl<T> From<T> for [< $struct_ident InterfaceScryptoStub >]
+            where
+                T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
+            {
+                fn from(value: T) -> Self {
+                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                }
+            }
 
             // Creating the ScryptoTestStubs for the given interface.
             #[derive(
@@ -69,11 +78,20 @@ macro_rules! define_interface {
                 Hash
             )]
             #[sbor(transparent)]
-            pub struct [< $blueprint_ident InterfaceScryptoTestStub >](
+            pub struct [< $struct_ident InterfaceScryptoTestStub >](
                 ::radix_engine_interface::prelude::Reference
             );
 
-            impl [< $blueprint_ident InterfaceScryptoStub >] {
+            impl<T> From<T> for [< $struct_ident InterfaceScryptoTestStub >]
+            where
+                T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
+            {
+                fn from(value: T) -> Self {
+                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                }
+            }
+
+            impl [< $struct_ident InterfaceScryptoStub >] {
                 $crate::handle_functions_scrypto_stub!( $($functions)* );
 
                 fn call_function(
@@ -90,7 +108,7 @@ macro_rules! define_interface {
                 }
             }
 
-            impl [< $blueprint_ident InterfaceScryptoTestStub >] {
+            impl [< $struct_ident InterfaceScryptoTestStub >] {
                 $crate::handle_functions_scrypto_test_stub!( $($functions)* );
 
                 fn call_function<Y, E>(
