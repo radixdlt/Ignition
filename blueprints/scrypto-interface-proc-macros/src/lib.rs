@@ -166,6 +166,7 @@ fn handle_blueprint_with_traits(
             const _: () = {
                 struct #blueprint_ident;
 
+                #[allow(unused_variables)]
                 #(#unreachable_trait_impls)*
             };
         })

@@ -9,7 +9,8 @@ sbor = { workspace = true }
 scrypto = { workspace = true }
 radix-engine-derive = { workspace = true }
 
-adapters-interface = { path = "../adapters-interface", features = ["scrypto"] }
+scrypto-interface = { path = "../scrypto-interface" }
+adapters-interface = { path = "../adapters-interface" }
 
 humantime = { version = "2.1.0" }
 

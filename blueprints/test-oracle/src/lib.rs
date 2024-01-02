@@ -1,6 +1,8 @@
+use adapters_interface::oracle::*;
 use scrypto::prelude::*;
+use scrypto_interface::*;
 
-#[blueprint]
+#[blueprint_with_traits]
 mod test_oracle {
     enable_method_auth! {
         roles {
@@ -57,9 +59,10 @@ mod test_oracle {
                 (price, Clock::current_time_rounded_to_minutes()),
             )
         }
+    }
 
-        /* Implementation of the Oracle Interface */
-        pub fn get_price(
+    impl OracleAdapterInterfaceTrait for TestOracle {
+        fn get_price(
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
