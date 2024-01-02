@@ -8,6 +8,9 @@ use scrypto::prelude::*;
 
 pub use types::*;
 
+type OracleAdapter = OracleAdapterInterfaceScryptoStub;
+type PoolAdapter = PoolAdapterInterfaceScryptoStub;
+
 #[blueprint]
 #[types(LiquidityPosition)]
 mod olympus {
