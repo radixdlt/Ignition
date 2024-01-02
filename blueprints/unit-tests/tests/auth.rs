@@ -6,6 +6,80 @@ use utils::*;
 use olympus::types::*;
 use scrypto_test::prelude::*;
 
+macro_rules! test_access_rules {
+    (
+        $method_name: ident ( $($arg: expr),* $(,)? ), $role: ident $(,)?
+    ) => {
+            paste::paste! {
+                #[test]
+                fn [< can_call_ $method_name _with_ $role _role >]()
+                    -> ::std::result::Result<(), ::scrypto_test::prelude::RuntimeError>
+                {
+                    // Arrange
+                    let Environment {
+                        environment: ref mut env,
+                        components: Components { mut olympus, .. },
+                        additional_data: OlympusBadges {
+                            protocol_manager: protocol_manager_badge,
+                            protocol_owner: protocol_owner_badge
+                        },
+                        ..
+                    } = Environment::new_create_badges()?;
+
+                    let proof = [< $role _badge >].create_proof_of_all(env)?;
+                    LocalAuthZone::push(proof, env)?;
+
+                    // Act
+                    let rtn = olympus.$method_name( $( $arg ),* , env);
+
+                    // Assert
+                    assert!(!matches!(
+                        rtn,
+                        Err(RuntimeError::SystemModuleError(
+                            SystemModuleError::AuthError(AuthError::Unauthorized(..))
+                        ))
+                    ));
+
+                    ::std::result::Result::Ok(())
+                    }
+            }
+    };
+    (
+        $method_name: ident ( $($arg: expr),* $(,)? ) $(,)?
+    ) => {
+            paste::paste! {
+                #[test]
+                fn [< cant_call_ $method_name _without_valid_roles >]()
+                    -> ::std::result::Result<(), ::scrypto_test::prelude::RuntimeError>
+                {
+                    // Arrange
+                    let Environment {
+                        environment: ref mut env,
+                        components: Components { mut olympus, .. },
+                        additional_data: OlympusBadges {
+                            protocol_manager: protocol_manager_badge,
+                            protocol_owner: protocol_owner_badge
+                        },
+                        ..
+                    } = Environment::new_create_badges()?;
+
+                    // Act
+                    let rtn = olympus.$method_name( $( $arg ),* , env);
+
+                    // Assert
+                    assert!(matches!(
+                        rtn,
+                        Err(RuntimeError::SystemModuleError(
+                            SystemModuleError::AuthError(AuthError::Unauthorized(..))
+                        ))
+                    ));
+
+                    ::std::result::Result::Ok(())
+                    }
+            }
+    };
+}
+
 test_access_rules!(update_oracle(FAUCET), protocol_manager);
 test_access_rules!(update_oracle(FAUCET), protocol_owner);
 test_access_rules!(update_oracle(FAUCET));
@@ -106,78 +180,3 @@ test_access_rules!(
 test_access_rules!(remove_rewards_rate(LockupPeriod::from_seconds(10)));
 test_access_rules!(update_usd_resource_address(XRD), protocol_owner);
 test_access_rules!(update_usd_resource_address(XRD));
-
-macro_rules! test_access_rules {
-    (
-        $method_name: ident ( $($arg: expr),* $(,)? ), $role: ident $(,)?
-    ) => {
-            paste::paste! {
-                #[test]
-                fn [< can_call_ $method_name _with_ $role _role >]()
-                    -> ::std::result::Result<(), ::scrypto_test::prelude::RuntimeError>
-                {
-                    // Arrange
-                    let Environment {
-                        environment: ref mut env,
-                        components: Components { mut olympus, .. },
-                        additional_data: OlympusBadges {
-                            protocol_manager: protocol_manager_badge,
-                            protocol_owner: protocol_owner_badge
-                        },
-                        ..
-                    } = Environment::new_create_badges()?;
-
-                    let proof = [< $role _badge >].create_proof_of_all(env)?;
-                    LocalAuthZone::push(proof, env)?;
-
-                    // Act
-                    let rtn = olympus.$method_name( $( $arg ),* , env);
-
-                    // Assert
-                    assert!(!matches!(
-                        rtn,
-                        Err(RuntimeError::SystemModuleError(
-                            SystemModuleError::AuthError(AuthError::Unauthorized(..))
-                        ))
-                    ));
-
-                    ::std::result::Result::Ok(())
-                    }
-            }
-    };
-    (
-        $method_name: ident ( $($arg: expr),* $(,)? ) $(,)?
-    ) => {
-            paste::paste! {
-                #[test]
-                fn [< cant_call_ $method_name _without_valid_roles >]()
-                    -> ::std::result::Result<(), ::scrypto_test::prelude::RuntimeError>
-                {
-                    // Arrange
-                    let Environment {
-                        environment: ref mut env,
-                        components: Components { mut olympus, .. },
-                        additional_data: OlympusBadges {
-                            protocol_manager: protocol_manager_badge,
-                            protocol_owner: protocol_owner_badge
-                        },
-                        ..
-                    } = Environment::new_create_badges()?;
-
-                    // Act
-                    let rtn = olympus.$method_name( $( $arg ),* , env);
-
-                    // Assert
-                    assert!(matches!(
-                        rtn,
-                        Err(RuntimeError::SystemModuleError(
-                            SystemModuleError::AuthError(AuthError::Unauthorized(..))
-                        ))
-                    ));
-
-                    ::std::result::Result::Ok(())
-                    }
-            }
-    };
-}
-use test_access_rules;
