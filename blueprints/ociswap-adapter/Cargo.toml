@@ -7,8 +7,10 @@ description = "Defines the adapter for Ociswap"
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
+radix-engine-interface = { workspace = true }
 
-adapters-interface = { path = "../adapters-interface", features = ["scrypto"] }
+scrypto-interface = { path = "../scrypto-interface" }
+adapters-interface = { path = "../adapters-interface" }
 
 [features]
 default = []

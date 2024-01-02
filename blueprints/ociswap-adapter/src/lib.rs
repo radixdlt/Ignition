@@ -1,27 +1,26 @@
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
+use scrypto_interface::*;
 
-extern_blueprint_internal! {
-    BasicPool,
-    "BasicPool",
-    "OwnedBasicPool",
-    "GlobalBasicPool",
-    BasicPoolFunctions {
+define_interface! {
+    BasicPool as OciswapPool {
         fn instantiate(
             a_address: ResourceAddress,
             b_address: ResourceAddress,
             input_fee_rate: Decimal,
             dapp_definition: ComponentAddress,
-        ) -> Global<BasicPool>;
+        ) -> Self;
         fn instantiate_with_liquidity(
             a_bucket: Bucket,
             b_bucket: Bucket,
             input_fee_rate: Decimal,
             dapp_definition: ComponentAddress,
-        ) -> (Global<BasicPool>, Bucket, Option<Bucket>);
-    },
-    {
-        fn add_liquidity(&mut self, a_bucket: Bucket, b_bucket: Bucket) -> (Bucket, Option<Bucket>);
+        ) -> (Self, Bucket, Option<Bucket>);
+        fn add_liquidity(
+            &mut self,
+            a_bucket: Bucket,
+            b_bucket: Bucket
+        ) -> (Bucket, Option<Bucket>);
         fn remove_liquidity(&mut self, lp_token: Bucket) -> (Bucket, Bucket);
         fn swap(&mut self, input_bucket: Bucket) -> Bucket;
         fn price_sqrt(&mut self) -> Option<PreciseDecimal>;
@@ -36,7 +35,7 @@ extern_blueprint_internal! {
     }
 }
 
-#[blueprint]
+#[blueprint_with_traits]
 mod adapter {
     struct OciswapAdapter;
 
@@ -59,14 +58,17 @@ mod adapter {
                 .with_address(address_reservation)
                 .globalize()
         }
+    }
 
-        pub fn open_liquidity_position(
+    impl PoolAdapterInterfaceTrait for OciswapAdapter {
+        fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
         ) -> OpenLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
-            let mut basic_pool = Self::global_pool(pool_address);
+            let mut basic_pool =
+                OciswapPoolInterfaceScryptoStub::from(pool_address);
 
             // Add liquidity to the pool.
             // TODO: Is this actually pool units and change?
@@ -87,13 +89,14 @@ mod adapter {
             }
         }
 
-        pub fn close_liquidity_position(
+        fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
         ) -> CloseLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
-            let mut basic_pool = Self::global_pool(pool_address);
+            let mut basic_pool =
+                OciswapPoolInterfaceScryptoStub::from(pool_address);
 
             // Remove the liquidity
             let buckets = basic_pool.remove_liquidity(pool_units);
@@ -106,12 +109,6 @@ mod adapter {
                 },
                 others: vec![],
             }
-        }
-
-        fn global_pool(pool_address: ComponentAddress) -> Global<BasicPool> {
-            Global(BasicPool {
-                handle: ObjectStubHandle::Global(pool_address.into()),
-            })
         }
     }
 }
