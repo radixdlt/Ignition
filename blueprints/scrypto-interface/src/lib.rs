@@ -1,3 +1,5 @@
+pub use scrypto_interface_proc_macros::blueprint_with_traits;
+
 /// A macro used to define interfaces that can be used on blueprints, their
 /// scrypto stubs, and the scrypto-test stubs.
 ///
