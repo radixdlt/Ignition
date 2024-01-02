@@ -20,7 +20,7 @@ radix-engine-store-interface = { workspace = true }
 olympus = { path = "../olympus", features = ["test"] }
 test-oracle = { path = "../test-oracle", features = ["test"] }
 ociswap-adapter = { path = "../ociswap-adapter", features = ["test"] }
-adapters-interface = { path = "../adapters-interface" }
+adapters-interface = { path = "../adapters-interface", features = ["scrypto-test"] }
 
 paste = { version = "1.0.14" }
 lazy_static = { version = "1.4.0" }
