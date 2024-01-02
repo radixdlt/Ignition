@@ -1,0 +1,9 @@
+[package]
+name = "scrypto-interface"
+version.workspace = true
+edition.workspace = true
+description = "A library that provides compile-time interface capabilities to Scrypto blueprints"
+
+[dependencies]
+paste = "1.0.14"
+scrypto-interface-proc-macros = { path = "../scrypto-interface-proc-macros" }

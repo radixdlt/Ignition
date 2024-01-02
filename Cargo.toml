@@ -3,6 +3,9 @@ resolver = "2"
 members = [
     # Protocol Core
     "blueprints/olympus",
+    # Core Libraries
+    "blueprints/scrypto-interface",
+    "blueprints/scrypto-interface-proc-macros",
     # Interfaces
     "blueprints/adapters-interface",
     "blueprints/ociswap-adapter",
