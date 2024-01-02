@@ -1,6 +1,6 @@
-use crate::define_adapter_stubs;
-use ::radix_engine_common::prelude::*;
-use ::radix_engine_interface::prelude::*;
+use radix_engine_common::prelude::*;
+use radix_engine_interface::prelude::*;
+use scrypto_interface::define_interface;
 
 #[derive(Debug, ScryptoSbor)]
 pub struct OpenLiquidityPositionOutput {
@@ -21,9 +21,8 @@ pub struct CloseLiquidityPositionOutput {
     pub others: Vec<Bucket>,
 }
 
-define_adapter_stubs! {
-    name: PoolAdapter,
-    functions: [
+define_interface! {
+    PoolAdapter {
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -35,5 +34,5 @@ define_adapter_stubs! {
             pool_address: ComponentAddress,
             pool_units: Bucket
         ) -> CloseLiquidityPositionOutput;
-    ]
+    }
 }
