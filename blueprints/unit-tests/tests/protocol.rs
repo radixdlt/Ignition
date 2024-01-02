@@ -3,9 +3,7 @@
 mod utils;
 use utils::*;
 
-mod bindings;
-use bindings::*;
-
+use ociswap_adapter::*;
 use olympus::{LockupPeriod, Percent};
 use radix_engine_interface::prelude::*;
 use radix_engine_interface::*;
@@ -56,21 +54,24 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
         ResourceManager(XRD).mint_fungible(dec!(1_037_305.4202264115), env)?;
     let bucket2 = resources.bitcoin.mint_fungible(dec!(1), env)?;
 
-    let (ociswap, _, _) = OciswapPool::instantiate_with_liquidity(
-        bucket1,
-        bucket2,
-        dec!(0),
-        FAUCET,
-        packages.ociswap_package,
-        env,
-    )?;
+    let (ociswap, _, _) =
+        OciswapPoolInterfaceScryptoTestStub::instantiate_with_liquidity(
+            bucket1,
+            bucket2,
+            dec!(0),
+            FAUCET,
+            packages.ociswap_package,
+            env,
+        )?;
 
     olympus.add_pool_adapter(
-        OciswapPool::blueprint_id(packages.ociswap_package),
+        OciswapPoolInterfaceScryptoTestStub::blueprint_id(
+            packages.ociswap_package,
+        ),
         ociswap_adapter.try_into().unwrap(),
         env,
     )?;
-    olympus.add_allowed_pool(ociswap.0.try_into().unwrap(), env)?;
+    olympus.add_allowed_pool(ociswap.try_into().unwrap(), env)?;
     olympus.config_open_liquidity_position(true, env)?;
     olympus.add_rewards_rate(
         LockupPeriod::from_seconds(10),
@@ -87,13 +88,12 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
 
     // Act
     let bitcoin_bucket = resources.bitcoin.mint_fungible(dec!(0.1), env)?;
-    let (liquidity_position, change, additional_resources) = olympus
-        .open_liquidity_position(
-            ociswap.0.try_into().unwrap(),
-            FungibleBucket(bitcoin_bucket),
-            LockupPeriod::from_seconds(10),
-            env,
-        )?;
+    let (_, change, additional_resources) = olympus.open_liquidity_position(
+        ociswap.try_into().unwrap(),
+        FungibleBucket(bitcoin_bucket),
+        LockupPeriod::from_seconds(10),
+        env,
+    )?;
 
     // Assert
     assert_eq!(

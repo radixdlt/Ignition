@@ -114,6 +114,15 @@ macro_rules! define_interface {
             impl [< $struct_ident InterfaceScryptoStub >] {
                 $crate::handle_functions_scrypto_stub!( $($functions)* );
 
+                pub fn blueprint_id(
+                    package_address: ::radix_engine_interface::prelude::PackageAddress
+                ) -> ::radix_engine_interface::prelude::BlueprintId {
+                    ::radix_engine_interface::prelude::BlueprintId {
+                        package_address,
+                        blueprint_name: stringify!($blueprint_ident).to_string()
+                    }
+                }
+
                 fn call_function(
                     package_address: ::radix_engine_interface::prelude::PackageAddress,
                     function_name: &str,
@@ -130,6 +139,15 @@ macro_rules! define_interface {
 
             impl [< $struct_ident InterfaceScryptoTestStub >] {
                 $crate::handle_functions_scrypto_test_stub!( $($functions)* );
+
+                pub fn blueprint_id(
+                    package_address: ::radix_engine_interface::prelude::PackageAddress
+                ) -> ::radix_engine_interface::prelude::BlueprintId {
+                    ::radix_engine_interface::prelude::BlueprintId {
+                        package_address,
+                        blueprint_name: stringify!($blueprint_ident).to_string()
+                    }
+                }
 
                 fn call_function<Y, E>(
                     package_address: ::radix_engine_interface::prelude::PackageAddress,

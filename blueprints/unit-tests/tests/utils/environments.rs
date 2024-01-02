@@ -69,7 +69,7 @@ impl Environment<()> {
                     owner_role: OwnerRole::None,
                     protocol_owner_role: rule!(allow_all),
                     protocol_manager_role: rule!(allow_all),
-                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                    oracle: OracleAdapterInterfaceScryptoTestStub::from(FAUCET),
                     usd_resource_address: XRD,
                     address_reservation: None,
                 },
@@ -109,7 +109,7 @@ impl Environment<OlympusBadges> {
                     protocol_manager_role: rule!(require(
                         protocol_manager_resource_address
                     )),
-                    oracle: OracleAdapter(Reference(FAUCET.into_node_id())),
+                    oracle: OracleAdapterInterfaceScryptoTestStub::from(FAUCET),
                     usd_resource_address: XRD,
                     address_reservation: None,
                 },
@@ -177,7 +177,7 @@ impl<T> Environment<T> {
             configuration.owner_role,
             configuration.protocol_owner_role,
             configuration.protocol_manager_role.clone(),
-            configuration.oracle,
+            configuration.oracle.try_into().unwrap(),
             configuration.usd_resource_address,
             configuration.address_reservation,
             olympus_package_address,
@@ -247,7 +247,7 @@ pub struct OlympusConfiguration {
     pub owner_role: OwnerRole,
     pub protocol_owner_role: AccessRule,
     pub protocol_manager_role: AccessRule,
-    pub oracle: OracleAdapter,
+    pub oracle: OracleAdapterInterfaceScryptoTestStub,
     pub usd_resource_address: ResourceAddress,
     pub address_reservation: Option<GlobalAddressReservation>,
 }
