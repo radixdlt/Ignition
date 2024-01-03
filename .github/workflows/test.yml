@@ -40,6 +40,8 @@ jobs:
         toolchain: stable
         override: true
         components: rustfmt
+    - name: Add WASM target
+      run: rustup target add wasm32-unknown-unknown
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Check formatting
@@ -58,6 +60,8 @@ jobs:
         toolchain: stable
         override: true
         profile: minimal
+    - name: Add WASM target
+      run: rustup target add wasm32-unknown-unknown
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Cargo Check
@@ -76,6 +80,8 @@ jobs:
         toolchain: stable
         override: true
         components: rustfmt, clippy
+    - name: Add WASM target
+      run: rustup target add wasm32-unknown-unknown
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Clippy Check
