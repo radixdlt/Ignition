@@ -9,8 +9,8 @@ sbor = { workspace = true }
 scrypto = { workspace = true }
 radix-engine-interface = { workspace = true }
 
-scrypto-interface = { path = "../scrypto-interface" }
-adapters-interface = { path = "../adapters-interface" }
+scrypto-interface = { path = "../../libraries/scrypto-interface" }
+adapters-interface = { path = "../../libraries/adapters-interface" }
 
 [features]
 default = []
