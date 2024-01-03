@@ -1,6 +1,7 @@
 //! Protocol related behavior tests.
 
 mod utils;
+use ociswap_adapter::OciswapPoolInterfaceScryptoTestStub;
 use utils::*;
 
 use olympus::{LiquidityPosition, LockupPeriod, Percent};
@@ -21,7 +22,7 @@ fn cant_add_a_pool_with_no_corresponding_adapter() -> Result<(), RuntimeError> {
     let rtn = olympus.add_allowed_pool(FAUCET, env);
 
     // Assert
-    assert!(is_wasm_panic(&rtn));
+    assert_is_add_allowed_pool_no_adapter_found_for_pool(&rtn);
 
     Ok(())
 }
@@ -53,7 +54,44 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
     );
 
     // Assert
-    assert!(is_wasm_panic(&rtn));
+    assert_is_open_liquidity_position_opening_disabled_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_open_a_liquidity_position_to_a_registered_pool_with_no_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut resources,
+        mut protocol,
+        ociswap,
+    } = Environment::new()?;
+    protocol.olympus.remove_pool_adapter(
+        OciswapPoolInterfaceScryptoTestStub::blueprint_id(ociswap.package),
+        env,
+    )?;
+
+    protocol
+        .oracle
+        .set_price(resources.bitcoin.0, XRD, dec!(1), env)?;
+
+    // Act
+    let bitcoin_contribution_amount = dec!(0.1);
+    let bitcoin_bucket = resources
+        .bitcoin
+        .mint_fungible(bitcoin_contribution_amount, env)?;
+    let rtn = protocol.olympus.open_liquidity_position(
+        ociswap.bitcoin_pool.try_into().unwrap(),
+        FungibleBucket(bitcoin_bucket),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    assert_is_open_liquidity_position_no_adapter_error(&rtn);
 
     Ok(())
 }
