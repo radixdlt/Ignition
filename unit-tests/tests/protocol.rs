@@ -97,6 +97,84 @@ fn cant_open_a_liquidity_position_to_a_registered_pool_with_no_adapter(
 }
 
 #[test]
+fn cant_open_a_liquidity_position_on_a_pool_that_is_not_registered(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut resources,
+        mut protocol,
+        ociswap,
+    } = Environment::new()?;
+    protocol
+        .olympus
+        .remove_allowed_pool(ociswap.bitcoin_pool.try_into().unwrap(), env)?;
+
+    protocol
+        .oracle
+        .set_price(resources.bitcoin.0, XRD, dec!(1), env)?;
+
+    // Act
+    let bitcoin_contribution_amount = dec!(0.1);
+    let bitcoin_bucket = resources
+        .bitcoin
+        .mint_fungible(bitcoin_contribution_amount, env)?;
+    let rtn = protocol.olympus.open_liquidity_position(
+        ociswap.bitcoin_pool.try_into().unwrap(),
+        FungibleBucket(bitcoin_bucket),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    assert_is_open_liquidity_position_pool_not_allowed_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_open_a_liquidity_position_with_an_undefined_lockup_period(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut resources,
+        mut protocol,
+        ociswap,
+    } = Environment::new()?;
+
+    let xrd_price = dec!(0.04204);
+    let bitcoin_price = dec!(45108.32);
+    let price_bitcoin_base_xrd_quote = bitcoin_price / xrd_price;
+
+    let lockup_period = LockupPeriod::from_months(1);
+
+    protocol.oracle.set_price(
+        resources.bitcoin.0,
+        XRD,
+        price_bitcoin_base_xrd_quote,
+        env,
+    )?;
+
+    // Act
+    let bitcoin_contribution_amount = dec!(0.1);
+    let bitcoin_bucket = resources
+        .bitcoin
+        .mint_fungible(bitcoin_contribution_amount, env)?;
+    let rtn = protocol.olympus.open_liquidity_position(
+        ociswap.bitcoin_pool.try_into().unwrap(),
+        FungibleBucket(bitcoin_bucket),
+        lockup_period,
+        env,
+    );
+
+    // Assert
+    assert_is_open_liquidity_position_not_a_valid_lockup_period_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
 fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
