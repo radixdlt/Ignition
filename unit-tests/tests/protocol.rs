@@ -1,10 +1,11 @@
 //! Protocol related behavior tests.
 
 mod utils;
-use ociswap_adapter::OciswapPoolInterfaceScryptoTestStub;
 use utils::*;
 
+use ociswap_adapter::*;
 use olympus::{LiquidityPosition, LockupPeriod, Percent};
+
 use radix_engine_interface::prelude::*;
 use radix_engine_interface::*;
 use scrypto_test::prelude::*;
@@ -262,6 +263,21 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
         env.get_current_time()
             .add_seconds(*lockup_period.seconds() as i64)
             .unwrap()
+    );
+    assert_eq!(
+        non_fungible_data.state_after_position_was_opened.k,
+        pdec!(1.1)
+            * (PreciseDecimal::from(price_bitcoin_base_xrd_quote)
+                + price_bitcoin_base_xrd_quote * bitcoin_contribution_amount)
+    );
+    assert_eq!(
+        non_fungible_data
+            .state_after_position_was_opened
+            .user_share
+            .checked_round(6, RoundingMode::ToNearestMidpointTowardZero),
+        Percent::new(dec!(0.1) / dec!(1.1))
+            .unwrap()
+            .checked_round(6, RoundingMode::ToNearestMidpointTowardZero),
     );
 
     Ok(())

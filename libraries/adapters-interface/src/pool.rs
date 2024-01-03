@@ -10,6 +10,11 @@ pub struct OpenLiquidityPositionOutput {
     pub change: IndexMap<ResourceAddress, Bucket>,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
+    /// The `k` value of the pool after the liquidity position was opened.
+    pub pool_k: PreciseDecimal,
+    /// The percentage ownership of the user in the pool as a result of this
+    /// opened liquidity position. This is a [`Decimal`] in the range [0, 1].
+    pub user_share: Decimal,
 }
 
 #[derive(Debug, ScryptoSbor)]

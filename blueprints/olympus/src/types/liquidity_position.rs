@@ -2,7 +2,7 @@ use crate::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Olympus.
-#[derive(ScryptoSbor, NonFungibleData)]
+#[derive(ScryptoSbor, Clone, Debug, PartialEq, Eq, NonFungibleData)]
 pub struct LiquidityPosition {
     /* Metadata/NonFungibleData standard */
     pub name: String,
@@ -31,8 +31,31 @@ pub struct LiquidityPosition {
     pub matched_xrd_amount: Decimal,
 
     /// The date after which this liquidity position can be closed.
-    //TODO: Wallet should display this as time and not unix timestamp.
     pub maturity_date: Instant,
+
+    /// A struct of information on the state of the pool at the time when the
+    /// position was opened. The majority of the information here will be used for
+    /// calculations later on.
+    pub state_after_position_was_opened: StateAfterPositionWasOpened,
+}
+
+#[derive(
+    ScryptoSbor, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
+/// A struct of information on the state of the pool at the time when the
+/// position was opened. The majority of the information here will be used for
+/// calculations later on.
+pub struct StateAfterPositionWasOpened {
+    /// The value of the pool's `k` at the time when the liquidity position was
+    /// opened. This is used for the calculation of the trading fees when we
+    /// close the liquidity position.
+    pub k: PreciseDecimal,
+
+    /// The share of the user in the pool at the time of opening the liquidity
+    /// position. This is used for the calculation of the trading fees when we
+    /// close the liquidity position. This is a [`Percent`] that is in the range
+    /// [0, 1].
+    pub user_share: Percent,
 }
 
 impl LiquidityPosition {
@@ -41,6 +64,7 @@ impl LiquidityPosition {
         contributed_resource: ResourceAddress,
         contributed_amount: Decimal,
         matched_xrd_amount: Decimal,
+        state_after_position_was_opened: StateAfterPositionWasOpened,
     ) -> Self {
         let maturity_date = Clock::current_time_rounded_to_minutes()
             .add_seconds(*lockup_period.seconds() as i64)
@@ -56,6 +80,7 @@ impl LiquidityPosition {
             contributed_amount,
             maturity_date,
             matched_xrd_amount,
+            state_after_position_was_opened
         }
     }
 }

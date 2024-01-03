@@ -360,6 +360,8 @@ mod olympus {
                 pool_units,
                 change,
                 others,
+                pool_k,
+                user_share,
             } = self
                 .pool_adapters
                 .get_mut(&ScryptoVmV1Api::object_get_blueprint_id(
@@ -414,6 +416,11 @@ mod olympus {
                     input_resource_address,
                     actual_input_contribution,
                     actual_xrd_contribution,
+                    StateAfterPositionWasOpened {
+                        k: pool_k,
+                        user_share: Percent::new(user_share)
+                            .expect("Adapter returned percent not in [0, 1]"),
+                    },
                 );
                 self.liquidity_position_resource
                     .mint_ruid_non_fungible(data)

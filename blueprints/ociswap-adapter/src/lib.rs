@@ -24,7 +24,7 @@ define_interface! {
         fn remove_liquidity(&mut self, lp_token: Bucket) -> (Bucket, Bucket);
         fn swap(&mut self, input_bucket: Bucket) -> Bucket;
         fn price_sqrt(&mut self) -> Option<PreciseDecimal>;
-        fn liquidity_pool(&self) -> Global<TwoResourcePool>;
+        fn liquidity_pool(&self) -> ComponentAddress;
         fn set_liquidity_pool_meta(
             &self,
             pool_address: ComponentAddress,
@@ -75,6 +75,24 @@ mod adapter {
             let (pool_units, change) =
                 basic_pool.add_liquidity(buckets.0, buckets.1);
 
+            // Calculate the `k` after the contribution was made to the pool.
+            // We do this by getting the TwoResourcePool of this pool, getting
+            // the reserves from there, and multiplying them.
+            let pool_k =
+                Global::<TwoResourcePool>::from(basic_pool.liquidity_pool())
+                    .get_vault_amounts()
+                    .values()
+                    .fold(PreciseDecimal::ONE, |acc, other| acc * *other);
+
+            // Getting the share of the user in the pool. We do this by dividing
+            // the amount of pool units we got back by the total supply of all
+            // pool units.
+            let user_share = pool_units.amount()
+                / pool_units
+                    .resource_manager()
+                    .total_supply()
+                    .expect("Pool units have total supply enabled");
+
             // Construct the output
             OpenLiquidityPositionOutput {
                 pool_units,
@@ -86,6 +104,8 @@ mod adapter {
                     })
                     .unwrap_or_default(),
                 others: vec![],
+                pool_k,
+                user_share,
             }
         }
 
