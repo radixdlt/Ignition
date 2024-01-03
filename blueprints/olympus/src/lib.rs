@@ -245,7 +245,7 @@ mod olympus {
                 is_open_liquidity_position_enabled: false,
                 is_close_liquidity_position_enabled: false,
                 reward_rates: KeyValueStore::new(),
-                maximum_allowed_price_staleness: 5 * 60, /* 5 Minutes */
+                maximum_allowed_price_staleness: 60, /* 1 Minutes */
                 maximum_allowed_price_difference: Percent::new(dec!(0.05))
                     .unwrap(), /* 5% price difference allowed */
             }
@@ -335,7 +335,7 @@ mod olympus {
             let input_amount = bucket.amount();
 
             // Calculate the price of the input - base is the input asset and
-            // the quote is XRD.
+            // the quote is XRD. This tells us how much XRD is one input asset.
             let price_input_base_xrd_quote =
                 self.get_price(input_resource_address, XRD);
             let input_value_in_xrd = input_amount * price_input_base_xrd_quote;
@@ -350,7 +350,9 @@ mod olympus {
                 .expect("No reward percentage associated with lockup period.");
 
             // Calculate the maximum amount of XRD we're willing to contribute
-            // based on the maximum amount of price difference we allow.
+            // based on the maximum amount of price difference we allow. If the
+            // maximum allowed price difference is 5% then the maximum amount we
+            // are willing to contribute is 105% of the XRD value of the input.
             let maximum_amount_of_xrd_to_contribute = input_value_in_xrd
                 * (Decimal::ONE + *self.maximum_allowed_price_difference);
             let xrd_to_contribute =
