@@ -5,6 +5,7 @@ members = [
     "blueprints/olympus",
     "blueprints/test-oracle",
     "blueprints/ociswap-adapter",
+    "blueprints/caviarnine-adapter",
     # Libraries
     "libraries/scrypto-interface",
     "libraries/scrypto-interface-proc-macros",
