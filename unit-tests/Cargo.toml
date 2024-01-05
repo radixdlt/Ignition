@@ -20,6 +20,7 @@ radix-engine-store-interface = { workspace = true }
 olympus = { path = "../blueprints/olympus", features = ["test"] }
 test-oracle = { path = "../blueprints/test-oracle", features = ["test"] }
 ociswap-adapter = { path = "../blueprints/ociswap-adapter", features = ["test"] }
+caviarnine-adapter = { path = "../blueprints/caviarnine-adapter", features = ["test"] }
 adapters-interface = { path = "../libraries/adapters-interface" }
 
 paste = { version = "1.0.14" }

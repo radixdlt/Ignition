@@ -111,6 +111,7 @@ macro_rules! define_interface {
                 ]
             }
 
+            #[allow(clippy::too_many_arguments)]
             impl [< $struct_ident InterfaceScryptoStub >] {
                 $crate::handle_functions_scrypto_stub!( $($functions)* );
 
@@ -137,6 +138,7 @@ macro_rules! define_interface {
                 }
             }
 
+            #[allow(clippy::too_many_arguments)]
             impl [< $struct_ident InterfaceScryptoTestStub >] {
                 $crate::handle_functions_scrypto_test_stub!( $($functions)* );
 

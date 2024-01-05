@@ -72,6 +72,17 @@
 //! Bins with ticks lower than that of the active tick only have the `y` asset,
 //! and the opposite for the other side. So, the `x` resources will be divided
 //! across 100 bins and the y resources will be divided across another 100 bins.
+//!
+//! The bin selection algorithm tries to select 199 bins with the currently
+//! active bin in the center, 98 lower bins, and 98 higher bins. However, there
+//! are certain cases when this is not possible such as cases when the active
+//! bin is skewed in one direction or another. In such case, the algorithm tries
+//! to compensate on the other non-skewed side and attempts to get us 98 lower
+//! and 98 higher. In cases when the bin span is too large, it is possible that
+//! we get less 199 bins.
+
+mod bin_selector;
+pub use bin_selector::*;
 
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
@@ -145,8 +156,6 @@ define_interface! {
     }
 }
 
-const MAXIMUM_TICK_VALUE: u32 = 54000;
-
 #[blueprint_with_traits]
 mod adapter {
     struct CaviarNineAdapter;
@@ -175,15 +184,6 @@ mod adapter {
     impl PoolAdapterInterfaceTrait for CaviarNineAdapter {
         // Opens 199 positions in flat formation. One at the current price, 99
         // at the next 99 lower bins and 99 and the next 99 higher bins.
-
-        // TODO: Handle the case where the active bin is 0 or max. At 0 active
-        // bin we can't contribute to a lower bin, so we must contribute at
-        // current and above. At max we can't contribute to higher bins so we
-        // must contribute all to lower. Additionally, we should handle any
-        // active bin values that lead the lowest bin to be above the maximum.
-        // TODO: Handle the case when the bin span is large enough that we can't
-        // have 199 positions. This is possible as it seems like the CaviarNine
-        // protocol does not define a maximum for the bin span.
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -215,31 +215,38 @@ mod adapter {
             let bin_span = pool.get_bin_span();
             let active_bin =
                 pool.get_active_tick().expect("Pool has no active bin!");
-            let lower_bins = (1..=99)
-                .map(|multiplier| active_bin - bin_span * multiplier)
-                .collect::<Vec<_>>();
-            let higher_bins = (1..=99)
-                .map(|multiplier| active_bin + bin_span * multiplier)
-                .collect::<Vec<_>>();
+            let SelectedBins {
+                higher_bins,
+                lower_bins,
+                ..
+            } = select_bins(active_bin, bin_span, 198);
 
             // Determine the amount of resources that we will add to each of the
-            // bins. We have 99 on the left and 99 on the right. But, we alo
+            // bins. We have 99 on the left and 99 on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
             // be like contributing to 99.x and 99.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
-            let (active_bin_amount_x, active_bin_amount_y) =
+            let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect("No active amounts");
             let price = pool.get_price().expect("No price");
 
-            let active_ratio_bin_x = active_bin_amount_x * price
-                / (active_bin_amount_x * price + active_bin_amount_y);
-            let active_ratio_bin_y = Decimal::one() - active_ratio_bin_x;
+            let ratio_in_active_bin_x = amount_in_active_bin_x * price
+                / (amount_in_active_bin_x * price + amount_in_active_bin_y);
+            let ratio_in_active_bin_y = Decimal::one() - ratio_in_active_bin_x;
 
+            // In here, we decide the amount x by the number of higher bins plus
+            // the ratio of the x in the currently active bin since the pool
+            // starting from the current price and upward is entirely composed
+            // of X. Similarly, we divide amount_y by the number of lower
+            // positions plus the ratio of y in the active bin since the pool
+            // starting from the current price and downward is composed just of
+            // y.
             let position_amount_x = amount_x
                 / (Decimal::from(higher_bins.len() as u32)
-                    + active_ratio_bin_x);
+                    + ratio_in_active_bin_x);
             let position_amount_y = amount_y
-                / (Decimal::from(lower_bins.len() as u32) + active_ratio_bin_y);
+                / (Decimal::from(lower_bins.len() as u32)
+                    + ratio_in_active_bin_y);
 
             // TODO: What?
             let amount_bin_x_in_y = position_amount_x * price;
@@ -253,8 +260,8 @@ mod adapter {
 
             let mut positions = vec![(
                 active_bin,
-                position_amount_x * active_ratio_bin_x,
-                position_amount_y * active_ratio_bin_y,
+                position_amount_x * ratio_in_active_bin_x,
+                position_amount_y * ratio_in_active_bin_y,
             )];
             positions.extend(
                 lower_bins
@@ -277,7 +284,8 @@ mod adapter {
                     change_y.resource_address() => change_y,
                 },
                 others: vec![],
-                // TODO: Determine how to plan to handle this in Caviar
+                // TODO: How do we plan on calculating the fees in C9? Can we
+                // use the same model as OciSwap.
                 pool_k: pdec!(0),
                 user_share: dec!(0),
             }
