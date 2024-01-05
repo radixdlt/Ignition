@@ -3,7 +3,7 @@ use caviarnine_adapter::*;
 #[test]
 fn selection_of_bins_simple_case_behaves_as_expected() {
     assert_eq!(
-        select_bins(100, 10, 4),
+        SelectedBins::select(100, 10, 4),
         SelectedBins {
             active_bin: 100,
             lower_bins: vec![90, 80],
@@ -15,7 +15,7 @@ fn selection_of_bins_simple_case_behaves_as_expected() {
 #[test]
 fn selection_of_bins_left_skew_is_compensated_for_on_the_right() {
     assert_eq!(
-        select_bins(20, 10, 6),
+        SelectedBins::select(20, 10, 6),
         SelectedBins {
             active_bin: 20,
             lower_bins: vec![10, 0],
@@ -27,7 +27,7 @@ fn selection_of_bins_left_skew_is_compensated_for_on_the_right() {
 #[test]
 fn selection_of_bins_right_skew_is_compensated_for_on_the_left() {
     assert_eq!(
-        select_bins(53980, 10, 6),
+        SelectedBins::select(53980, 10, 6),
         SelectedBins {
             active_bin: 53980,
             lower_bins: vec![53970, 53960, 53950, 53940],
@@ -39,7 +39,7 @@ fn selection_of_bins_right_skew_is_compensated_for_on_the_left() {
 #[test]
 fn selection_of_bins_bin_size_too_large_cant_fulfill_desired_bin_count() {
     assert_eq!(
-        select_bins(27000, 54000, 6),
+        SelectedBins::select(27000, 54000, 6),
         SelectedBins {
             active_bin: 27000,
             lower_bins: vec![],
@@ -52,7 +52,7 @@ fn selection_of_bins_bin_size_too_large_cant_fulfill_desired_bin_count() {
 fn selection_of_bins_bin_size_too_large_can_select_some_bins_if_bin_span_allows(
 ) {
     assert_eq!(
-        select_bins(54000, 30000, 6),
+        SelectedBins::select(54000, 30000, 6),
         SelectedBins {
             active_bin: 54000,
             lower_bins: vec![24000],

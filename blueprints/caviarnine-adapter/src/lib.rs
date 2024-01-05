@@ -219,7 +219,7 @@ mod adapter {
                 higher_bins,
                 lower_bins,
                 ..
-            } = select_bins(active_bin, bin_span, 198);
+            } = SelectedBins::select(active_bin, bin_span, 198);
 
             // Determine the amount of resources that we will add to each of the
             // bins. We have 99 on the left and 99 on the right. But, we also
