@@ -2,6 +2,7 @@
 
 pub mod types;
 
+use adapters_interface::common::*;
 use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
@@ -906,9 +907,8 @@ mod olympus {
             quote: ResourceAddress,
         ) -> Decimal {
             // Get the price
-            let Price {
-                price, last_update, ..
-            } = self.oracle.get_price(base, quote);
+            let (Price { price, .. }, last_update) =
+                self.oracle.get_price(base, quote);
 
             // Check for staleness
             if Clock::current_time(TimePrecision::Minute)

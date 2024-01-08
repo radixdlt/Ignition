@@ -84,7 +84,7 @@
 mod bin_selector;
 pub use bin_selector::*;
 
-use adapters_interface::oracle::*;
+use adapters_interface::common::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -299,6 +299,20 @@ mod adapter {
             _adapter_specific_data: AnyScryptoValue,
         ) -> CloseLiquidityPositionOutput {
             todo!()
+        }
+
+        fn price(&mut self, pool_address: ComponentAddress) -> Price {
+            let pool = CaviarNinePoolInterfaceScryptoStub::from(pool_address);
+
+            let resource_address_x = pool.get_token_x_address();
+            let resource_address_y = pool.get_token_y_address();
+            let price = pool.get_price().expect("No price!");
+
+            Price {
+                base: resource_address_x,
+                quote: resource_address_y,
+                price,
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ use radix_engine_common::prelude::*;
 use radix_engine_interface::prelude::*;
 use scrypto_interface::define_interface;
 
-use crate::oracle::Price;
+use crate::common::*;
 
 define_interface! {
     PoolAdapter {
@@ -19,6 +19,8 @@ define_interface! {
             current_oracle_price: Price,
             adapter_specific_data: AnyScryptoValue
         ) -> CloseLiquidityPositionOutput;
+
+        fn price(&mut self, pool_address: ComponentAddress) -> Price;
     }
 }
 

@@ -1,4 +1,4 @@
-use adapters_interface::oracle::*;
+use adapters_interface::common::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -142,6 +142,30 @@ mod adapter {
                 },
                 others: vec![],
                 fees: todo!(),
+            }
+        }
+
+        // TODO: Does calculating the price this way differ in any way from
+        // calling the method on ociswap?
+        fn price(&mut self, pool_address: ComponentAddress) -> Price {
+            let basic_pool =
+                OciswapPoolInterfaceScryptoStub::from(pool_address);
+
+            let pool =
+                Global::<TwoResourcePool>::from(basic_pool.liquidity_pool());
+            let vault_amounts = pool.get_vault_amounts();
+            let mut keys = vault_amounts.keys();
+
+            let resource_address1 = *keys.next().unwrap();
+            let resource_address2 = *keys.next().unwrap();
+
+            let value1 = vault_amounts[&resource_address1];
+            let value2 = vault_amounts[&resource_address2];
+
+            Price {
+                base: resource_address1,
+                quote: resource_address2,
+                price: value2 / value1,
             }
         }
     }

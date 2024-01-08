@@ -1,3 +1,4 @@
+use adapters_interface::common::*;
 use adapters_interface::oracle::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -66,17 +67,12 @@ mod test_oracle {
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> Price {
+        ) -> (Price, Instant) {
             let (price, last_update) = *self
                 .prices
                 .get(&(base, quote))
                 .expect("Price not found for this resource");
-            Price {
-                base,
-                quote,
-                price,
-                last_update,
-            }
+            (Price { base, quote, price }, last_update)
         }
     }
 }
