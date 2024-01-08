@@ -362,8 +362,7 @@ mod olympus {
                 pool_units,
                 change,
                 others,
-                pool_k,
-                user_share,
+                adapter_specific_data,
             } = self
                 .pool_adapters
                 .get_mut(&ScryptoVmV1Api::object_get_blueprint_id(
@@ -418,11 +417,7 @@ mod olympus {
                     input_resource_address,
                     actual_input_contribution,
                     actual_xrd_contribution,
-                    StateAfterPositionWasOpened {
-                        k: pool_k,
-                        user_share: Percent::new(user_share)
-                            .expect("Adapter returned percent not in [0, 1]"),
-                    },
+                    adapter_specific_data,
                 );
                 self.liquidity_position_resource
                     .mint_ruid_non_fungible(data)
@@ -911,15 +906,17 @@ mod olympus {
             quote: ResourceAddress,
         ) -> Decimal {
             // Get the price
-            let (price, instant) = self.oracle.get_price(base, quote);
+            let Price {
+                price, last_update, ..
+            } = self.oracle.get_price(base, quote);
 
             // Check for staleness
             if Clock::current_time(TimePrecision::Minute)
                 .seconds_since_unix_epoch
-                - instant.seconds_since_unix_epoch
+                - last_update.seconds_since_unix_epoch
                 > self.maximum_allowed_price_staleness
                 && Clock::current_time_is_at_or_after(
-                    instant,
+                    last_update,
                     TimePrecision::Minute,
                 )
             {

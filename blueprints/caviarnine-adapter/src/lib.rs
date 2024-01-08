@@ -84,6 +84,7 @@
 mod bin_selector;
 pub use bin_selector::*;
 
+use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -284,10 +285,9 @@ mod adapter {
                     change_y.resource_address() => change_y,
                 },
                 others: vec![],
-                // TODO: How do we plan on calculating the fees in C9? Can we
-                // use the same model as OciSwap.
-                pool_k: pdec!(0),
-                user_share: dec!(0),
+                adapter_specific_data: AnyScryptoValue::from_typed(
+                    &CaviarnineAdapterData {},
+                ),
             }
         }
 
@@ -295,8 +295,19 @@ mod adapter {
             &mut self,
             _pool_address: ComponentAddress,
             _pool_units: Bucket,
+            _current_oracle_price: Price,
+            _adapter_specific_data: AnyScryptoValue,
         ) -> CloseLiquidityPositionOutput {
             todo!()
         }
     }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ScryptoSbor,
+)]
+pub struct CaviarnineAdapterData {
+    // TODO: Yet to determine what is required for the adapter to be able to
+    // estimate the fees earned on the position. Fill this in once we have a
+    // model for this calculation.
 }

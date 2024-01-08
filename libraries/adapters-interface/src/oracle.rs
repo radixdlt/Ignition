@@ -9,6 +9,14 @@ define_interface! {
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> (Decimal, Instant);
+        ) -> Price;
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ScryptoSbor)]
+pub struct Price {
+    pub base: ResourceAddress,
+    pub quote: ResourceAddress,
+    pub price: Decimal,
+    pub last_update: Instant,
 }

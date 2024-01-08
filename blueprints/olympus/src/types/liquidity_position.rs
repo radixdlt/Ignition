@@ -33,29 +33,10 @@ pub struct LiquidityPosition {
     /// The date after which this liquidity position can be closed.
     pub maturity_date: Instant,
 
-    /// A struct of information on the state of the pool at the time when the
-    /// position was opened. The majority of the information here will be used for
-    /// calculations later on.
-    pub state_after_position_was_opened: StateAfterPositionWasOpened,
-}
-
-#[derive(
-    ScryptoSbor, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
-)]
-/// A struct of information on the state of the pool at the time when the
-/// position was opened. The majority of the information here will be used for
-/// calculations later on.
-pub struct StateAfterPositionWasOpened {
-    /// The value of the pool's `k` at the time when the liquidity position was
-    /// opened. This is used for the calculation of the trading fees when we
-    /// close the liquidity position.
-    pub k: PreciseDecimal,
-
-    /// The share of the user in the pool at the time of opening the liquidity
-    /// position. This is used for the calculation of the trading fees when we
-    /// close the liquidity position. This is a [`Percent`] that is in the range
-    /// [0, 1].
-    pub user_share: Percent,
+    /// An adapter-specific field containing information on the opening of the
+    /// liquidity position. This typically contains data that is to be used
+    /// later by the adapter when the position is to be closed.
+    pub adapter_specific_data: AnyScryptoValue,
 }
 
 impl LiquidityPosition {
@@ -64,7 +45,7 @@ impl LiquidityPosition {
         contributed_resource: ResourceAddress,
         contributed_amount: Decimal,
         matched_xrd_amount: Decimal,
-        state_after_position_was_opened: StateAfterPositionWasOpened,
+        adapter_specific_data: AnyScryptoValue,
     ) -> Self {
         let maturity_date = Clock::current_time_rounded_to_minutes()
             .add_seconds(*lockup_period.seconds() as i64)
@@ -80,7 +61,7 @@ impl LiquidityPosition {
             contributed_amount,
             maturity_date,
             matched_xrd_amount,
-            state_after_position_was_opened
+            adapter_specific_data
         }
     }
 }

@@ -1,3 +1,4 @@
+use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -104,8 +105,12 @@ mod adapter {
                     })
                     .unwrap_or_default(),
                 others: vec![],
-                pool_k,
-                user_share,
+                adapter_specific_data: AnyScryptoValue::from_typed(
+                    &OciswapAdapterData {
+                        k_value_when_opening_the_position: pool_k,
+                        share_in_pool_when_opening_position: user_share,
+                    },
+                ),
             }
         }
 
@@ -113,10 +118,18 @@ mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
+            current_oracle_price: Price,
+            adapter_specific_data: AnyScryptoValue,
         ) -> CloseLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
             let mut basic_pool =
                 OciswapPoolInterfaceScryptoStub::from(pool_address);
+
+            // Attempt to decode the adapter specific data as the data expected
+            // by this adapter.
+            let adapter_data = adapter_specific_data
+                .as_typed::<OciswapAdapterData>()
+                .expect("Failed to decode data as Ociswap Adapter data");
 
             // Remove the liquidity
             let buckets = basic_pool.remove_liquidity(pool_units);
@@ -128,7 +141,23 @@ mod adapter {
                     buckets.1.resource_address() => buckets.1,
                 },
                 others: vec![],
+                fees: todo!(),
             }
         }
     }
+}
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ScryptoSbor,
+)]
+pub struct OciswapAdapterData {
+    /// The value of the pool's `k` at the time when the liquidity position was
+    /// opened. This is used for the calculation of the trading fees when we
+    /// close the liquidity position.
+    pub k_value_when_opening_the_position: PreciseDecimal,
+
+    /// The share of the user in the pool at the time of opening the liquidity
+    /// position. This is used for the calculation of the trading fees when we
+    /// close the liquidity position. This is a value in the range [0, 1]
+    pub share_in_pool_when_opening_position: Decimal,
 }

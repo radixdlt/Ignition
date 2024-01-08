@@ -66,11 +66,17 @@ mod test_oracle {
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> (Decimal, Instant) {
-            *self
+        ) -> Price {
+            let (price, last_update) = *self
                 .prices
                 .get(&(base, quote))
-                .expect("Price not found for this resource")
+                .expect("Price not found for this resource");
+            Price {
+                base,
+                quote,
+                price,
+                last_update,
+            }
         }
     }
 }

@@ -2,6 +2,8 @@ use radix_engine_common::prelude::*;
 use radix_engine_interface::prelude::*;
 use scrypto_interface::define_interface;
 
+use crate::oracle::Price;
+
 define_interface! {
     PoolAdapter {
         fn open_liquidity_position(
@@ -13,7 +15,9 @@ define_interface! {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            pool_units: Bucket
+            pool_units: Bucket,
+            current_oracle_price: Price,
+            adapter_specific_data: AnyScryptoValue
         ) -> CloseLiquidityPositionOutput;
     }
 }
@@ -26,11 +30,10 @@ pub struct OpenLiquidityPositionOutput {
     pub change: IndexMap<ResourceAddress, Bucket>,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
-    /// The `k` value of the pool after the liquidity position was opened.
-    pub pool_k: PreciseDecimal,
-    /// The percentage ownership of the user in the pool as a result of this
-    /// opened liquidity position. This is a [`Decimal`] in the range [0, 1].
-    pub user_share: Decimal,
+    /// An adapter-specific field containing information on the opening of the
+    /// liquidity position. This typically contains data that is to be used
+    /// later by the adapter when the position is to be closed.
+    pub adapter_specific_data: AnyScryptoValue,
 }
 
 #[derive(Debug, ScryptoSbor)]
@@ -40,4 +43,48 @@ pub struct CloseLiquidityPositionOutput {
     pub resources: IndexMap<ResourceAddress, Bucket>,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
+    /// The amount of trading fees earned on the position.
+    pub fees: IndexMap<ResourceAddress, Decimal>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, ScryptoSbor)]
+#[sbor(transparent)]
+pub struct AnyScryptoValue((ScryptoValue,));
+
+impl AnyScryptoValue {
+    pub fn new(value: ScryptoValue) -> Self {
+        Self((value,))
+    }
+
+    pub fn from_typed<T>(item: &T) -> Self
+    where
+        T: ScryptoEncode,
+    {
+        let encoded = scrypto_encode(item).expect("Must succeed!");
+        let decoded =
+            scrypto_decode::<ScryptoValue>(&encoded).expect("Must succeed!");
+        Self::new(decoded)
+    }
+
+    pub fn as_typed<T>(&self) -> Result<T, DecodeError>
+    where
+        T: ScryptoDecode,
+    {
+        let encoded = scrypto_encode(&self.0 .0).expect("Must succeed!");
+        scrypto_decode(&encoded)
+    }
+}
+
+impl std::ops::Deref for AnyScryptoValue {
+    type Target = ScryptoValue;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0 .0
+    }
+}
+
+impl std::ops::DerefMut for AnyScryptoValue {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0 .0
+    }
 }

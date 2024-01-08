@@ -264,16 +264,20 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
             .add_seconds(*lockup_period.seconds() as i64)
             .unwrap()
     );
+
+    let adapter_specific_data = non_fungible_data
+        .adapter_specific_data
+        .as_typed::<OciswapAdapterData>()
+        .expect("Must succeed!");
     assert_eq!(
-        non_fungible_data.state_after_position_was_opened.k,
+        adapter_specific_data.k_value_when_opening_the_position,
         pdec!(1.1)
             * (PreciseDecimal::from(price_bitcoin_base_xrd_quote)
                 + price_bitcoin_base_xrd_quote * bitcoin_contribution_amount)
     );
     assert_eq!(
-        non_fungible_data
-            .state_after_position_was_opened
-            .user_share
+        adapter_specific_data
+            .share_in_pool_when_opening_position
             .checked_round(6, RoundingMode::ToNearestMidpointTowardZero),
         Percent::new(dec!(0.1) / dec!(1.1))
             .unwrap()
