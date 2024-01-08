@@ -2,6 +2,22 @@ use radix_engine_common::prelude::*;
 use radix_engine_interface::prelude::*;
 use scrypto_interface::define_interface;
 
+define_interface! {
+    PoolAdapter {
+        fn open_liquidity_position(
+            &mut self,
+            pool_address: ComponentAddress,
+            buckets: (Bucket, Bucket),
+        ) -> OpenLiquidityPositionOutput;
+
+        fn close_liquidity_position(
+            &mut self,
+            pool_address: ComponentAddress,
+            pool_units: Bucket
+        ) -> CloseLiquidityPositionOutput;
+    }
+}
+
 #[derive(Debug, ScryptoSbor)]
 pub struct OpenLiquidityPositionOutput {
     /// The pool units obtained as part of the contribution to the pool.
@@ -24,20 +40,4 @@ pub struct CloseLiquidityPositionOutput {
     pub resources: IndexMap<ResourceAddress, Bucket>,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
-}
-
-define_interface! {
-    PoolAdapter {
-        fn open_liquidity_position(
-            &mut self,
-            pool_address: ComponentAddress,
-            buckets: (Bucket, Bucket),
-        ) -> OpenLiquidityPositionOutput;
-
-        fn close_liquidity_position(
-            &mut self,
-            pool_address: ComponentAddress,
-            pool_units: Bucket
-        ) -> CloseLiquidityPositionOutput;
-    }
 }
