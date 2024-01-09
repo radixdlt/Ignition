@@ -3,7 +3,6 @@
 mod utils;
 use utils::*;
 
-use adapters_interface::common::*;
 use olympus::types::*;
 use scrypto_test::prelude::*;
 
@@ -163,16 +162,10 @@ test_access_rules!(withdraw_pool_units(NonFungibleGlobalId::new(
     NonFungibleLocalId::integer(0)
 )));
 test_access_rules!(
-    add_rewards_rate(
-        LockupPeriod::from_seconds(10),
-        Percent::new(dec!(0.5)).unwrap()
-    ),
+    add_rewards_rate(LockupPeriod::from_seconds(10), dec!(0.5)),
     protocol_owner
 );
-test_access_rules!(add_rewards_rate(
-    LockupPeriod::from_seconds(10),
-    Percent::new(dec!(0.5)).unwrap()
-));
+test_access_rules!(add_rewards_rate(LockupPeriod::from_seconds(10), dec!(0.5)));
 test_access_rules!(
     remove_rewards_rate(LockupPeriod::from_seconds(10)),
     protocol_owner

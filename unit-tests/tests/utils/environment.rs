@@ -4,7 +4,6 @@ use radix_engine_interface::prelude::*;
 use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 
-use adapters_interface::common::*;
 use ociswap_adapter::test_bindings::*;
 use ociswap_adapter::*;
 use olympus::test_bindings::*;
@@ -179,12 +178,12 @@ impl Environment {
         // 6 months at 10% and 9 months at 20%.
         olympus.add_rewards_rate(
             LockupPeriod::from_months(6),
-            Percent::new(dec!(0.1)).expect("Must succeed!"),
+            dec!(0.1),
             &mut env,
         )?;
         olympus.add_rewards_rate(
             LockupPeriod::from_months(9),
-            Percent::new(dec!(0.2)).expect("Must succeed!"),
+            dec!(0.2),
             &mut env,
         )?;
 

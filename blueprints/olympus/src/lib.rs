@@ -136,8 +136,9 @@ mod olympus {
         /// Note the following:
         /// * The key is a [`LockupPeriod`] of the seconds of the lockup time.
         /// A u32 value of 1 equals 1 second.
-        /// * The value is a [`Percent`] which is a decimal between 0 and 1.
-        reward_rates: KeyValueStore<LockupPeriod, Percent>,
+        /// * The value is a [`Decimal`] which is a decimal value where 0
+        /// indicated 0%, 0.5 indicates 50%, 1 indicates 100%, and so on.
+        reward_rates: KeyValueStore<LockupPeriod, Decimal>,
 
         /// The resource address of the USDC, USDT, or any stablecoin. This
         /// resource is needed when trying to find the value of the tokens
@@ -154,7 +155,7 @@ mod olympus {
         /// price. If the price difference is above this protocol parameter,
         /// then the opening and closing of liquidity positions is not allowed
         /// and fails at runtime.
-        maximum_allowed_price_difference: Percent,
+        maximum_allowed_price_difference: Decimal,
 
         /// Controls whether the opening of new liquidity positions is enabled.
         ///
@@ -247,8 +248,7 @@ mod olympus {
                 is_close_liquidity_position_enabled: false,
                 reward_rates: KeyValueStore::new(),
                 maximum_allowed_price_staleness: 60, /* 1 Minutes */
-                maximum_allowed_price_difference: Percent::new(dec!(0.05))
-                    .unwrap(), /* 5% price difference allowed */
+                maximum_allowed_price_difference: dec!(0.05),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -346,7 +346,7 @@ mod olympus {
             let upfront_xrd_reward = self
                 .reward_rates
                 .get(&lockup_period)
-                .map(|percent| input_value_in_xrd * **percent)
+                .map(|percent| input_value_in_xrd * *percent)
                 .map(|reward_amount| self.withdraw(XRD, reward_amount))
                 .expect("No reward percentage associated with lockup period.");
 
@@ -368,7 +368,7 @@ mod olympus {
                 .relative_difference(&pool_price)
                 .expect("Oracle price and pool price are of different assets");
             assert!(
-                relative_difference <= *self.maximum_allowed_price_difference,
+                relative_difference <= self.maximum_allowed_price_difference,
                 "Found a {}% difference in the price of {}/{} when the maximum allowed is: {}",
                 relative_difference * dec!(100),
                 Runtime::bech32_encode_address(input_resource_address),
@@ -793,11 +793,11 @@ mod olympus {
         /// # Arguments
         ///
         /// * `lockup_period`: [`LockupPeriod`] - The lockup period.
-        /// * `rate`: [`Percent`] - The rewards rate as a percent.
+        /// * `rate`: [`Decimal`] - The rewards rate as a percent.
         pub fn add_rewards_rate(
             &mut self,
             lockup_period: LockupPeriod,
-            rate: Percent,
+            rate: Decimal,
         ) {
             self.reward_rates.insert(lockup_period, rate);
         }
@@ -857,10 +857,10 @@ mod olympus {
         ///
         /// # Arguments
         ///
-        /// `value`: [`Percent`] - The maximum allowed percentage difference.
+        /// `value`: [`Decimal`] - The maximum allowed percentage difference.
         pub fn update_maximum_allowed_price_difference(
             &mut self,
-            value: Percent,
+            value: Decimal,
         ) {
             self.maximum_allowed_price_difference = value;
         }

@@ -3,7 +3,6 @@
 mod utils;
 use utils::*;
 
-use adapters_interface::common::*;
 use ociswap_adapter::*;
 use olympus::{LiquidityPosition, LockupPeriod};
 
@@ -191,8 +190,7 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
     let price_bitcoin_base_xrd_quote = bitcoin_price / xrd_price;
 
     let lockup_period = LockupPeriod::from_months(6);
-    let upfront_reward_percentage =
-        Percent::new(dec!(0.1)).expect("Must succeed!");
+    let upfront_reward_percentage = dec!(0.1);
 
     protocol.oracle.set_price(
         resources.bitcoin.0,
@@ -230,7 +228,7 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
         change.0.amount(env),
         Ok(price_bitcoin_base_xrd_quote
             * bitcoin_contribution_amount
-            * *upfront_reward_percentage)
+            * upfront_reward_percentage)
     );
     assert!(additional_resources.is_empty());
 
@@ -280,8 +278,7 @@ fn can_open_position_on_an_ociswap_pool() -> Result<(), RuntimeError> {
         adapter_specific_data
             .share_in_pool_when_opening_position
             .checked_round(6, RoundingMode::ToNearestMidpointTowardZero),
-        Percent::new(dec!(0.1) / dec!(1.1))
-            .unwrap()
+        (dec!(0.1) / dec!(1.1))
             .checked_round(6, RoundingMode::ToNearestMidpointTowardZero),
     );
 
