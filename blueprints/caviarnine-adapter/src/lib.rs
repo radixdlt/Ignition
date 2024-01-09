@@ -295,7 +295,6 @@ mod adapter {
             &mut self,
             _pool_address: ComponentAddress,
             _pool_units: Bucket,
-            _current_oracle_price: Price,
             _adapter_specific_data: AnyScryptoValue,
         ) -> CloseLiquidityPositionOutput {
             todo!()

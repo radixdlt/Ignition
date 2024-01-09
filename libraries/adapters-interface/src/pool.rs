@@ -16,7 +16,6 @@ define_interface! {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
-            current_oracle_price: Price,
             adapter_specific_data: AnyScryptoValue
         ) -> CloseLiquidityPositionOutput;
 

@@ -59,6 +59,29 @@ mod adapter {
                 .with_address(address_reservation)
                 .globalize()
         }
+
+        /// Calculates the amount we expect to get back at a particular price
+        /// point due to price action alone and in the absence of fees.
+        fn calculate_expected_redemption_amount_at_price(
+            k: PreciseDecimal,
+            share: Decimal,
+            price: Price,
+        ) -> IndexMap<ResourceAddress, Decimal> {
+            let amount1 = k
+                .checked_div(price.price)
+                .and_then(|frac| frac.checked_sqrt())
+                .and_then(|sqrt| sqrt.checked_mul(share))
+                .and_then(|expr| expr.checked_mul(price.price))
+                .expect("Failed to calculate amount1 in Ociswap adapter");
+            let amount2 = amount1
+                .checked_div(price.price)
+                .expect("Failed to calculate amount2 in Ociswap adapter");
+
+            indexmap! {
+                price.quote => amount1.try_into().unwrap(),
+                price.base => amount2.try_into().unwrap()
+            }
+        }
     }
 
     impl PoolAdapterInterfaceTrait for OciswapAdapter {
@@ -118,7 +141,6 @@ mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
-            current_oracle_price: Price,
             adapter_specific_data: AnyScryptoValue,
         ) -> CloseLiquidityPositionOutput {
             // Convert the component address into an Ociswap "BasicPool".
@@ -131,17 +153,37 @@ mod adapter {
                 .as_typed::<OciswapAdapterData>()
                 .expect("Failed to decode data as Ociswap Adapter data");
 
+            // Calculate the amount we expect to get back at this price point
+            // based on price action alone.
+            let expected_redemption_amount =
+                Self::calculate_expected_redemption_amount_at_price(
+                    adapter_data.k_value_when_opening_the_position,
+                    adapter_data.share_in_pool_when_opening_position,
+                    self.price(pool_address),
+                );
+
             // Remove the liquidity
-            let buckets = basic_pool.remove_liquidity(pool_units);
+            let (bucket1, bucket2) = basic_pool.remove_liquidity(pool_units);
+            let resource_address1 = bucket1.resource_address();
+            let resource_address2 = bucket2.resource_address();
+
+            let amounts = indexmap! {
+                resource_address1 => bucket1.amount(),
+                resource_address2 => bucket2.amount(),
+            };
 
             // Construct the output
+            // TODO: Test the fees calculation logic
             CloseLiquidityPositionOutput {
                 resources: indexmap! {
-                    buckets.0.resource_address() => buckets.0,
-                    buckets.1.resource_address() => buckets.1,
+                    bucket1.resource_address() => bucket1,
+                    bucket2.resource_address() => bucket2,
                 },
                 others: vec![],
-                fees: todo!(),
+                fees: indexmap! {
+                    resource_address1 => amounts[&resource_address1] - expected_redemption_amount[&resource_address1],
+                    resource_address2 => amounts[&resource_address2] - expected_redemption_amount[&resource_address2],
+                },
             }
         }
 
