@@ -4,10 +4,11 @@ use radix_engine_interface::prelude::*;
 use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 
+use adapters_interface::common::*;
 use ociswap_adapter::test_bindings::*;
 use ociswap_adapter::*;
 use olympus::test_bindings::*;
-use olympus::{LockupPeriod, Percent};
+use olympus::LockupPeriod;
 use test_oracle::test_bindings::*;
 
 /// The environment that Olympus is tested in.

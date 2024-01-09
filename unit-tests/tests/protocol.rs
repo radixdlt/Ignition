@@ -3,8 +3,9 @@
 mod utils;
 use utils::*;
 
+use adapters_interface::common::*;
 use ociswap_adapter::*;
-use olympus::{LiquidityPosition, LockupPeriod, Percent};
+use olympus::{LiquidityPosition, LockupPeriod};
 
 use radix_engine_interface::prelude::*;
 use radix_engine_interface::*;

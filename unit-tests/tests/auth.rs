@@ -3,6 +3,7 @@
 mod utils;
 use utils::*;
 
+use adapters_interface::common::*;
 use olympus::types::*;
 use scrypto_test::prelude::*;
 

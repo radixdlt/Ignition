@@ -307,6 +307,7 @@ mod olympus {
         /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
         /// return upon contribution, this can be their rewards tokens or
         /// anything else.
+        // TODO: Only allow pools where XRD is on one side of the pool.
         pub fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -315,21 +316,19 @@ mod olympus {
         ) -> (NonFungibleBucket, FungibleBucket, Vec<Bucket>) {
             // Contributions can only happen when the protocol is allowing them.
             // If not, then disable contributions.
-            if !self.is_open_liquidity_position_enabled {
-                panic!(
-                    "Opening liquidity positions is not allowed at this time."
-                )
-            }
+            assert!(
+                self.is_open_liquidity_position_enabled,
+                "Opening liquidity positions is not allowed at this time."
+            );
 
             // Only contributions allowed are to pools that the protocol allows.
             // If this pool is not in that set of allowed pools, then panic and
             // fail the transaction.
-            if !self.allowed_pools.contains(pool_address.as_node_id()) {
-                panic!(
-                    "Pool {} is not found in the list of allowed pools",
-                    Runtime::bech32_encode_address(pool_address)
-                )
-            }
+            assert!(
+                self.allowed_pools.contains(pool_address.as_node_id()),
+                "Pool {} is not found in the list of allowed pools",
+                Runtime::bech32_encode_address(pool_address)
+            );
 
             // Get the amounts and the resource addresses
             let input_resource_address = bucket.resource_address();
@@ -339,7 +338,8 @@ mod olympus {
             // the quote is XRD. This tells us how much XRD is one input asset.
             let price_input_base_xrd_quote =
                 self.get_price(input_resource_address, XRD);
-            let input_value_in_xrd = input_amount * price_input_base_xrd_quote;
+            let input_value_in_xrd =
+                input_amount * price_input_base_xrd_quote.price;
 
             // Based on the lockup period they specified, calculate the amount
             // of XRD to give them upfront.
@@ -350,14 +350,47 @@ mod olympus {
                 .map(|reward_amount| self.withdraw(XRD, reward_amount))
                 .expect("No reward percentage associated with lockup period.");
 
-            // Calculate the maximum amount of XRD we're willing to contribute
-            // based on the maximum amount of price difference we allow. If the
-            // maximum allowed price difference is 5% then the maximum amount we
-            // are willing to contribute is 105% of the XRD value of the input.
-            let maximum_amount_of_xrd_to_contribute = input_value_in_xrd
-                * (Decimal::ONE + *self.maximum_allowed_price_difference);
+            // Getting the adapter that we'll be using.
+            let mut adapter = self
+                .pool_adapters
+                .get_mut(&ScryptoVmV1Api::object_get_blueprint_id(
+                    pool_address.as_node_id(),
+                ))
+                .map(|adapter| *adapter)
+                .expect("No adapter found for liquidity pool");
+
+            // Check if the relative difference between the oracle reported
+            // price and the pool reported price is within the range allowed
+            // by the pool. If not, then abort.
+            let oracle_price = price_input_base_xrd_quote;
+            let pool_price = adapter.price(pool_address);
+            let relative_difference = oracle_price
+                .relative_difference(&pool_price)
+                .expect("Oracle price and pool price are of different assets");
+            assert!(
+                relative_difference <= *self.maximum_allowed_price_difference,
+                "Found a {}% difference in the price of {}/{} when the maximum allowed is: {}",
+                relative_difference * dec!(100),
+                Runtime::bech32_encode_address(input_resource_address),
+                Runtime::bech32_encode_address(XRD),
+                self.maximum_allowed_price_difference
+            );
+
+            // The difference between the pool price and the oracle price has
+            // been determined to be within the allowed range. We now need to
+            // determine how much XRD to contribute to the pool. This will be
+            // done based on the current price of the pool and not that which
+            // was reported by the oracle. This might be more favorable to us
+            // or to the caller, but with a small enough allowed percentage
+            // difference it will make very little difference.
+            let (resource_address_to_contribute, amount_of_xrd_to_contribute) =
+                pool_price
+                    .exchange(input_resource_address, input_amount)
+                    .expect("Must succeed!");
+            assert_eq!(resource_address_to_contribute, XRD);
+
             let xrd_to_contribute =
-                self.withdraw(XRD, maximum_amount_of_xrd_to_contribute).0;
+                self.withdraw(XRD, amount_of_xrd_to_contribute).0;
 
             let OpenLiquidityPositionOutput {
                 pool_units,
@@ -384,32 +417,8 @@ mod olympus {
                     .get(&input_resource_address)
                     .map(Bucket::amount)
                     .unwrap_or_default();
-            let actual_xrd_contribution = maximum_amount_of_xrd_to_contribute
+            let actual_xrd_contribution = amount_of_xrd_to_contribute
                 - change.get(&XRD).map(Bucket::amount).unwrap_or_default();
-
-            // Calculate the price in terms of quote and base based on how much
-            // we contributed.
-            let actual_price_input_base_xrd_quote =
-                actual_xrd_contribution / actual_input_contribution;
-
-            // Find the percentage difference between the oracle reported price
-            // and that which was reported through the contribution. Difference
-            // must be smaller than the maximum amount allowed for by the
-            // protocol.
-            let percentage_difference = (actual_price_input_base_xrd_quote
-                - price_input_base_xrd_quote)
-                .checked_abs()
-                .unwrap()
-                / actual_price_input_base_xrd_quote;
-            if percentage_difference > *self.maximum_allowed_price_difference {
-                panic!(
-                    "Found a {}% difference in the price of {}/{} when the maximum allowed is: {}",
-                    percentage_difference * dec!(100),
-                    Runtime::bech32_encode_address(input_resource_address),
-                    Runtime::bech32_encode_address(XRD),
-                    self.maximum_allowed_price_difference
-                );
-            }
 
             // Creating the liquidity position NFT and minting it
             let liquidity_position_nft = {
@@ -899,16 +908,15 @@ mod olympus {
         ///
         /// # Returns
         ///
-        /// [`Decimal`] - The price of the base asset in terms of the quote
+        /// [`Price`] - The price of the base asset in terms of the quote
         /// asset.
         fn get_price(
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> Decimal {
+        ) -> Price {
             // Get the price
-            let (Price { price, .. }, last_update) =
-                self.oracle.get_price(base, quote);
+            let (price, last_update) = self.oracle.get_price(base, quote);
 
             // Check for staleness
             if Clock::current_time(TimePrecision::Minute)

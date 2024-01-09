@@ -8,6 +8,7 @@ description = "Defines the interface of the various adapters-interface"
 sbor = { workspace = true }
 scrypto = { workspace = true }
 radix-engine-common = { workspace = true }
+radix-engine-derive = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 scrypto-interface = { path = "../scrypto-interface" }
