@@ -1,12 +1,12 @@
 //! This crate and module implements the CaviarSwap adapter that is used by the
-//! Olympus to translate high-level commands such as `open_liquidity_position`
+//! Ignition to translate high-level commands such as `open_liquidity_position`
 //! and `close_liquidity_position` to lower level methods and function calls
 //! that need to be made to the CaviarSwap components to achieve those higher
 //! level intents.
 //!
 //! This is an adapter for Caviar's QuantaSwap blueprint which is the main
 //! blueprint used in their concentrated-liquidity liquidity pools and the
-//! one of interest to Olympus.
+//! one of interest to Ignition.
 //!
 //! Since CaviarNine follows Uniswap v3 concentrated liquidity approach this
 //! makes this adapter implementation more complex than a Uniswap v2 style

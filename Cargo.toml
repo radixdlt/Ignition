@@ -2,7 +2,7 @@
 resolver = "2"
 members = [
     # Blueprints
-    "blueprints/olympus",
+    "blueprints/ignition",
     "blueprints/test-oracle",
     "blueprints/ociswap-adapter",
     "blueprints/caviarnine-adapter",
@@ -17,7 +17,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-description = "The implementation of project Olympus in Scrypto for the Radix Ledger"
+description = "The implementation of project Ignition in Scrypto for the Radix Ledger"
 
 [workspace.dependencies]
 sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }

@@ -14,7 +14,7 @@ type PoolAdapter = PoolAdapterInterfaceScryptoStub;
 
 #[blueprint]
 #[types(LiquidityPosition)]
-mod olympus {
+mod ignition {
     enable_method_auth! {
         roles {
             protocol_owner => updatable_by: [protocol_owner];
@@ -67,8 +67,8 @@ mod olympus {
         }
     }
 
-    pub struct Olympus {
-        /// The oracle that Olympus uses to get the price of assets at any point
+    pub struct Ignition {
+        /// The oracle that Ignition uses to get the price of assets at any point
         /// of time. This blueprint requires that the oracle implements a
         /// specific interface which is defined in the adapters_interface
         /// interface crate.
@@ -170,7 +170,7 @@ mod olympus {
         is_close_liquidity_position_enabled: bool,
     }
 
-    impl Olympus {
+    impl Ignition {
         pub fn instantiate(
             /* Access Rules */
             owner_role: OwnerRole,
@@ -181,7 +181,7 @@ mod olympus {
             usd_resource_address: ResourceAddress,
             /* Misc */
             address_reservation: Option<GlobalAddressReservation>,
-        ) -> Global<Olympus> {
+        ) -> Global<Ignition> {
             // If no address reservation is provided then reserve an address to
             // globalize the component to - this is to provide us with a non
             // branching way of globalizing the component.
@@ -200,7 +200,7 @@ mod olympus {
                         (address_reservation, address)
                     }
                     None => Runtime::allocate_component_address(
-                        Olympus::blueprint_id(),
+                        Ignition::blueprint_id(),
                     ),
                 };
 
@@ -219,8 +219,8 @@ mod olympus {
                     init {
                         // TODO: What should we put here - is this ok?
                         // TODO: Should the fields be locked?
-                        "name" => "Olympus Liquidity Position", locked;
-                        "description" => "A non-fungible that represents a liquidity position in the Olympus incentive program.", locked;
+                        "name" => "Ignition Liquidity Position", locked;
+                        "description" => "A non-fungible that represents a liquidity position in the Ignition incentive program.", locked;
                         "tags" => Vec::<String>::new(), locked;
                         "icon_url" => "https://www.example.com", locked;
                         "info_url" => "https://www.example.com", locked;
@@ -277,7 +277,7 @@ mod olympus {
         /// There are a number of situations when this method panics and leads
         /// the transaction to fail. Some of them are:
         ///
-        /// * If the specified pool is not a registered pool in Olympus and
+        /// * If the specified pool is not a registered pool in Ignition and
         /// thus, no liquidity is allowed to be provided to this pool.
         /// * If the lockup period specified by the caller has no corresponding
         /// upfront rewards percentage, and thus it is not a recognized lockup
@@ -292,7 +292,7 @@ mod olympus {
         /// contribute to, this must be a valid pool that is registered in the
         /// protocol and that has an adapter.
         /// * `bucket`: [`FungibleBucket`] - A fungible bucket of tokens to
-        /// contribute to the pool. Olympus will match the value of this bucket
+        /// contribute to the pool. Ignition will match the value of this bucket
         /// in XRD and contribute it alongside it to the specified pool.
         /// * `lockup_period`: [`u32`] - The amount of time (in seconds) to
         /// lockup the liquidity. This must be a registered lockup period with a

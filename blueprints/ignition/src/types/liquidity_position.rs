@@ -1,7 +1,7 @@
 use crate::*;
 use scrypto::prelude::*;
 
-/// The data of the liquidity positions given to the users of Olympus.
+/// The data of the liquidity positions given to the users of Ignition.
 #[derive(ScryptoSbor, Clone, Debug, PartialEq, Eq, NonFungibleData)]
 pub struct LiquidityPosition {
     /* Metadata/NonFungibleData standard */
@@ -26,7 +26,7 @@ pub struct LiquidityPosition {
     /// protocol.
     pub contributed_amount: Decimal,
 
-    /// The amount of XRD that was contributed by the Olympus protocol to match
+    /// The amount of XRD that was contributed by the Ignition protocol to match
     /// the users contribution.
     pub matched_xrd_amount: Decimal,
 
@@ -52,8 +52,8 @@ impl LiquidityPosition {
             .unwrap();
 
         Self {
-            name: "Olympus Liquidity Position".to_string(),
-            description: "A non-fungible representing an open liquidity position in the Olympus protocol.".to_string(),
+            name: "Ignition Liquidity Position".to_string(),
+            description: "A non-fungible representing an open liquidity position in the Ignition protocol.".to_string(),
             key_image_url: Url::of("https://www.google.com"),
             lockup_period: lockup_period.to_string(),
             redemption_url: Url::of("https://www.google.com"),

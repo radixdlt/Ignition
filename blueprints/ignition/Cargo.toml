@@ -1,8 +1,8 @@
 [package]
-name = "olympus"
+name = "ignition"
 version = { workspace = true }
 edition = { workspace = true }
-description = "The implementation of the Olympus protocol"
+description = "The implementation of the Ignition protocol"
 
 [dependencies]
 sbor = { workspace = true }

@@ -2,7 +2,7 @@
 name = "unit-tests"
 version = { workspace = true }
 edition = { workspace = true }
-description = "Unit tests of the Olympus protocol and accompanying blueprints"
+description = "Unit tests of the Ignition protocol and accompanying blueprints"
 build = "build.rs"
 
 [dev-dependencies]
@@ -17,7 +17,7 @@ radix-engine-interface = { workspace = true }
 radix-engine-store-interface = { workspace = true }
 
 # Pull in the various blueprints to get their testing stubs
-olympus = { path = "../blueprints/olympus", features = ["test"] }
+ignition = { path = "../blueprints/ignition", features = ["test"] }
 test-oracle = { path = "../blueprints/test-oracle", features = ["test"] }
 ociswap-adapter = { path = "../blueprints/ociswap-adapter", features = ["test"] }
 caviarnine-adapter = { path = "../blueprints/caviarnine-adapter", features = ["test"] }

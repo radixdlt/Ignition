@@ -4,22 +4,22 @@ use radix_engine_interface::prelude::*;
 use scrypto::prelude::{RoleDefinition, ToRoleEntry};
 use scrypto_test::prelude::*;
 
+use ignition::test_bindings::*;
+use ignition::LockupPeriod;
 use ociswap_adapter::test_bindings::*;
 use ociswap_adapter::*;
-use olympus::test_bindings::*;
-use olympus::LockupPeriod;
 use test_oracle::test_bindings::*;
 
-/// The environment that Olympus is tested in.
+/// The environment that Ignition is tested in.
 ///
 /// This offers a set of convince methods for creating and initializing the
 /// environment such that it is in a state that can easily be tested. First,
 /// the appropriate package's substates are loaded and then flashed to the
 /// environment making them available for use there, these substates come from
 /// the mainnet state tree. Additionally, the needed resources are created,
-/// and an oracle is created and registered in Olympus.
+/// and an oracle is created and registered in Ignition.
 ///
-/// Olympus will be initialized with a protocol owner and a protocol manager
+/// Ignition will be initialized with a protocol owner and a protocol manager
 /// whose badges will be created in the initialization of the environment and
 /// returned back to the caller. Additionally, the auth module will be disabled
 /// by default for the created test environment. If it needs to be enabled then
@@ -37,6 +37,10 @@ impl Environment {
         include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
 
     pub fn new() -> Result<Self, RuntimeError> {
+        Self::new_configurable(dec!(0.01))
+    }
+
+    pub fn new_configurable(fees: Decimal) -> Result<Self, RuntimeError> {
         // Preparing the substates that will be flashed to the environment. Load
         // and decode them.
         let (addresses, db_flash) =
@@ -66,7 +70,7 @@ impl Environment {
 
         /* Package publishing */
         let (olympus_package_address, _) =
-            Self::publish_package("olympus", &mut env)?;
+            Self::publish_package("ignition", &mut env)?;
         let (ociswap_adapter_package_address, _) =
             Self::publish_package("ociswap-adapter", &mut env)?;
         let (test_oracle_package_address, _) =
@@ -122,7 +126,7 @@ impl Environment {
             ociswap_adapter_package_address,
             &mut env,
         )?;
-        let mut olympus = Olympus::instantiate(
+        let mut ignition = Ignition::instantiate(
             OwnerRole::None,
             protocol_owner_rule,
             protocol_manager_rule,
@@ -139,7 +143,7 @@ impl Environment {
                 OciswapPoolInterfaceScryptoTestStub::instantiate(
                     resource_address,
                     XRD,
-                    dec!(0.01),
+                    fees,
                     FAUCET,
                     ociswap_package,
                     &mut env,
@@ -147,41 +151,41 @@ impl Environment {
                 .unwrap()
             });
 
-        /* Olympus configuration */
+        /* Ignition configuration */
         // Allow liquidity positions to be opened and closed.
-        olympus.config_open_liquidity_position(true, &mut env)?;
-        olympus.config_close_liquidity_position(true, &mut env)?;
-        // Provide Olympus with its first funding of XRD.
-        olympus.deposit(
+        ignition.config_open_liquidity_position(true, &mut env)?;
+        ignition.config_close_liquidity_position(true, &mut env)?;
+        // Provide Ignition with its first funding of XRD.
+        ignition.deposit(
             FungibleBucket(
                 ResourceManager(XRD)
                     .mint_fungible(dec!(100_000_000_000), &mut env)?,
             ),
             &mut env,
         )?;
-        // Add the various pool adapters to Olympus
-        olympus.add_pool_adapter(
+        // Add the various pool adapters to Ignition
+        ignition.add_pool_adapter(
             OciswapPoolInterfaceScryptoTestStub::blueprint_id(ociswap_package),
             ociswap_adapter.try_into().unwrap(),
             &mut env,
         )?;
-        // Register the various pools with Olympus
+        // Register the various pools with Ignition
         for allowed_pool in [
             ComponentAddress::try_from(ociswap_bitcoin_pool).unwrap(),
             ComponentAddress::try_from(ociswap_ethereum_pool).unwrap(),
             ComponentAddress::try_from(ociswap_usdc_pool).unwrap(),
             ComponentAddress::try_from(ociswap_usdt_pool).unwrap(),
         ] {
-            olympus.add_allowed_pool(allowed_pool, &mut env)?;
+            ignition.add_allowed_pool(allowed_pool, &mut env)?;
         }
         // Add the lockup periods that the protocol will be using. We will add
         // 6 months at 10% and 9 months at 20%.
-        olympus.add_rewards_rate(
+        ignition.add_rewards_rate(
             LockupPeriod::from_months(6),
             dec!(0.1),
             &mut env,
         )?;
-        olympus.add_rewards_rate(
+        ignition.add_rewards_rate(
             LockupPeriod::from_months(9),
             dec!(0.2),
             &mut env,
@@ -193,7 +197,7 @@ impl Environment {
             environment: env,
             protocol: ProtocolEntities {
                 olympus_package_address,
-                olympus,
+                ignition,
                 oracle_package_address: test_oracle_package_address,
                 oracle: test_oracle,
                 protocol_owner_badge,
@@ -229,9 +233,9 @@ impl Environment {
 
 #[derive(Debug)]
 pub struct ProtocolEntities {
-    /* Olympus */
+    /* Ignition */
     pub olympus_package_address: PackageAddress,
-    pub olympus: Olympus,
+    pub ignition: Ignition,
     /* Oracle */
     pub oracle_package_address: PackageAddress,
     pub oracle: TestOracle,

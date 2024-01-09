@@ -1,5 +1,5 @@
 mod liquidity_position;
-mod percent;
+mod lockup_period;
 
 pub use liquidity_position::*;
-pub use percent::*;
+pub use lockup_period::*;

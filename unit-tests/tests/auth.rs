@@ -3,7 +3,7 @@
 mod utils;
 use utils::*;
 
-use olympus::types::*;
+use ignition::types::*;
 use scrypto_test::prelude::*;
 
 macro_rules! test_access_rules {
@@ -31,7 +31,7 @@ macro_rules! test_access_rules {
                     LocalAuthZone::push(proof, env)?;
 
                     // Act
-                    let rtn = protocol.olympus.$method_name( $( $arg ),* , env);
+                    let rtn = protocol.ignition.$method_name( $( $arg ),* , env);
 
                     // Assert
                     assert!(!matches!(
@@ -63,7 +63,7 @@ macro_rules! test_access_rules {
                     env.enable_auth_module();
 
                     // Act
-                    let rtn = protocol.olympus.$method_name( $( $arg ),* , env);
+                    let rtn = protocol.ignition.$method_name( $( $arg ),* , env);
 
                     // Assert
                     assert!(matches!(
