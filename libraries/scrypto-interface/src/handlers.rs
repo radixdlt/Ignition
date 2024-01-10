@@ -16,23 +16,35 @@ pub fn handle_define_interface(
     let generate = define_interface
         .generate
         .as_ref()
-        .map(|(_, _, generate)| generate.iter().copied().collect())
-        .unwrap_or(Generate::ALL.iter().copied().collect::<HashSet<_>>());
+        .map(|(_, _, generate)| generate.iter().cloned().collect())
+        .unwrap_or(
+            Generate::ALL
+                .iter()
+                .map(|generate| GenerationItem {
+                    attributes: Default::default(),
+                    generate: *generate,
+                })
+                .collect::<HashSet<_>>(),
+        );
 
     let mut generated = vec![];
-    for generate in generate {
+    for GenerationItem {
+        attributes,
+        generate,
+    } in generate
+    {
         match generate {
             Generate::Trait => {
-                generated.push(generate_trait(&define_interface))
+                generated.push(generate_trait(&define_interface, &attributes))
             }
-            Generate::ScryptoStub => {
-                generated.push(generate_scrypto_stub(&define_interface))
-            }
-            Generate::ScryptoTestStub => {
-                generated.push(generate_scrypto_test_stub(&define_interface))
-            }
-            Generate::ManifestBuilderStub => generated
-                .push(generate_manifest_builder_stub(&define_interface)?),
+            Generate::ScryptoStub => generated
+                .push(generate_scrypto_stub(&define_interface, &attributes)),
+            Generate::ScryptoTestStub => generated.push(
+                generate_scrypto_test_stub(&define_interface, &attributes),
+            ),
+            Generate::ManifestBuilderStub => generated.push(
+                generate_manifest_builder_stub(&define_interface, &attributes)?,
+            ),
         };
     }
 
@@ -41,7 +53,10 @@ pub fn handle_define_interface(
     ))
 }
 
-fn generate_trait(input: &DefineInterfaceInput) -> TokenStream2 {
+fn generate_trait(
+    input: &DefineInterfaceInput,
+    attributes: &[Attribute],
+) -> TokenStream2 {
     let struct_ident = input.struct_ident();
     let trait_ident = format_ident!("{}InterfaceTrait", struct_ident);
 
@@ -67,13 +82,17 @@ fn generate_trait(input: &DefineInterfaceInput) -> TokenStream2 {
         .collect::<Vec<_>>();
 
     quote!(
+        #(#attributes)*
         pub trait #trait_ident {
             #(#signatures)*
         }
     )
 }
 
-fn generate_scrypto_stub(input: &DefineInterfaceInput) -> TokenStream2 {
+fn generate_scrypto_stub(
+    input: &DefineInterfaceInput,
+    attributes: &[Attribute],
+) -> TokenStream2 {
     let struct_ident = input.struct_ident();
     let struct_ident = format_ident!("{}InterfaceScryptoStub", struct_ident);
     let blueprint_ident = &input.blueprint_ident;
@@ -176,11 +195,13 @@ fn generate_scrypto_stub(input: &DefineInterfaceInput) -> TokenStream2 {
             Ord,
             Hash
         )]
+        #(#attributes)*
         #[sbor(transparent)]
         pub struct #struct_ident (
             ::radix_engine_interface::prelude::Reference
         );
 
+        #(#attributes)*
         const _: () = {
             impl<T> From<T> for #struct_ident
             where
@@ -210,7 +231,10 @@ fn generate_scrypto_stub(input: &DefineInterfaceInput) -> TokenStream2 {
     }
 }
 
-fn generate_scrypto_test_stub(input: &DefineInterfaceInput) -> TokenStream2 {
+fn generate_scrypto_test_stub(
+    input: &DefineInterfaceInput,
+    attributes: &[Attribute],
+) -> TokenStream2 {
     let struct_ident = input.struct_ident();
     let struct_ident =
         format_ident!("{}InterfaceScryptoTestStub", struct_ident);
@@ -327,11 +351,13 @@ fn generate_scrypto_test_stub(input: &DefineInterfaceInput) -> TokenStream2 {
             Ord,
             Hash
         )]
+        #(#attributes)*
         #[sbor(transparent)]
         pub struct #struct_ident (
             ::radix_engine_interface::prelude::Reference
         );
 
+        #(#attributes)*
         const _: () = {
             impl<T> From<T> for #struct_ident
             where
@@ -363,6 +389,7 @@ fn generate_scrypto_test_stub(input: &DefineInterfaceInput) -> TokenStream2 {
 
 fn generate_manifest_builder_stub(
     input: &DefineInterfaceInput,
+    attributes: &[Attribute],
 ) -> syn::Result<TokenStream2> {
     let struct_ident = input.struct_ident();
     let trait_ident =
@@ -488,10 +515,12 @@ fn generate_manifest_builder_stub(
         .collect::<syn::Result<Vec<_>>>()?;
 
     Ok(quote!(
+        #(#attributes)*
         pub trait #trait_ident {
             #(#signatures)*
         }
 
+        #(#attributes)*
         const _: () = {
             impl #trait_ident for ::transaction::builder::ManifestBuilder {
                 #(#implementations)*

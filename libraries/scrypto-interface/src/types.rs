@@ -12,7 +12,7 @@ pub struct DefineInterfaceInput {
     pub blueprint_ident: Ident,
     pub struct_ident: Option<(Token![as], Ident)>,
     pub generate:
-        Option<(Token![impl], Bracket, Punctuated<Generate, Token![,]>)>,
+        Option<(Token![impl], Bracket, Punctuated<GenerationItem, Token![,]>)>,
     pub brace: Brace,
     pub signatures: Vec<Signature>,
 }
@@ -40,7 +40,8 @@ impl Parse for DefineInterfaceInput {
             let content;
             let bracket = bracketed!(content in input);
 
-            let inner = content.parse_terminated(Generate::parse, Token![,])?;
+            let inner =
+                content.parse_terminated(GenerationItem::parse, Token![,])?;
             Some((impl_token, bracket, inner))
         } else {
             None
@@ -59,6 +60,23 @@ impl Parse for DefineInterfaceInput {
             generate,
             brace,
             signatures,
+        })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GenerationItem {
+    pub attributes: Vec<Attribute>,
+    pub generate: Generate,
+}
+
+impl Parse for GenerationItem {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let attributes = input.call(Attribute::parse_outer)?;
+        let generate = input.parse::<Generate>()?;
+        Ok(Self {
+            attributes,
+            generate,
         })
     }
 }
@@ -815,7 +833,7 @@ mod test {
         assert!(define_interface.generate.is_some_and(|item| item
             .2
             .iter()
-            .copied()
+            .map(|item| item.generate)
             .collect::<Vec<_>>()
             == vec![
                 Generate::Trait,

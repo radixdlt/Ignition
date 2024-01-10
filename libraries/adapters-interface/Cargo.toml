@@ -1,0 +1,29 @@
+[package]
+name = "adapters-interface"
+version.workspace = true
+edition.workspace = true
+description = "Defines the interface of the various adapters."
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+radix-engine-common = { workspace = true }
+radix-engine-derive = { workspace = true }
+radix-engine-interface = { workspace = true }
+
+scrypto-interface = { path = "../scrypto-interface" }
+
+[features]
+default = [
+    "trait",
+    "scrypto",
+    "scrypto-test",
+    "manifest-builder",
+]
+trait = []
+scrypto = []
+scrypto-test = []
+manifest-builder = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
