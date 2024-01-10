@@ -145,7 +145,7 @@ define_interface! {
     }
 }
 
-###[blueprint_with_traits]
+#[blueprint_with_traits]
 mod adapter1 {
     struct Adapter1;
 
@@ -165,7 +165,7 @@ mod adapter1 {
     }
 }
 
-###[blueprint_with_traits]
+#[blueprint_with_traits]
 mod adapter1 {
     struct Adapter2;
 
@@ -214,7 +214,7 @@ define_interface! {
 }
 
 
-###[blueprint_with_traits]
+#[blueprint_with_traits]
 mod client {
     struct Client;
 
@@ -261,7 +261,7 @@ define_interface! {
 }
 
 
-###[test]
+#[test]
 fn some_test() {
     // Arrange
     let env = &mut TestEnvironment::new();
@@ -303,7 +303,7 @@ define_interface! {
     }
 }
 
-###[test]
+#[test]
 fn some_test() {
     let account: ComponentAddress = todo!();
     let radiswap: ComponentAddress = todo!();
@@ -335,7 +335,7 @@ This means that:
 
 This macro can be used just like the regular `blueprint` macro from Scrypto. In fact, this macro just performs some post-processing and delegates the rest to the regular `blueprint` macro.
 
-# Example
+### Example
 
 ```rust
 use scrypto::prelude::*;
