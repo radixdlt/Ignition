@@ -4,7 +4,7 @@ default_to_workspace = false
 [tasks.test]
 install_crate = "nextest"
 command = "cargo"
-args = ["nextest", "run", "--features", "compile-blueprints-at-build-time"]
+args = ["nextest", "run"]
 
 [tasks.check]
 install_crate = "clippy"
