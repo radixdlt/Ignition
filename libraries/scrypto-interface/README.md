@@ -12,10 +12,6 @@
   </p>
 </div>
 
-|          |                                                                                                          |
-| -------- | -------------------------------------------------------------------------------------------------------- |
-| **Note** | This is just an experimental crate and way of generating bindings and stubs for Scrypto and other tools. |
-
 ## Features
 
 There are two main features provided in this crate:
