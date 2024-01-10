@@ -18,6 +18,13 @@ pub struct LiquidityPosition {
     pub redemption_url: Url,
 
     /* Application data */
+    /// The address of the pool that the resources were contributed to and that
+    /// they must be redeemed from.
+    pub pool: ComponentAddress,
+
+    /// The value of the contribution made in USD.
+    pub contribution_usd_value: Decimal,
+
     /// The address of the resource that the user contributed through the
     /// protocol.
     pub contributed_resource: ResourceAddress,
@@ -42,6 +49,8 @@ pub struct LiquidityPosition {
 impl LiquidityPosition {
     pub fn new(
         lockup_period: LockupPeriod,
+        pool: ComponentAddress,
+        contribution_usd_value: Decimal,
         contributed_resource: ResourceAddress,
         contributed_amount: Decimal,
         matched_xrd_amount: Decimal,
@@ -57,6 +66,8 @@ impl LiquidityPosition {
             key_image_url: Url::of("https://www.google.com"),
             lockup_period: lockup_period.to_string(),
             redemption_url: Url::of("https://www.google.com"),
+            contribution_usd_value,
+            pool,
             contributed_resource,
             contributed_amount,
             maturity_date,

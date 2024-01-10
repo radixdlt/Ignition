@@ -65,11 +65,17 @@ define_error_functions! {
     is_open_liquidity_position_not_a_valid_lockup_period_error
         => "No reward percentage associated with lockup period.";
     is_open_liquidity_position_no_adapter_error
-        => "No adapter found for liquidity pool";
+        => "[Get Adapter]: No adapter found for pool.";
     is_open_liquidity_position_price_difference_too_large_error
         => "when the maximum allowed is:";
     is_open_liquidity_position_neither_side_is_xrd_error
         => "Neither side of the pool is XRD";
     is_add_allowed_pool_no_adapter_found_for_pool
         => "No adapter found for component";
+    is_close_liquidity_position_invalid_liquidity_position_resource
+        => "[Close Liquidity Position]: Not an LP position NFT";
+    is_close_liquidity_position_amount_of_lp_nfts_not_one
+        => "[Close Liquidity Position]: Amount of LP position NFTs != 1";
+    is_close_liquidity_position_position_has_not_matured
+        => "[Close Liquidity Position]: Position has not matured";
 }

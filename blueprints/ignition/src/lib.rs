@@ -2,6 +2,8 @@
 
 pub mod types;
 
+use std::cmp::min;
+
 use adapters_interface::common::*;
 use adapters_interface::oracle::*;
 use adapters_interface::pool::*;
@@ -64,6 +66,7 @@ mod ignition {
             remove_rewards_rate => restrict_to: [protocol_owner];
             update_usd_resource_address => restrict_to: [protocol_owner];
             open_liquidity_position => PUBLIC;
+            close_liquidity_position => PUBLIC;
         }
     }
 
@@ -350,13 +353,7 @@ mod ignition {
                 .expect("No reward percentage associated with lockup period.");
 
             // Getting the adapter that we'll be using.
-            let mut adapter = self
-                .pool_adapters
-                .get_mut(&ScryptoVmV1Api::object_get_blueprint_id(
-                    pool_address.as_node_id(),
-                ))
-                .map(|adapter| *adapter)
-                .expect("No adapter found for liquidity pool");
+            let mut adapter = self.get_adapter(pool_address);
 
             assert!(
                 matches!(
@@ -427,10 +424,14 @@ mod ignition {
             let actual_xrd_contribution = amount_of_xrd_to_contribute
                 - change.get(&XRD).map(Bucket::amount).unwrap_or_default();
 
-            // Creating the liquidity position NFT and minting it
+            // Creating the liquidity position NFT and minting it.
+            let contribution_value = self
+                .usd_value(input_resource_address, actual_input_contribution);
             let liquidity_position_nft = {
                 let data = LiquidityPosition::new(
                     lockup_period,
+                    pool_address,
+                    contribution_value,
                     input_resource_address,
                     actual_input_contribution,
                     actual_xrd_contribution,
@@ -465,6 +466,123 @@ mod ignition {
             return_buckets.extend(others);
 
             (liquidity_position_nft, upfront_xrd_reward, return_buckets)
+        }
+
+        pub fn close_liquidity_position(
+            &mut self,
+            liquidity_position_nft: NonFungibleBucket,
+        ) -> Vec<Bucket> {
+            // For simplicity, this method only accepts a single non-fungible
+            // and can't operate on many. So, we ensure that all that we have
+            // in the bucket is just a single non-fungible of the address that
+            // we expect.
+            assert_eq!(
+                liquidity_position_nft.resource_address(),
+                self.liquidity_position_resource.address(),
+                "[Close Liquidity Position]: Not an LP position NFT"
+            );
+            assert_eq!(
+                liquidity_position_nft.amount(),
+                dec!(1),
+                "[Close Liquidity Position]: Amount of LP position NFTs != 1"
+            );
+
+            // Read the data of the non-fungible - ensure that we are past the
+            // maturity date and that we can close the liquidity position.
+            let non_fungible =
+                liquidity_position_nft.non_fungible::<LiquidityPosition>();
+            let data = non_fungible.data();
+
+            assert!(
+                Clock::current_time_is_at_or_after(
+                    data.maturity_date,
+                    TimePrecision::Minute
+                ),
+                "[Close Liquidity Position]: Position has not matured"
+            );
+
+            // The maturity date has been checked, we can close the liquidity
+            // position now - burn the NFT and start the closing procedure.
+            let mut adapter = self.get_adapter(data.pool);
+            liquidity_position_nft.burn();
+
+            // Check the price of the assets reported by the oracle and compare
+            // it against the current price reported by the pool. Reject the
+            // closure if the difference in reported and actual price is above
+            // the allowed percentage difference.
+            let oracle_price = self.get_price(data.contributed_resource, XRD);
+            let pool_price = adapter.price(data.pool);
+            let relative_difference = oracle_price
+                .relative_difference(&pool_price)
+                .expect("Oracle price and pool price are of different assets");
+            assert!(
+                relative_difference <= self.maximum_allowed_price_difference,
+                "Found a {}% difference in the price of {}/{} when the maximum allowed is: {}",
+                relative_difference * dec!(100),
+                Runtime::bech32_encode_address(data.contributed_resource),
+                Runtime::bech32_encode_address(XRD),
+                self.maximum_allowed_price_difference
+            );
+
+            // Withdraw the pool units and close the liquidity position.
+            let pool_units = self
+                .pool_units
+                .get_mut(non_fungible.global_id())
+                .unwrap()
+                .take_all();
+            let CloseLiquidityPositionOutput {
+                ref mut resources,
+                others,
+                fees,
+            } = adapter.close_liquidity_position(
+                data.pool,
+                pool_units,
+                data.adapter_specific_data,
+            );
+
+            let mut returns = others;
+
+            let mut xrd_bucket = resources
+                .get_mut(&XRD)
+                .map(|bucket| Bucket(bucket.0))
+                .unwrap();
+            let mut other_bucket = resources
+                .get_mut(&data.contributed_resource)
+                .map(|bucket| Bucket(bucket.0))
+                .unwrap();
+
+            if other_bucket.amount() >= data.contributed_amount {
+                // Just Other resource.
+                let bucket = other_bucket.take(
+                    data.contributed_amount
+                        + *fees
+                            .get(&other_bucket.resource_address())
+                            .unwrap_or(&Decimal::ZERO),
+                );
+                returns.push(bucket)
+            } else {
+                // Other resource
+                let other_resource_amount_from_closing_lp =
+                    other_bucket.amount();
+                returns.push(
+                    other_bucket.take(other_resource_amount_from_closing_lp),
+                );
+
+                // XRD
+                let amount_of_other_token_remaining = data.contributed_amount
+                    - other_resource_amount_from_closing_lp;
+                let xrd_value = self.xrd_value(
+                    data.contributed_resource,
+                    amount_of_other_token_remaining,
+                );
+                let xrd_amount = min(xrd_value, xrd_bucket.amount());
+                returns.push(xrd_bucket.take(xrd_amount));
+            }
+
+            self.deposit(FungibleBucket(xrd_bucket));
+            self.deposit(FungibleBucket(other_bucket));
+
+            returns
         }
 
         /// Updates the oracle used by the protocol to a different oracle.
@@ -940,6 +1058,33 @@ mod ignition {
 
             // Return price
             price
+        }
+
+        fn get_adapter(&self, pool_address: ComponentAddress) -> PoolAdapter {
+            self.pool_adapters
+                .get(&ScryptoVmV1Api::object_get_blueprint_id(
+                    pool_address.as_node_id(),
+                ))
+                .map(|adapter| *adapter)
+                .expect("[Get Adapter]: No adapter found for pool.")
+        }
+
+        fn usd_value(
+            &self,
+            resource_address: ResourceAddress,
+            amount: Decimal,
+        ) -> Decimal {
+            self.get_price(resource_address, self.usd_resource_address)
+                .price
+                * amount
+        }
+
+        fn xrd_value(
+            &self,
+            resource_address: ResourceAddress,
+            amount: Decimal,
+        ) -> Decimal {
+            self.get_price(resource_address, XRD).price * amount
         }
     }
 }
