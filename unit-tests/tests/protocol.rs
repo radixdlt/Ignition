@@ -174,3 +174,46 @@ fn cant_open_a_liquidity_position_with_an_undefined_lockup_period(
 
     Ok(())
 }
+
+#[test]
+fn cant_open_a_liquidity_position_in_a_pool_where_xrd_is_not_one_of_the_resources(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut resources,
+        mut protocol,
+        ociswap,
+    } = Environment::new()?;
+
+    let pool = OciswapPoolInterfaceScryptoTestStub::instantiate(
+        resources.bitcoin.0,
+        resources.ethereum.0,
+        dec!(0),
+        FAUCET,
+        ociswap.package,
+        env,
+    )?;
+    protocol
+        .ignition
+        .add_allowed_pool(pool.try_into().unwrap(), env)?;
+
+    protocol
+        .oracle
+        .set_price(resources.bitcoin.0, XRD, dec!(100), env)?;
+
+    let btc = resources.bitcoin.mint_fungible(dec!(100), env)?;
+
+    // Act
+    let rtn = protocol.ignition.open_liquidity_position(
+        pool.try_into().unwrap(),
+        FungibleBucket(btc),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    assert_is_open_liquidity_position_neither_side_is_xrd_error(&rtn);
+
+    Ok(())
+}

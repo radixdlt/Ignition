@@ -68,6 +68,8 @@ define_error_functions! {
         => "No adapter found for liquidity pool";
     is_open_liquidity_position_price_difference_too_large_error
         => "when the maximum allowed is:";
+    is_open_liquidity_position_neither_side_is_xrd_error
+        => "Neither side of the pool is XRD";
     is_add_allowed_pool_no_adapter_found_for_pool
         => "No adapter found for component";
 }

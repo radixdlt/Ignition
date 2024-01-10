@@ -313,6 +313,18 @@ mod adapter {
                 price,
             }
         }
+
+        fn resource_addresses(
+            &mut self,
+            pool_address: ComponentAddress,
+        ) -> (ResourceAddress, ResourceAddress) {
+            let pool = CaviarNinePoolInterfaceScryptoStub::from(pool_address);
+
+            let resource_address_x = pool.get_token_x_address();
+            let resource_address_y = pool.get_token_y_address();
+
+            (resource_address_x, resource_address_y)
+        }
     }
 }
 

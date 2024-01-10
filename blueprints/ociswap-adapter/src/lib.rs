@@ -210,6 +210,18 @@ mod adapter {
                 price: value2 / value1,
             }
         }
+
+        fn resource_addresses(
+            &mut self,
+            pool_address: ComponentAddress,
+        ) -> (ResourceAddress, ResourceAddress) {
+            let basic_pool =
+                OciswapPoolInterfaceScryptoStub::from(pool_address);
+            let pool =
+                Global::<TwoResourcePool>::from(basic_pool.liquidity_pool());
+            let mut keys = pool.get_vault_amounts().into_keys();
+            (keys.next().unwrap(), keys.next().unwrap())
+        }
     }
 }
 

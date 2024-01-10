@@ -307,7 +307,6 @@ mod ignition {
         /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
         /// return upon contribution, this can be their rewards tokens or
         /// anything else.
-        // TODO: Only allow pools where XRD is on one side of the pool.
         pub fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -358,6 +357,14 @@ mod ignition {
                 ))
                 .map(|adapter| *adapter)
                 .expect("No adapter found for liquidity pool");
+
+            assert!(
+                matches!(
+                    adapter.resource_addresses(pool_address),
+                    (XRD, _) | (_, XRD)
+                ),
+                "Neither side of the pool is XRD"
+            );
 
             // Check if the relative difference between the oracle reported
             // price and the pool reported price is within the range allowed

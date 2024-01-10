@@ -20,6 +20,11 @@ define_interface! {
         ) -> CloseLiquidityPositionOutput;
 
         fn price(&mut self, pool_address: ComponentAddress) -> Price;
+
+        fn resource_addresses(
+            &mut self,
+            pool_address: ComponentAddress
+        ) -> (ResourceAddress, ResourceAddress);
     }
 }
 
