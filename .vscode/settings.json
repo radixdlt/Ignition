@@ -2,6 +2,10 @@
     "editor.rulers": [
         80
     ],
+    "[markdown]": {
+        "editor.wordWrap": "bounded",
+        "editor.wordWrapColumn": 80
+    },
     "cSpell.words": [
         "caviarnine",
         "humantime",
