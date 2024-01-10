@@ -1,17 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    # Blueprints
-    "blueprints/ignition",
-    "blueprints/test-oracle",
-    "blueprints/ociswap-adapter",
-    "blueprints/caviarnine-adapter",
-    # Libraries
-    "libraries/scrypto-interface",
-    "libraries/scrypto-interface-proc-macros",
-    "libraries/adapters-interface",
-    # Testing
-    "unit-tests",
 ]
 
 [workspace.package]
