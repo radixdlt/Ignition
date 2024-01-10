@@ -1,9 +1,503 @@
+use std::collections::*;
+
+use heck::ToSnakeCase;
 use proc_macro2::TokenStream as TokenStream2;
+use quote::*;
 use syn::spanned::*;
 use syn::*;
 
-pub fn handle_define_interface(_: TokenStream2) -> syn::Result<TokenStream2> {
-    todo!()
+use crate::types::{Signature, *};
+
+pub fn handle_define_interface(
+    input: TokenStream2,
+) -> syn::Result<TokenStream2> {
+    let define_interface = parse2::<DefineInterfaceInput>(input)?;
+
+    let generate = define_interface
+        .generate
+        .as_ref()
+        .map(|(_, _, generate)| generate.iter().copied().collect())
+        .unwrap_or(Generate::ALL.iter().copied().collect::<HashSet<_>>());
+
+    let mut generated = vec![];
+    for generate in generate {
+        match generate {
+            Generate::Trait => {
+                generated.push(generate_trait(&define_interface))
+            }
+            Generate::ScryptoStub => {
+                generated.push(generate_scrypto_stub(&define_interface))
+            }
+            Generate::ScryptoTestStub => {
+                generated.push(generate_scrypto_test_stub(&define_interface))
+            }
+            Generate::ManifestBuilderStub => generated
+                .push(generate_manifest_builder_stub(&define_interface)?),
+        };
+    }
+
+    Ok(quote!(
+        #(#generated)*
+    ))
+}
+
+fn generate_trait(input: &DefineInterfaceInput) -> TokenStream2 {
+    let struct_ident = input.struct_ident();
+    let trait_ident = format_ident!("{}InterfaceTrait", struct_ident);
+
+    let signatures = input
+        .signatures
+        .iter()
+        .map(
+            |Signature {
+                 attrs,
+                 token_fn,
+                 ident,
+                 arguments,
+                 rtn,
+                 semi_colon,
+                 ..
+             }| {
+                quote! {
+                    #(#attrs)*
+                    #token_fn #ident ( #arguments ) #rtn #semi_colon
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+
+    quote!(
+        pub trait #trait_ident {
+            #(#signatures)*
+        }
+    )
+}
+
+fn generate_scrypto_stub(input: &DefineInterfaceInput) -> TokenStream2 {
+    let struct_ident = input.struct_ident();
+    let struct_ident = format_ident!("{}InterfaceScryptoStub", struct_ident);
+    let blueprint_ident = &input.blueprint_ident;
+
+    let try_from_impl = [
+        "ComponentAddress",
+        "ResourceAddress",
+        "PackageAddress",
+        "InternalAddress",
+        "GlobalAddress",
+    ]
+    .iter()
+    .map(|ty| -> syn::Type {
+        let ty_ident = Ident::new(ty, blueprint_ident.span());
+        parse_quote!(::radix_engine_interface::prelude::#ty_ident)
+    })
+    .map(|ty| {
+        quote! {
+            impl TryFrom<#struct_ident> for #ty
+            {
+                type Error = <
+                    #ty as TryFrom<::radix_engine_interface::prelude::NodeId>
+                >::Error;
+
+                fn try_from(
+                    value: #struct_ident
+                ) -> Result<Self, Self::Error>
+                {
+                    <#ty>::try_from(
+                        *value.0.as_node_id()
+                    )
+                }
+            }
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let functions = input
+        .signatures
+        .iter()
+        .map(
+            |Signature {
+                 attrs,
+                 token_fn,
+                 ident,
+                 arguments,
+                 rtn,
+                 ..
+             }| {
+                let arg_idents = arguments.arg_idents();
+
+                let mut arguments = arguments.clone();
+                if arguments.is_function() {
+                    arguments.add_argument_to_end(
+                        Ident::new("blueprint_package_address", ident.span()), 
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress)
+                    );
+                }
+
+                let inner = if arguments.is_function() {
+                    quote! {
+                        let rtn = ::scrypto::prelude::ScryptoVmV1Api::blueprint_call(
+                            blueprint_package_address,
+                            stringify!(#blueprint_ident),
+                            stringify!(#ident),
+                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                        );
+                        ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap()
+                    }
+                } else {
+                    quote! {
+                        let rtn = ::scrypto::prelude::ScryptoVmV1Api::object_call(
+                            &self.0.0,
+                            stringify!(#ident),
+                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                        );
+                        ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap()
+                    }
+                };
+
+                quote! {
+                    #(#attrs)*
+                    pub #token_fn #ident ( #arguments ) #rtn {
+                        #inner
+                    }
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+
+    quote! {
+        #[derive(
+            ::radix_engine_interface::prelude::ScryptoSbor,
+            Clone,
+            Copy,
+            Debug,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash
+        )]
+        #[sbor(transparent)]
+        pub struct #struct_ident (
+            ::radix_engine_interface::prelude::Reference
+        );
+
+        const _: () = {
+            impl<T> From<T> for #struct_ident
+            where
+                T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
+            {
+                fn from(value: T) -> Self {
+                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                }
+            }
+
+            #(#try_from_impl)*
+
+            #[allow(clippy::too_many_arguments)]
+            impl #struct_ident {
+                #(#functions)*
+
+                pub fn blueprint_id(
+                    package_address: ::radix_engine_interface::prelude::PackageAddress
+                ) -> ::radix_engine_interface::prelude::BlueprintId {
+                    ::radix_engine_interface::prelude::BlueprintId {
+                        package_address,
+                        blueprint_name: stringify!(#blueprint_ident).to_string()
+                    }
+                }
+            }
+        };
+    }
+}
+
+fn generate_scrypto_test_stub(input: &DefineInterfaceInput) -> TokenStream2 {
+    let struct_ident = input.struct_ident();
+    let struct_ident =
+        format_ident!("{}InterfaceScryptoTestStub", struct_ident);
+    let blueprint_ident = &input.blueprint_ident;
+
+    let try_from_impl = [
+        "ComponentAddress",
+        "ResourceAddress",
+        "PackageAddress",
+        "InternalAddress",
+        "GlobalAddress",
+    ]
+    .iter()
+    .map(|ty| -> syn::Type {
+        let ty_ident = Ident::new(ty, blueprint_ident.span());
+        parse_quote!(::radix_engine_interface::prelude::#ty_ident)
+    })
+    .map(|ty| {
+        quote! {
+            impl TryFrom<#struct_ident> for #ty
+            {
+                type Error = <
+                    #ty as TryFrom<::radix_engine_interface::prelude::NodeId>
+                >::Error;
+
+                fn try_from(
+                    value: #struct_ident
+                ) -> Result<Self, Self::Error>
+                {
+                    <#ty>::try_from(
+                        *value.0.as_node_id()
+                    )
+                }
+            }
+        }
+    })
+    .collect::<Vec<_>>();
+
+    let functions = input
+        .signatures
+        .iter()
+        .map(
+            |Signature {
+                 attrs,
+                 token_fn,
+                 ident,
+                 arguments,
+                 rtn,
+                 ..
+             }| {
+                let arg_idents = arguments.arg_idents();
+
+                let mut arguments = arguments.clone();
+                if arguments.is_function() {
+                    arguments.add_argument_to_end(
+                        Ident::new("blueprint_package_address", ident.span()), 
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress)
+                    );
+                }
+                arguments.add_argument_to_end(
+                    Ident::new("env", ident.span()), 
+                    parse_quote!(&mut Y)
+                );
+
+                let inner = if arguments.is_function() {
+                    quote! {
+                        env.call_function(
+                            blueprint_package_address,
+                            stringify!(#blueprint_ident),
+                            stringify!(#ident),
+                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                        )
+                        .map(|rtn| ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap())
+                    }
+                } else {
+                    quote! {
+                        env.call_method(
+                            &self.0.0,
+                            stringify!(#ident),
+                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                        )
+                        .map(|rtn| ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap())
+                    }
+                };
+
+                let rtn = match rtn {
+                    ReturnType::Default => parse_quote!(()),
+                    ReturnType::Type(_, ty) => *ty.clone(),
+                };
+
+                quote! {
+                    #(#attrs)*
+                    pub #token_fn #ident <Y, E> ( #arguments ) -> Result<#rtn, E>
+                    where
+                        Y: ::radix_engine_interface::prelude::ClientApi<E>,
+                        E: ::core::fmt::Debug
+                    {
+                        #inner
+                    }
+                }
+            },
+        )
+        .collect::<Vec<_>>();
+
+    quote! {
+        #[derive(
+            ::radix_engine_interface::prelude::ScryptoSbor,
+            Clone,
+            Copy,
+            Debug,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Hash
+        )]
+        #[sbor(transparent)]
+        pub struct #struct_ident (
+            ::radix_engine_interface::prelude::Reference
+        );
+
+        const _: () = {
+            impl<T> From<T> for #struct_ident
+            where
+                T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
+            {
+                fn from(value: T) -> Self {
+                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                }
+            }
+
+            #(#try_from_impl)*
+
+            #[allow(clippy::too_many_arguments)]
+            impl #struct_ident {
+                #(#functions)*
+
+                pub fn blueprint_id(
+                    package_address: ::radix_engine_interface::prelude::PackageAddress
+                ) -> ::radix_engine_interface::prelude::BlueprintId {
+                    ::radix_engine_interface::prelude::BlueprintId {
+                        package_address,
+                        blueprint_name: stringify!(#blueprint_ident).to_string()
+                    }
+                }
+            }
+        };
+    }
+}
+
+fn generate_manifest_builder_stub(
+    input: &DefineInterfaceInput,
+) -> syn::Result<TokenStream2> {
+    let struct_ident = input.struct_ident();
+    let trait_ident =
+        format_ident!("{}InterfaceManifestBuilderExtensionTrait", struct_ident);
+    let blueprint_ident = &input.blueprint_ident;
+
+    let signatures = input
+        .signatures
+        .iter()
+        .map(
+            |Signature {
+                 attrs,
+                 token_fn,
+                 ident,
+                 arguments,
+                 semi_colon,
+                 ..
+             }| {
+                let mut arguments = arguments.clone();
+                if arguments.is_function() {
+                    arguments.add_argument_to_beginning(
+                        Ident::new("blueprint_package_address", ident.span()),
+                        parse_quote!(
+                            ::radix_engine_interface::prelude::PackageAddress
+                        ),
+                    );
+                } else {
+                    arguments.add_argument_to_beginning(
+                        Ident::new("component_address", ident.span()),
+                        parse_quote!(
+                            ::radix_engine_interface::prelude::ComponentAddress
+                        ),
+                    );
+                }
+
+                let fn_ident = format_ident!(
+                    "{}_{}",
+                    blueprint_ident.to_string().to_snake_case(),
+                    ident
+                );
+
+                arguments.manifest_arguments().map(|arguments| quote! {
+                    #(#attrs)*
+                    #token_fn #fn_ident ( self, #arguments ) -> Self #semi_colon
+                })
+            },
+        )
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    let implementations = input
+        .signatures
+        .iter()
+        .map(
+            |Signature {
+                 attrs,
+                 token_fn,
+                 ident,
+                 arguments: original_arguments,
+                 ..
+             }|
+             -> syn::Result<TokenStream2> {
+                let mut arguments = original_arguments.clone();
+                let inner = if arguments.is_function() {
+                    arguments.add_argument_to_beginning(
+                        Ident::new("blueprint_package_address", ident.span()),
+                        parse_quote!(
+                            ::radix_engine_interface::prelude::PackageAddress
+                        ),
+                    );
+
+                    let original_arguments = original_arguments
+                        .manifest_arguments()?
+                        .iter()
+                        .cloned()
+                        .map(|Argument { ident, .. }| ident)
+                        .collect::<Vec<_>>();
+                    quote! {
+                        self.call_function(
+                            blueprint_package_address,
+                            stringify!(#blueprint_ident),
+                            stringify!(#ident),
+                            &( #(#original_arguments,)* )
+                        )
+                    }
+                } else {
+                    arguments.add_argument_to_beginning(
+                        Ident::new("component_address", ident.span()),
+                        parse_quote!(
+                            ::radix_engine_interface::prelude::ComponentAddress
+                        ),
+                    );
+
+                    let original_arguments = original_arguments
+                        .manifest_arguments()?
+                        .iter()
+                        .cloned()
+                        .map(|Argument { ident, .. }| ident)
+                        .collect::<Vec<_>>();
+                    quote! {
+                        self.call_method(
+                            component_address,
+                            stringify!(#ident),
+                            &( #(#original_arguments,)* )
+                        )
+                    }
+                };
+
+                let fn_ident = format_ident!(
+                    "{}_{}",
+                    blueprint_ident.to_string().to_snake_case(),
+                    ident
+                );
+
+                let arguments = arguments.manifest_arguments()?;
+                Ok(quote! {
+                    #(#attrs)*
+                    #token_fn #fn_ident (self, #arguments) -> Self {
+                        #inner
+                    }
+                })
+            },
+        )
+        .collect::<syn::Result<Vec<_>>>()?;
+
+    Ok(quote!(
+        pub trait #trait_ident {
+            #(#signatures)*
+        }
+
+        const _: () = {
+            impl #trait_ident for ::transaction::builder::ManifestBuilder {
+                #(#implementations)*
+            }
+        };
+    ))
 }
 
 pub fn handle_blueprint_with_traits(
@@ -152,11 +646,8 @@ pub fn handle_blueprint_with_traits(
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use std::str::FromStr;
-
-    use proc_macro2::TokenStream as TokenStream2;
-
-    use super::handle_blueprint_with_traits;
 
     #[test]
     fn blueprint_with_trait_generates_expected_code() {
@@ -317,5 +808,25 @@ mod test {
             output.to_string(),
             TokenStream2::from_str(expected_output).unwrap().to_string()
         );
+    }
+
+    #[test]
+    fn simple_define_interface_works_as_expected() {
+        // Arrange
+        let define_interface = r#"
+        Blueprint as StructName {
+            fn func1();
+            fn func2(&self) -> u32;
+            fn func3(&mut self, item: u32) -> (u32, u32);
+        }
+        "#;
+
+        // Act
+        let rtn = handle_define_interface(
+            TokenStream2::from_str(define_interface).unwrap(),
+        );
+
+        // Assert
+        rtn.expect("Interface has been defined successfully!");
     }
 }
