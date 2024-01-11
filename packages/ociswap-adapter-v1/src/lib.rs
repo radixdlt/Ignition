@@ -5,6 +5,25 @@ use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
+macro_rules! define_error {
+    (
+        $(
+            $name: ident => $item: expr;
+        )*
+    ) => {
+        $(
+            const $name: &'static str = concat!("[Ociswap Adapter]", " ", $item);
+        )*
+    };
+}
+
+define_error! {
+    FAILED_TO_GET_RESOURCE_ADDRESSES_ERROR
+        => "Failed to get resource addresses - unexpected error.";
+    FAILED_TO_GET_VAULT_ERROR
+        => "Failed to get vault - unexpected error.";
+}
+
 #[blueprint_with_traits]
 pub mod adapter {
     struct OciswapAdapter;
@@ -36,7 +55,7 @@ pub mod adapter {
                             bucket.resource_address() => bucket
                         }
                     })
-                    .unwrap_or(indexmap! {}),
+                    .unwrap_or_default(),
                 others: Default::default(),
             }
         }
@@ -72,10 +91,10 @@ pub mod adapter {
                 self.resource_addresses(pool_address);
             let amount1 = *vault_amounts
                 .get(&resource_address1)
-                .expect("Must be defined!");
+                .expect(FAILED_TO_GET_VAULT_ERROR);
             let amount2 = *vault_amounts
                 .get(&resource_address2)
-                .expect("Must be defined!");
+                .expect(FAILED_TO_GET_VAULT_ERROR);
 
             Price {
                 base: resource_address1,
@@ -92,8 +111,10 @@ pub mod adapter {
             let pool = Global::<TwoResourcePool>::from(pool.liquidity_pool());
             let mut keys = pool.get_vault_amounts().into_keys();
 
-            let resource_address1 = keys.next().expect("Must be defined!");
-            let resource_address2 = keys.next().expect("Must be defined!");
+            let resource_address1 =
+                keys.next().expect(FAILED_TO_GET_RESOURCE_ADDRESSES_ERROR);
+            let resource_address2 =
+                keys.next().expect(FAILED_TO_GET_RESOURCE_ADDRESSES_ERROR);
 
             (resource_address1, resource_address2)
         }
