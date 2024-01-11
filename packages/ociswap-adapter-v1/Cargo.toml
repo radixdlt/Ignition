@@ -1,0 +1,20 @@
+[package]
+name = "ociswap-adapter-v1"
+version.workspace = true
+edition.workspace = true
+description = "Defines the adapter for Ociswap"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+radix-engine-interface = { workspace = true }
+
+scrypto-interface = { path = "../../libraries/scrypto-interface" }
+adapters-interface = { path = "../../libraries/adapters-interface" }
+
+[features]
+default = []
+test = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
