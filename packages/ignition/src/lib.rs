@@ -23,24 +23,24 @@
 //! protocol will try to provide the user with the same amount of tokens that
 //! they put in plus any trading fees earned in the process (on their asset).
 //! If that can't be given, then the protocol will try to provide the user of
-//! as much of the lender's asset as possible to make them whole in terms of
+//! as much of the protocol's asset as possible to make them whole in terms of
 //! value.
 //!
-//! In Ignition, the term "lender's asset" refers to the asset that Ignition has
-//! and that the protocol is willing to lend out to users when they wish to
+//! In Ignition, the term "protocol's asset" refers to the asset that Ignition
+//! has and that the protocol is willing to lend out to users when they wish to
 //! provide liquidity. The term "user asset" refers to the asset or resource
-//! that was provided by the user. So, the lender and user assets are the two
+//! that was provided by the user. So, the protocol and user assets are the two
 //! sides of the liquidity that go into a liquidity pool, which name is used
 //! depends on their source: the protocol for the ledger's resource and the user
 //! for the user's resource.
 //!
-//! An important thing to note is that the protocol's lender's asset can't be
+//! An important thing to note is that the protocol's protocol's asset can't be
 //! changed at runtime after the component has been instantiated, it will be
-//! forever stuck with that lender's asset. The user assets can be added and
+//! forever stuck with that protocol's asset. The user assets can be added and
 //! removed by adding and removing pools to the allowed pools list. In the case
-//! of the protocol officially run by RDX Works, the lender's asset will be XRD
-//! and the user's asset will be BTC, ETH, USDC, and USDT. However, Ignition is
-//! actually general enough that it can be used by projects who would like to
+//! of the protocol officially run by RDX Works, the protocol's asset will be
+//! XRD and the user's asset will be BTC, ETH, USDC, and USDT. However, Ignition
+//! is actually general enough that it can be used by projects who would like to
 //! improve their liquidity and who're willing to lose some tokens in the
 //! process.
 //!
@@ -57,6 +57,10 @@
 //! different then, unfortunately, there is no way for the protocol to check at
 //! runtime but calls using the oracle or adapter would fail. Thus, changes must
 //! be preceded by an interface check.
+//!
+//! Similarly, the reward rates are quite modular too and are added at runtime
+//! and not baked into the blueprint itself allowing additional reward rates to
+//! be added and for some reward rates to be removed.
 
 use scrypto::prelude::*;
 
