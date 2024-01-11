@@ -1,0 +1,21 @@
+[package]
+name = "ignition"
+version.workspace = true
+edition.workspace = true
+description = "The implementation of the Ignition protocol"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+radix-engine-derive = { workspace = true }
+
+adapters-interface = { path = "../../libraries/adapters-interface" }
+
+humantime = { version = "2.1.0" }
+
+[features]
+default = []
+test = []
+
+[lib]
+crate-type = ["cdylib", "lib"]

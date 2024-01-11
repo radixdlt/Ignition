@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     # Packages
+    "packages/ignition",
     "packages/ociswap-adapter-v1",
     "packages/caviarnine-adapter-v1",
     # Libraries
