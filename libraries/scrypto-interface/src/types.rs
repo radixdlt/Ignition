@@ -50,7 +50,7 @@ impl Parse for DefineInterfaceInput {
         let content;
         let brace = braced!(content in input);
         let mut signatures = vec![];
-        while content.peek(Token![fn]) {
+        while content.peek(Token![fn]) || content.peek(Token![#]) {
             signatures.push(content.parse()?);
         }
 

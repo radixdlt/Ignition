@@ -9,7 +9,7 @@ args = ["nextest", "run"]
 [tasks.check]
 install_crate = "clippy"
 command = "cargo"
-args = ["clippy"]
+args = ["clippy", "--all"]
 
 [tasks.format]
 install_crate = "rustfmt"
