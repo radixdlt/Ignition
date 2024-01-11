@@ -261,21 +261,7 @@ impl ToTokens for Arguments {
             }
         };
 
-        for Argument {
-            attributes,
-            ident,
-            colon,
-            ty,
-        } in arguments
-        {
-            for attribute in attributes {
-                attribute.to_tokens(tokens);
-            }
-            ident.to_tokens(tokens);
-            colon.to_tokens(tokens);
-            ty.to_tokens(tokens);
-            Token![,](ty.span()).to_tokens(tokens);
-        }
+        arguments.to_tokens(tokens)
     }
 }
 
