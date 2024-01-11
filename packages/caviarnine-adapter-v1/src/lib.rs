@@ -8,6 +8,29 @@ use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
+macro_rules! define_error {
+    (
+        $(
+            $name: ident => $item: expr;
+        )*
+    ) => {
+        $(
+            const $name: &'static str = concat!("[CaviarNine Adapter]", " ", $item);
+        )*
+    };
+}
+
+define_error! {
+    RESOURCE_DOES_NOT_BELONG_ERROR
+        => "One or more of the resources do not belong to pool.";
+    NO_ACTIVE_BIN_ERROR
+        => "Pool has no active bin.";
+    NO_ACTIVE_AMOUNTS_ERROR
+        => "Pool has no active amounts.";
+    NO_PRICE_ERROR
+        => "Pool has no price.";
+}
+
 #[blueprint_with_traits]
 pub mod adapter {
     struct CaviarNineAdapter;
@@ -42,15 +65,14 @@ pub mod adapter {
             {
                 (buckets.1, buckets.0)
             } else {
-                panic!("One or more of the buckets do not belong to the pool")
+                panic!("{}", RESOURCE_DOES_NOT_BELONG_ERROR)
             };
             let amount_x = bucket_x.amount();
             let amount_y = bucket_y.amount();
 
             // Select the bins that we will contribute to.
             let bin_span = pool.get_bin_span();
-            let active_bin =
-                pool.get_active_tick().expect("Pool has no active bin!");
+            let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
             let SelectedBins {
                 higher_bins,
                 lower_bins,
@@ -63,8 +85,8 @@ pub mod adapter {
             // be like contributing to 99.x and 99.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
-                pool.get_active_amounts().expect("No active amounts");
-            let price = pool.get_price().expect("No price");
+                pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
+            let price = pool.get_price().expect(NO_PRICE_ERROR);
 
             let ratio_in_active_bin_x = amount_in_active_bin_x * price
                 / (amount_in_active_bin_x * price + amount_in_active_bin_y);
@@ -148,9 +170,7 @@ pub mod adapter {
 
             let (resource_address_x, resource_address_y) =
                 self.resource_addresses(pool_address);
-            let price = pool
-                .get_price()
-                .expect("[CaviarNine Adapter]: Price must be defined");
+            let price = pool.get_price().expect(NO_PRICE_ERROR);
 
             Price {
                 base: resource_address_x,
