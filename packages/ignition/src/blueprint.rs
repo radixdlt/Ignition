@@ -133,6 +133,8 @@ mod ignition {
             withdraw_resources => restrict_to: [protocol_owner];
             deposit_pool_units => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
+            open_liquidity_position => PUBLIC;
+            close_liquidity_position => PUBLIC;
         }
     }
 
@@ -251,6 +253,214 @@ mod ignition {
             .globalize()
         }
 
+        /// Opens a liquidity position for the user.
+        ///
+        /// Given some bucket of tokens, this method matches this bucket with
+        /// XRD of the same value and contributes that XRD to the pool specified
+        /// as an argument. The liquidity is locked in that pool for the lockup
+        /// period specified as an argument and the user is given back a non
+        /// fungible token that represents their portion in the pool.
+        ///
+        /// If opening a liquidity pool returns more than the pool units and the
+        /// change, then these additional tokens are returned back to the caller
+        /// and not kept by the protocol.
+        ///
+        /// # Panics
+        ///
+        /// There are a number of situations when this method panics and leads
+        /// the transaction to fail. Some of them are:
+        ///
+        /// * If the specified pool is not a registered pool in Ignition and
+        /// thus, no liquidity is allowed to be provided to this pool.
+        /// * If the lockup period specified by the caller has no corresponding
+        /// upfront rewards percentage, and thus it is not a recognized lockup
+        /// period by the pool.
+        /// * If no adapter is registered for the liquidity pool.
+        /// * If the price difference between the pool and the oracle is higher
+        /// than what is allowed by the protocol.
+        ///
+        /// # Arguments
+        ///
+        /// * `bucket`: [`FungibleBucket`] - A fungible bucket of tokens to
+        /// contribute to the pool. Ignition will match the value of this bucket
+        /// in XRD and contribute it alongside it to the specified pool.
+        /// * `pool_address`: [`ComponentAddress`] - The address of the pool to
+        /// contribute to, this must be a valid pool that is registered in the
+        /// protocol and that has an adapter.
+        /// * `lockup_period`: [`LockupPeriod`] - The amount of time (in
+        /// seconds) to lockup the liquidity. This must be a registered lockup
+        /// period with a defined upfront rewards rate.
+        ///
+        /// # Returns
+        ///
+        /// * [`NonFungibleBucket`] - A non-fungible bucket of the liquidity
+        /// position resource that gives the holder the right to close their
+        /// liquidity position when the lockup period is up.
+        /// * [`FungibleBucket`] - A bucket of the change.
+        /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
+        /// return upon contribution, this can be their rewards tokens or
+        /// anything else.
+        pub fn open_liquidity_position(
+            &mut self,
+            bucket: FungibleBucket,
+            pool_address: ComponentAddress,
+            lockup_period: LockupPeriod,
+        ) -> (NonFungibleBucket, FungibleBucket, Vec<Bucket>) {
+            // Ensure that we currently allow opening liquidity positions.
+            assert!(
+                self.is_open_position_enabled,
+                "{}",
+                OPENING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
+            );
+
+            // Getting a few information so that it is not constantly read from
+            // the system.
+            let user_resource_address = bucket.resource_address();
+            let user_resource_amount = bucket.amount();
+
+            // Ensure that the pool has an adapter and that it is a registered
+            // pool. If it is, this means that we can move ahead with the pool.
+            // Also, it means that the pool is guaranteed to have the protocol
+            // resource on one of its sides.
+            let (mut adapter, liquidity_receipt_resource, _) = self
+                .checked_get_pool_adapter_and_liquidity_receipt(pool_address)
+                .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR);
+
+            // Ensure that the passed bucket belongs to the pool and that it is
+            // not some random resource.
+            {
+                let (resource1, resource2) =
+                    adapter.resource_addresses(pool_address);
+
+                assert!(
+                    resource1 == user_resource_address
+                        || resource2 == user_resource_address,
+                    "{}",
+                    USER_ASSET_DOES_NOT_BELONG_TO_POOL
+                )
+            }
+
+            // Compare the price difference between the oracle reported price
+            // and the pool reported price - ensure that it is within the
+            // allowed price difference range.
+            let oracle_reported_price = {
+                let oracle_reported_price = self.checked_get_price(
+                    user_resource_address,
+                    self.protocol_resource.address(),
+                );
+                let pool_reported_price = adapter.price(pool_address);
+                let relative_difference = oracle_reported_price
+                    .relative_difference(&pool_reported_price)
+                    .expect(USER_ASSET_DOES_NOT_BELONG_TO_POOL);
+
+                assert!(
+                    relative_difference
+                        <= self.maximum_allowed_price_difference_percentage,
+                    "{}",
+                    RELATIVE_PRICE_DIFFERENCE_LARGER_THAN_ALLOWED_ERROR
+                );
+
+                oracle_reported_price
+            };
+
+            let oracle_reported_value_of_user_resource_in_protocol_resource =
+                oracle_reported_price
+                    .exchange(user_resource_address, user_resource_amount)
+                    .expect(UNEXPECTED_ERROR)
+                    .1;
+
+            // Determine the amount of upfront tokens to provide to the user
+            // based on the lockup period specified.
+            let upfront_rewards_amount_in_protocol_resource = {
+                let associated_rewards_rate = self
+                    .reward_rates
+                    .get(&lockup_period)
+                    .expect(LOCKUP_PERIOD_HAS_NO_ASSOCIATED_REWARDS_RATE_ERROR);
+
+                oracle_reported_value_of_user_resource_in_protocol_resource
+                    * *associated_rewards_rate
+            };
+
+            let upfront_reward = self.withdraw_resources(
+                self.protocol_resource.address(),
+                upfront_rewards_amount_in_protocol_resource,
+            );
+
+            // Contribute the resources to the pool.
+            let user_side_of_liquidity = bucket;
+            let protocol_side_of_liquidity = self.withdraw_resources(
+                self.protocol_resource.address(),
+                oracle_reported_value_of_user_resource_in_protocol_resource,
+            );
+            let OpenLiquidityPositionOutput {
+                pool_units,
+                change,
+                others,
+            } = adapter.open_liquidity_position(
+                pool_address,
+                (user_side_of_liquidity.0, protocol_side_of_liquidity.0),
+            );
+
+            // Calculate the amount of resources that was actually contributed
+            // based on the amount of change that we got back.
+            let amount_of_user_tokens_contributed = user_resource_amount
+                - change
+                    .get(&user_resource_address)
+                    .map(Bucket::amount)
+                    .unwrap_or(Decimal::ZERO);
+            let amount_of_protocol_tokens_contributed =
+                oracle_reported_value_of_user_resource_in_protocol_resource
+                    - change
+                        .get(&self.protocol_resource.address())
+                        .map(Bucket::amount)
+                        .unwrap_or(Decimal::ZERO);
+
+            // Deposit the pool units into the protocol itself and mint an NFT
+            // used to represent these locked pool units.
+            let liquidity_receipt = {
+                let data = LiquidityReceipt::new(
+                    lockup_period,
+                    user_resource_address,
+                    amount_of_user_tokens_contributed,
+                    amount_of_protocol_tokens_contributed,
+                );
+                let liquidity_receipt = liquidity_receipt_resource
+                    .mint_ruid_non_fungible(data)
+                    .as_non_fungible();
+
+                let global_id = NonFungibleGlobalId::new(
+                    liquidity_receipt_resource.address(),
+                    liquidity_receipt.non_fungible_local_id(),
+                );
+                self.pool_units
+                    .insert(global_id, Vault::with_bucket(pool_units));
+
+                liquidity_receipt
+            };
+
+            // Create the buckets to return back to the user.
+            let mut buckets_to_return = vec![];
+            for bucket in change.into_values() {
+                let bucket_resource_address = bucket.resource_address();
+                if bucket_resource_address == self.protocol_resource.address() {
+                    self.deposit_resources(FungibleBucket(bucket))
+                } else {
+                    buckets_to_return.push(bucket);
+                }
+            }
+            buckets_to_return.extend(others);
+
+            // Return all
+            (liquidity_receipt, upfront_reward, buckets_to_return)
+        }
+
+        pub fn close_liquidity_position(
+            &mut self,
+            _liquidity_position: NonFungibleBucket,
+        ) -> Vec<Bucket> {
+            todo!()
+        }
+
         /// Updates the oracle adapter used by the protocol to a different
         /// adapter.
         ///
@@ -356,7 +566,7 @@ mod ignition {
         ///
         /// * If the provided address's blueprint has no corresponding
         /// blueprint.
-        /// * If neither side of the pool is the protocol asset.
+        /// * If neither side of the pool is the protocol resource.
         ///
         /// # Access
         ///
@@ -364,7 +574,7 @@ mod ignition {
         ///
         /// # Example Scenario
         ///
-        /// We may wish to incentivize liquidity for a new bridged asset and a
+        /// We may wish to incentivize liquidity for a new bridged resource and a
         /// new set of pools. An even more compelling scenario, we may wish to
         /// provide incentives for a newly released DEX.
         ///
@@ -385,7 +595,7 @@ mod ignition {
                         resources.0 == protocol_resource_address
                             || resources.1 == protocol_resource_address,
                         "{}",
-                        NEITHER_POOL_ASSET_IS_PROTOCOL_RESOURCE_ERROR
+                        NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR
                     );
 
                     pool_information.allowed_pools.insert(pool_address);
@@ -506,7 +716,7 @@ mod ignition {
         /// # Example Scenario
         ///
         /// This method can be used to fund the incentive program with XRD and
-        /// deposit other assets as well.
+        /// deposit other resources as well.
         ///
         /// # Arguments
         ///
@@ -770,6 +980,99 @@ mod ignition {
             );
             let entry = self.pool_information.get_mut(&blueprint_id);
             entry.map(|mut entry| callback(&mut entry))
+        }
+
+        /// Gets the adapter and the liquidity receipt given a pool address.
+        ///
+        /// This method first gets the pool information associated with the pool
+        /// blueprint and then checks to ensure that the pool is in the allow
+        /// list of pools. If it is, it returns the adapter and the resource
+        /// manager reference of the liquidity receipt.
+        ///
+        /// If a [`None`] is returned it means that no pool information was
+        /// found for the pool and that it has no corresponding adapter that
+        /// we can use.
+        ///
+        /// # Panics
+        ///
+        /// * If the pool is not in the list of allowed pools.
+        ///
+        /// # Arguments
+        ///
+        /// `pool_address`: [`ComponentAddress`] - The address of the component
+        /// to get the adapter and liquidity receipt for.
+        ///
+        /// # Returns
+        ///
+        /// * [`PoolAdapter`] - The adapter to use for the pool.
+        /// * [`ResourceManager`] - The resource manager reference of the
+        /// liquidity receipt token.
+        ///
+        /// # Note
+        ///
+        /// The [`KeyValueEntryRef<'_, PoolBlueprintInformation>`] is returned
+        /// to allow the references of the addresses to remain.
+        fn checked_get_pool_adapter_and_liquidity_receipt(
+            &self,
+            pool_address: ComponentAddress,
+        ) -> Option<(
+            PoolAdapter,
+            ResourceManager,
+            KeyValueEntryRef<'_, PoolBlueprintInformation>,
+        )> {
+            let blueprint_id = ScryptoVmV1Api::object_get_blueprint_id(
+                pool_address.as_node_id(),
+            );
+            let entry = self.pool_information.get(&blueprint_id);
+
+            entry.map(|entry| {
+                assert!(
+                    entry.allowed_pools.contains(&pool_address),
+                    "{}",
+                    POOL_IS_NOT_IN_ALLOW_LIST_ERROR
+                );
+
+                (entry.adapter, entry.liquidity_receipt, entry)
+            })
+        }
+
+        /// Gets the price of the `base` resource in terms of the `quote` resource
+        /// from the currently configured oracle, checks for staleness, and
+        /// returns the price.
+        ///
+        /// # Arguments
+        ///
+        /// * `base`: [`ResourceAddress`] - The base resource address.
+        /// * `quote`: [`ResourceAddress`] - The quote resource address.
+        ///
+        /// # Returns
+        ///
+        /// [`Price`] - The price of the base resource in terms of the quote
+        /// resource.
+        fn checked_get_price(
+            &self,
+            base: ResourceAddress,
+            quote: ResourceAddress,
+        ) -> Price {
+            // Get the price
+            let (price, last_update) =
+                self.oracle_adapter.get_price(base, quote);
+            let final_price_validity = last_update
+                .add_seconds(self.maximum_allowed_price_staleness)
+                .unwrap();
+
+            // Check for staleness
+            assert!(
+                Clock::current_time_is_at_or_before(
+                    final_price_validity,
+                    TimePrecision::Minute
+                ),
+                "{}",
+                ORACLE_REPORTED_PRICE_IS_STALE_ERROR
+            );
+
+            // Return price
+            price
         }
     }
 }
