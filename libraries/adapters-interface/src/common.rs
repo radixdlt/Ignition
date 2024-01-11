@@ -91,7 +91,7 @@ impl Price {
         if resource_address == self.base {
             Some((self.quote, self.price * amount))
         } else if resource_address == self.quote {
-            self.reciprocal().exchange(resource_address, amount)
+            Some((self.base, amount / self.price))
         } else {
             None
         }
@@ -159,5 +159,46 @@ mod test {
 
         // Assert
         assert_eq!(difference, dec!(0.5))
+    }
+
+    #[test]
+    fn exchange_method_calculates_as_expected1() {
+        // Arrange
+        let btc = ACCOUNT_OWNER_BADGE;
+        let usd = VALIDATOR_OWNER_BADGE;
+
+        let price = Price {
+            base: btc,
+            quote: usd,
+            price: dec!(43000),
+        };
+
+        // Act
+        let (out_address, out_amount) = price.exchange(btc, dec!(1)).unwrap();
+
+        // Assert
+        assert_eq!(out_address, usd);
+        assert_eq!(out_amount, dec!(43000));
+    }
+
+    #[test]
+    fn exchange_method_calculates_as_expected2() {
+        // Arrange
+        let btc = ACCOUNT_OWNER_BADGE;
+        let usd = VALIDATOR_OWNER_BADGE;
+
+        let price = Price {
+            base: btc,
+            quote: usd,
+            price: dec!(43000),
+        };
+
+        // Act
+        let (out_address, out_amount) =
+            price.exchange(usd, dec!(43000)).unwrap();
+
+        // Assert
+        assert_eq!(out_address, btc);
+        assert_eq!(out_amount, dec!(1));
     }
 }
