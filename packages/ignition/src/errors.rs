@@ -19,4 +19,6 @@ define_error! {
         => "The resource has no associated vault in the protocol.";
     NO_ASSOCIATED_LIQUIDITY_RECEIPT_VAULT_ERROR
         => "The liquidity receipt has no associated vault in the protocol.";
+    NOT_AN_IGNITION_ADDRESS_ERROR
+        => "The passed allocated address is not an ignition address.";
 }

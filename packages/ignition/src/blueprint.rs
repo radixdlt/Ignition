@@ -206,6 +206,51 @@ mod ignition {
     }
 
     impl Ignition {
+        /// Instantiates a new Ignition protocol component based on the provided
+        /// protocol parameters.
+        pub fn instantiate(
+            /* Rules */
+            owner_role: OwnerRole,
+            protocol_owner_role: AccessRule,
+            protocol_manager_role: AccessRule,
+            /* Initial Configuration */
+            protocol_resource: ResourceManager,
+            oracle_adapter: ComponentAddress,
+            maximum_allowed_price_staleness: i64,
+            maximum_allowed_price_difference_percentage: Decimal,
+            /* Misc */
+            address_reservation: Option<GlobalAddressReservation>,
+        ) -> Global<Ignition> {
+            // If no address reservation is provided then reserve an address to
+            // globalize the component to - this is to provide us with a non
+            // branching way of globalizing the component.
+            let address_reservation = address_reservation.unwrap_or(
+                Runtime::allocate_component_address(Ignition::blueprint_id()).0,
+            );
+
+            Self {
+                protocol_resource,
+                oracle_adapter: oracle_adapter.into(),
+                pool_information: KeyValueStore::new(),
+                vaults: KeyValueStore::new(),
+                pool_units: KeyValueStore::new(),
+                reward_rates: KeyValueStore::new(),
+                is_open_position_enabled: false,
+                is_close_position_enabled: false,
+                maximum_allowed_price_staleness,
+                maximum_allowed_price_difference_percentage,
+            }
+            .instantiate()
+            .prepare_to_globalize(owner_role)
+            // TODO: update metadata
+            .roles(roles! {
+                protocol_owner => protocol_owner_role;
+                protocol_manager => protocol_manager_role;
+            })
+            .with_address(address_reservation)
+            .globalize()
+        }
+
         /// Updates the oracle adapter used by the protocol to a different
         /// adapter.
         ///
