@@ -58,9 +58,7 @@ pub mod adapter {
                 others: Default::default(),
                 // TODO: Determine how we wish to go about this calculation.
                 fees: Default::default(),
-            };
-
-            todo!()
+            }
         }
 
         // TODO: Is this the same as getting the price from Ociswap directly
