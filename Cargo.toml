@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     # Packages
     "packages/ociswap-adapter-v1",
+    "packages/caviarnine-adapter-v1",
     # Libraries
     "libraries/scrypto-interface",
     "libraries/adapters-interface"
