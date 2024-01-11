@@ -420,6 +420,7 @@ mod ignition {
             let liquidity_receipt = {
                 let data = LiquidityReceipt::new(
                     lockup_period,
+                    pool_address,
                     user_resource_address,
                     amount_of_user_tokens_contributed,
                     amount_of_protocol_tokens_contributed,

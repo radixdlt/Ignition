@@ -18,6 +18,9 @@ pub struct LiquidityReceipt {
     pub redemption_url: Url,
 
     /* Application data */
+    /// The pool that the resources were contributed to.
+    pub pool_address: ComponentAddress,
+
     /// The address of the resource that the user contributed through the
     /// protocol.
     pub user_resource_address: ResourceAddress,
@@ -37,6 +40,7 @@ pub struct LiquidityReceipt {
 impl LiquidityReceipt {
     pub fn new(
         lockup_period: LockupPeriod,
+        pool_address: ComponentAddress,
         user_resource_address: ResourceAddress,
         user_contribution_amount: Decimal,
         protocol_contribution_amount: Decimal,
@@ -51,6 +55,7 @@ impl LiquidityReceipt {
             key_image_url: Url::of("https://www.google.com"),
             lockup_period: lockup_period.to_string(),
             redemption_url: Url::of("https://www.google.com"),
+            pool_address,
             user_resource_address,
             user_contribution_amount,
             maturity_date,
