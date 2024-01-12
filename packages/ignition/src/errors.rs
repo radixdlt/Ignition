@@ -22,7 +22,9 @@ define_error! {
     NOT_AN_IGNITION_ADDRESS_ERROR
         => "The passed allocated address is not an ignition address.";
     OPENING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
-        => "Opening liquidity positions is currently closed.";
+        => "Opening liquidity positions is disabled.";
+    CLOSING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
+        => "Closing liquidity positions is disabled.";
     NO_REWARDS_RATE_ASSOCIATED_WITH_LOCKUP_PERIOD_ERROR
         => "No rewards rate associated with lockup period.";
     POOL_IS_NOT_IN_ALLOW_LIST_ERROR
@@ -35,6 +37,12 @@ define_error! {
         => "Unexpected error.";
     RELATIVE_PRICE_DIFFERENCE_LARGER_THAN_ALLOWED_ERROR
         => "Relative price difference between oracle and pool exceeds allowed.";
-    USER_ASSET_DOES_NOT_BELONG_TO_POOL
+    USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR
         => "The asset of the user does not belong to the pool.";
+    MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR
+        => "More than one liquidity receipt non-fungibles were provided.";
+    NOT_A_VALID_LIQUIDITY_RECEIPT_ERROR
+        => "Not a valid liquidity receipt resource.";
+    LIQUIDITY_POSITION_HAS_NOT_MATURED_ERROR
+        => "Can't close a liquidity position before it has matured.";
 }

@@ -62,6 +62,8 @@
 //! and not baked into the blueprint itself allowing additional reward rates to
 //! be added and for some reward rates to be removed.
 
+use std::cmp::min;
+
 use crate::*;
 use adapters_interface::prelude::*;
 use scrypto::prelude::*;
@@ -336,7 +338,7 @@ mod ignition {
                     resource1 == user_resource_address
                         || resource2 == user_resource_address,
                     "{}",
-                    USER_ASSET_DOES_NOT_BELONG_TO_POOL
+                    USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR
                 )
             }
 
@@ -351,7 +353,7 @@ mod ignition {
                 let pool_reported_price = adapter.price(pool_address);
                 let relative_difference = oracle_reported_price
                     .relative_difference(&pool_reported_price)
-                    .expect(USER_ASSET_DOES_NOT_BELONG_TO_POOL);
+                    .expect(USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR);
 
                 assert!(
                     relative_difference
@@ -455,11 +457,245 @@ mod ignition {
             (liquidity_receipt, upfront_reward, buckets_to_return)
         }
 
+        /// Closes a liquidity position after its maturity period has elapsed.
+        ///
+        /// Given the non-fungible representing the liquidity receipt, this
+        /// method closes the liquidity position after the maturity period
+        /// elapses. The liquidity receipt is burned and the user is given
+        /// back some amount of assets.
+        ///
+        /// The assets given back to the user depends on what the protocol gets
+        /// back from closing the liquidity position. The following is the
+        /// algorithm employed to determine what and how much should be returned
+        ///
+        /// * Is the amount of the user asset the protocol got back greater than
+        /// or equal to the amount that they initially put in?
+        ///     * Yes: Return the same amount to them plus any fees from the
+        ///     _user_ asset.
+        ///     * No: Return to them all of the user asset the protocol got back
+        ///     plus the amount required to buy back their missing amount or the
+        ///     protocol assets returned when closing the liquidity position,
+        ///     whichever one is smaller.
+        ///
+        /// Whatever the amount obtained from the algorithm defined at the top
+        /// is the amount returned to the user. Some of the calculations take
+        /// place in the adapters: specifically the estimation of fees.
+        ///
+        /// # Arguments
+        ///
+        /// `liquidity_receipt`: [`NonFungibleBucket`] - A bucket of the non
+        /// fungible liquidity receipt.
+        ///
+        /// # Returns
+        ///
+        /// [`Vec<Bucket>`] - A vector of buckets of the amount to give back to
+        /// the user.
         pub fn close_liquidity_position(
             &mut self,
-            _liquidity_position: NonFungibleBucket,
+            liquidity_receipt: NonFungibleBucket,
         ) -> Vec<Bucket> {
-            todo!()
+            // Ensure that we currently allow closing liquidity positions.
+            assert!(
+                self.is_close_position_enabled,
+                "{}",
+                CLOSING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
+            );
+            // Ensure that there is only a single NFT in the bucket, we do not
+            // service more than a single one at a time.
+            assert!(
+                liquidity_receipt.amount() == Decimal::ONE,
+                "{}",
+                MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR
+            );
+
+            let (
+                mut adapter,
+                liquidity_receipt_data,
+                liquidity_receipt_global_id,
+            ) = {
+                // Reading the data of the non-fungible resource passed and then
+                // validating that the resource address is what we expect. We do
+                // this as we need to check it against the data of the blueprint
+                // of the pool. So, that must be read first.
+                let non_fungible =
+                    liquidity_receipt.non_fungible::<LiquidityReceipt>();
+                let liquidity_receipt_data = non_fungible.data();
+                let (pool_adapter, liquidity_receipt_resource, _) = self
+                    .checked_get_pool_adapter_and_liquidity_receipt(
+                        liquidity_receipt_data.pool_address,
+                    )
+                    .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR);
+
+                assert_eq!(
+                    non_fungible.resource_address(),
+                    liquidity_receipt_resource.address(),
+                    "{}",
+                    NOT_A_VALID_LIQUIDITY_RECEIPT_ERROR
+                );
+
+                // Burn the liquidity receipt
+                liquidity_receipt.burn();
+
+                // At this point, the non-fungible can be trusted to belong to
+                // the liquidity receipt resource of the blueprint.
+                (
+                    pool_adapter,
+                    liquidity_receipt_data,
+                    non_fungible.global_id().clone(),
+                )
+            };
+
+            // Assert that we're after the maturity date.
+            assert!(
+                Clock::current_time_is_at_or_after(
+                    liquidity_receipt_data.maturity_date,
+                    TimePrecision::Minute
+                ),
+                "{}",
+                LIQUIDITY_POSITION_HAS_NOT_MATURED_ERROR
+            );
+
+            // Compare the price difference between the oracle reported price
+            // and the pool reported price - ensure that it is within the
+            // allowed price difference range.
+            let oracle_reported_price = {
+                let oracle_reported_price = self.checked_get_price(
+                    liquidity_receipt_data.user_resource_address,
+                    self.protocol_resource.address(),
+                );
+                let pool_reported_price =
+                    adapter.price(liquidity_receipt_data.pool_address);
+                let relative_difference = oracle_reported_price
+                    .relative_difference(&pool_reported_price)
+                    .expect(USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR);
+
+                assert!(
+                    relative_difference
+                        <= self.maximum_allowed_price_difference_percentage,
+                    "{}",
+                    RELATIVE_PRICE_DIFFERENCE_LARGER_THAN_ALLOWED_ERROR
+                );
+
+                oracle_reported_price
+            };
+
+            /* The liquidity position can be closed! */
+
+            // Withdraw all of the pool units associated with the position and
+            // close it through the adapter.
+            let CloseLiquidityPositionOutput {
+                resources,
+                others,
+                fees,
+            } = {
+                let pool_units = self
+                    .pool_units
+                    .get_mut(&liquidity_receipt_global_id)
+                    .expect(UNEXPECTED_ERROR)
+                    .take_all();
+                adapter.close_liquidity_position(
+                    liquidity_receipt_data.pool_address,
+                    pool_units,
+                )
+            };
+
+            let (mut user_resource_bucket, mut protocol_resource_bucket) = {
+                let user_resource = resources
+                    .get(&liquidity_receipt_data.user_resource_address)
+                    .map(|item| Bucket(item.0))
+                    .expect(UNEXPECTED_ERROR);
+                let protocol_resource = resources
+                    .get(&self.protocol_resource.address())
+                    .map(|item| Bucket(item.0))
+                    .expect(UNEXPECTED_ERROR);
+                drop(resources);
+                (user_resource, protocol_resource)
+            };
+
+            let user_resource_bucket_amount = user_resource_bucket.amount();
+            let protocol_resource_bucket_amount =
+                protocol_resource_bucket.amount();
+
+            let (user_resource_fees, _) = {
+                let user_resource = fees
+                    .get(&liquidity_receipt_data.user_resource_address)
+                    .copied()
+                    .unwrap_or(Decimal::ZERO);
+                let protocol_resource = fees
+                    .get(&self.protocol_resource.address())
+                    .copied()
+                    .unwrap_or(Decimal::ZERO);
+                drop(fees);
+                (user_resource, protocol_resource)
+            };
+
+            // Determine the amount of resources that the user should be given
+            // back.
+            //
+            // Branch 1: There is enough of the user asset to give the user back
+            // the same amount that they put in.
+            let (
+                amount_of_protocol_resource_to_give_user,
+                amount_of_user_resource_to_give_user,
+            ) = if user_resource_bucket_amount
+                >= liquidity_receipt_data.user_contribution_amount
+            {
+                let amount_of_protocol_resource_to_give_user = dec!(0);
+                let amount_of_user_resource_to_give_user = min(
+                    user_resource_bucket_amount,
+                    liquidity_receipt_data.user_contribution_amount
+                        + user_resource_fees,
+                );
+
+                (
+                    amount_of_protocol_resource_to_give_user,
+                    amount_of_user_resource_to_give_user,
+                )
+            }
+            // Branch 2: There is not enough of the user token to given them
+            // back the same amount that they put in.
+            else {
+                let amount_of_protocol_resource_to_give_user = {
+                    let user_amount_missing = liquidity_receipt_data
+                        .user_contribution_amount
+                        - user_resource_bucket_amount;
+                    let (_, protocol_resources_required_for_buy_back) =
+                        oracle_reported_price
+                            .exchange(
+                                liquidity_receipt_data.user_resource_address,
+                                user_amount_missing,
+                            )
+                            .expect(UNEXPECTED_ERROR);
+                    min(
+                        protocol_resources_required_for_buy_back,
+                        protocol_resource_bucket_amount,
+                    )
+                };
+                let amount_of_user_resource_to_give_user =
+                    user_resource_bucket_amount;
+
+                (
+                    amount_of_protocol_resource_to_give_user,
+                    amount_of_user_resource_to_give_user,
+                )
+            };
+
+            let mut bucket_returns = others;
+            bucket_returns.push(user_resource_bucket.take_advanced(
+                amount_of_user_resource_to_give_user,
+                WithdrawStrategy::Rounded(RoundingMode::ToZero),
+            ));
+            bucket_returns.push(protocol_resource_bucket.take_advanced(
+                amount_of_protocol_resource_to_give_user,
+                WithdrawStrategy::Rounded(RoundingMode::ToZero),
+            ));
+
+            // Deposit the remaining resources back into the protocol.
+            self.deposit_resources(user_resource_bucket.as_fungible());
+            self.deposit_resources(protocol_resource_bucket.as_fungible());
+
+            // Return the buckets back
+            bucket_returns
         }
 
         /// Updates the oracle adapter used by the protocol to a different
