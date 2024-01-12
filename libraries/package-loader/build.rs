@@ -14,7 +14,7 @@ fn build_blueprints() {
     use radix_engine_interface::prelude::*;
 
     let manifest_dir = PathBuf::from_str(env!("CARGO_MANIFEST_DIR")).unwrap();
-    let blueprints_dir = manifest_dir.parent().unwrap();
+    let blueprints_dir = manifest_dir.parent().unwrap().parent().unwrap();
     println!("cargo:rerun-if-changed=\"{:?}\"", blueprints_dir);
 
     let mut packages = HashMap::new();
