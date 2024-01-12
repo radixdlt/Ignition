@@ -6,6 +6,7 @@ edition.workspace = true
 build = "build.rs"
 
 [dependencies]
+scrypto-unit = { workspace = true }
 radix-engine-common = { workspace = true }
 radix-engine-queries = { workspace = true }
 
@@ -20,7 +21,7 @@ scrypto-unit = { workspace = true, optional = true }
 radix-engine-interface = { workspace = true, optional = true }
 
 [features]
-default = ["build-time-blueprints"]
+default = []
 build-time-blueprints = [
     "dep:lazy_static",
     "dep:walkdir",
