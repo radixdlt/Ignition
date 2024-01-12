@@ -6,6 +6,7 @@ members = [
     "packages/ociswap-adapter-v1",
     "packages/caviarnine-adapter-v1",
     # Libraries
+    "libraries/package-loader",
     "libraries/scrypto-interface",
     "libraries/adapters-interface"
 ]
@@ -24,8 +25,8 @@ radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", re
 radix-engine-stores = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
 radix-engine-derive = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
 radix-engine-queries = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
-radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
 radix-engine-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
+radix-engine-store-interface = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
 
 scrypto-unit = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
 scrypto-test = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "9663c7c7dbcb91309b01f0b931195194b75b2718" }
