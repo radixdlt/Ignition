@@ -14,10 +14,15 @@ fn build_blueprints() {
     use radix_engine_interface::prelude::*;
 
     let manifest_dir = PathBuf::from_str(env!("CARGO_MANIFEST_DIR")).unwrap();
-    let blueprints_dir = manifest_dir.parent().unwrap().parent().unwrap();
+    let blueprints_dir = manifest_dir
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("packages");
     println!("cargo:rerun-if-changed=\"{:?}\"", blueprints_dir);
 
-    let mut packages = HashMap::new();
+    let mut scrypto_packages_manifest_paths = vec![];
     for entry in walkdir::WalkDir::new(blueprints_dir) {
         let Ok(entry) = entry else {
             continue;
@@ -43,14 +48,14 @@ fn build_blueprints() {
             continue;
         };
 
-        let (code, definition) = scrypto_unit::Compile::compile_with_env_vars(
-            path.parent().unwrap(),
-            btreemap! {
-                "RUSTFLAGS".to_owned() => "".to_owned(),
-                "CARGO_ENCODED_RUSTFLAGS".to_owned() => "".to_owned(),
-                "LLVM_PROFILE_FILE".to_owned() => "".to_owned()
-            },
-        );
+        scrypto_packages_manifest_paths
+            .push((name, path.parent().unwrap().to_owned()));
+    }
+
+    let mut packages = HashMap::new();
+    for (name, manifest_file_path) in scrypto_packages_manifest_paths {
+        let (code, definition) =
+            scrypto_unit::Compile::compile(manifest_file_path);
         packages.insert(name, (code, definition));
     }
 

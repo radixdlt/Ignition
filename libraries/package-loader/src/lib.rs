@@ -39,6 +39,9 @@ mod package_loader {
                 .unwrap()
                 .parent()
                 .unwrap()
+                .parent()
+                .unwrap()
+                .join("packages")
                 .join(name);
             scrypto_unit::Compile::compile(package_dir)
         }
