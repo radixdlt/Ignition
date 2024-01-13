@@ -36,6 +36,25 @@ pub mod adapter {
     struct CaviarNineAdapter;
 
     impl CaviarNineAdapter {
+        pub fn instantiate(
+            owner_role: OwnerRole,
+            address_reservation: Option<GlobalAddressReservation>,
+        ) -> Global<CaviarNineAdapter> {
+            let address_reservation = address_reservation.unwrap_or(
+                Runtime::allocate_component_address(BlueprintId {
+                    package_address: Runtime::package_address(),
+                    blueprint_name: Runtime::blueprint_name(),
+                })
+                .0,
+            );
+
+            Self {}
+                .instantiate()
+                .prepare_to_globalize(owner_role)
+                .with_address(address_reservation)
+                .globalize()
+        }
+
         fn pool(
             component_address: ComponentAddress,
         ) -> CaviarNinePoolInterfaceScryptoStub {
