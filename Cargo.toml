@@ -3,13 +3,16 @@ resolver = "2"
 members = [
     # Packages
     "packages/ignition",
+    "packages/bootstrap",
     "packages/test-oracle",
     "packages/ociswap-adapter-v1",
     "packages/caviarnine-adapter-v1",
     # Libraries
     "libraries/package-loader",
     "libraries/scrypto-interface",
-    "libraries/adapters-interface"
+    "libraries/adapters-interface",
+    # Tools
+    "tools/bootstrapper"
 ]
 
 [workspace.package]

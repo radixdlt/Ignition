@@ -1,0 +1,23 @@
+[package]
+name = "bootstrap"
+version.workspace = true
+edition.workspace = true
+description = "Bootstraps Ignition either for testing or for production"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+radix-engine-derive = { workspace = true }
+
+ignition = { path = "../../packages/ignition" }
+ociswap-adapter-v1 = { path = "../../packages/ociswap-adapter-v1" }
+caviarnine-adapter-v1 = { path = "../../packages/caviarnine-adapter-v1" }
+
+humantime = { version = "2.1.0" }
+
+[features]
+default = []
+test = []
+
+[lib]
+crate-type = ["cdylib", "lib"]

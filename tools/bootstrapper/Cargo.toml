@@ -1,0 +1,23 @@
+[package]
+name = "bootstrapper"
+description = "A tool used to bootstrap and publish project Ignition onto various networks"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sbor = { workspace = true }
+transaction = { workspace = true }
+radix-engine = { workspace = true }
+radix-engine-interface = { workspace = true }
+
+bootstrap = { path = "../../packages/bootstrap" }
+package-loader = { path = "../../libraries/package-loader" }
+caviarnine-adapter-v1 = { path = "../../packages/caviarnine-adapter-v1", features = ["transaction"] }
+
+clap = { version = "4.4.16", features = ["derive"] }
+reqwest = { version = "0.11.23", features = ["blocking", "json"] }
+serde = { version = "1.0.195" }
+serde_with = { version = "3.4.0" }
+hex = "0.4.3"
+rand = "0.8.5"
+serde_json = "1.0.111"
