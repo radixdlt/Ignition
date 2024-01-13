@@ -2,13 +2,19 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 define_interface! {
-    QuantaSwap as CaviarNinePool impl [ScryptoStub, ScryptoTestStub] {
+    QuantaSwap as CaviarNinePool impl [
+        ScryptoStub,
+        ScryptoTestStub,
+        #[cfg(feature = "transaction")]
+        ManifestBuilderStub
+    ] {
         fn new(
             owner_rule: AccessRule,
             user_rule: AccessRule,
             token_x_address: ResourceAddress,
             token_y_address: ResourceAddress,
             bin_span: u32,
+            #[manifest_type = "Option<ManifestAddressReservation>"]
             reservation: Option<GlobalAddressReservation>,
         ) -> Self;
         fn get_fee_controller_address(&self) -> ComponentAddress;
@@ -45,26 +51,44 @@ define_interface! {
             liquidity_receipt_id: NonFungibleLocalId,
         ) -> Vec<(u32, Decimal, Decimal)>;
         fn mint_liquidity_receipt(&mut self) -> Bucket;
-        fn burn_liquidity_receipt(&mut self, liquidity_receipt: Bucket);
+        fn burn_liquidity_receipt(
+            &mut self,
+            #[manifest_type = "ManifestBucket"]
+            liquidity_receipt: Bucket
+        );
         fn add_liquidity_to_receipt(
             &mut self,
+            #[manifest_type = "ManifestBucket"]
             liquidity_receipt: Bucket,
+            #[manifest_type = "ManifestBucket"]
             tokens_x: Bucket,
+            #[manifest_type = "ManifestBucket"]
             tokens_y: Bucket,
             positions: Vec<(u32, Decimal, Decimal)>,
         ) -> (Bucket, Bucket, Bucket);
         fn add_liquidity(
             &mut self,
+            #[manifest_type = "ManifestBucket"]
             tokens_x: Bucket,
+            #[manifest_type = "ManifestBucket"]
             tokens_y: Bucket,
             positions: Vec<(u32, Decimal, Decimal)>,
         ) -> (Bucket, Bucket, Bucket);
         fn remove_specific_liquidity(
             &mut self,
+            #[manifest_type = "ManifestBucket"]
             liquidity_receipt: Bucket,
             claims: Vec<(u32, Decimal)>,
         ) -> (Bucket, Bucket, Bucket);
-        fn remove_liquidity(&mut self, liquidity_receipt: Bucket) -> (Bucket, Bucket);
-        fn swap(&mut self, tokens: Bucket) -> (Bucket, Bucket);
+        fn remove_liquidity(
+            &mut self,
+            #[manifest_type = "ManifestBucket"]
+            liquidity_receipt: Bucket
+        ) -> (Bucket, Bucket);
+        fn swap(
+            &mut self,
+            #[manifest_type = "ManifestBucket"]
+            tokens: Bucket
+        ) -> (Bucket, Bucket);
     }
 }
