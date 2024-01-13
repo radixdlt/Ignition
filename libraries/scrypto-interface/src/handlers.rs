@@ -75,6 +75,7 @@ fn generate_trait(
              }| {
                 quote! {
                     #(#attrs)*
+                    #[allow(clippy::too_many_arguments)]
                     #token_fn #ident ( #arguments ) #rtn #semi_colon
                 }
             },
@@ -111,6 +112,7 @@ fn generate_scrypto_stub(
     })
     .map(|ty| {
         quote! {
+            #[allow(clippy::too_many_arguments)]
             impl TryFrom<#struct_ident> for #ty
             {
                 type Error = <
@@ -175,6 +177,7 @@ fn generate_scrypto_stub(
 
                 quote! {
                     #(#attrs)*
+                    #[allow(clippy::too_many_arguments)]
                     pub #token_fn #ident ( #arguments ) #rtn {
                         #inner
                     }
@@ -202,6 +205,7 @@ fn generate_scrypto_stub(
         );
 
         #(#attributes)*
+        #[allow(clippy::too_many_arguments)]
         const _: () = {
             impl<T> From<T> for #struct_ident
             where
@@ -254,6 +258,7 @@ fn generate_scrypto_test_stub(
     })
     .map(|ty| {
         quote! {
+            #[allow(clippy::too_many_arguments)]
             impl TryFrom<#struct_ident> for #ty
             {
                 type Error = <
@@ -327,6 +332,7 @@ fn generate_scrypto_test_stub(
 
                 quote! {
                     #(#attrs)*
+                    #[allow(clippy::too_many_arguments)]
                     pub #token_fn #ident <Y, E> ( #arguments ) -> Result<#rtn, E>
                     where
                         Y: ::radix_engine_interface::prelude::ClientApi<E>,
@@ -358,6 +364,7 @@ fn generate_scrypto_test_stub(
         );
 
         #(#attributes)*
+        #[allow(clippy::too_many_arguments)]
         const _: () = {
             impl<T> From<T> for #struct_ident
             where
@@ -433,6 +440,7 @@ fn generate_manifest_builder_stub(
 
                 arguments.manifest_arguments().map(|arguments| quote! {
                     #(#attrs)*
+                    #[allow(clippy::too_many_arguments)]
                     #token_fn #fn_ident ( self, #arguments ) -> Self #semi_colon
                 })
             },
@@ -506,6 +514,7 @@ fn generate_manifest_builder_stub(
                 let arguments = arguments.manifest_arguments()?;
                 Ok(quote! {
                     #(#attrs)*
+                    #[allow(clippy::too_many_arguments)]
                     #token_fn #fn_ident (self, #arguments) -> Self {
                         #inner
                     }
@@ -521,6 +530,7 @@ fn generate_manifest_builder_stub(
         }
 
         #(#attributes)*
+        #[allow(clippy::too_many_arguments)]
         const _: () = {
             impl #trait_ident for ::transaction::builder::ManifestBuilder {
                 #(#implementations)*
@@ -656,6 +666,7 @@ pub fn handle_blueprint_with_traits(
             #[::scrypto::prelude::blueprint]
             #module
 
+            #[allow(clippy::too_many_arguments)]
             const _: () = {
                 struct #blueprint_ident;
 
@@ -778,6 +789,7 @@ mod test {
             }
         }
 
+        #[allow(clippy::too_many_arguments)]
         const _: () = {
             struct Blueprint;
 
