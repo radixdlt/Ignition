@@ -434,7 +434,7 @@ fn generate_manifest_builder_stub(
 
                 let fn_ident = format_ident!(
                     "{}_{}",
-                    blueprint_ident.to_string().to_snake_case(),
+                    struct_ident.to_string().to_snake_case(),
                     ident
                 );
 
@@ -507,7 +507,7 @@ fn generate_manifest_builder_stub(
 
                 let fn_ident = format_ident!(
                     "{}_{}",
-                    blueprint_ident.to_string().to_snake_case(),
+                    struct_ident.to_string().to_snake_case(),
                     ident
                 );
 
