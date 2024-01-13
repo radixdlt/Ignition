@@ -1,0 +1,47 @@
+{
+    "network_id": 2,
+    "resources": {
+        "resource_tdx_2_1t4fe64e7uk07nshzqxz2hdhpfm7muszyrnsr2htl7kx32l2qmttu6t": {
+            "divisibility": 6,
+            "name": "Fake Bitcoin",
+            "symbol": "fakeBTC",
+            "icon_url": "https://assets.instabridge.io/tokens/icons/xwBTC.png"
+        },
+        "resource_tdx_2_1thqf6ljrj4p7e4y3nzj0r9m7x2q05sfa43ghva6nrg4hqgk4tgm69k": {
+            "divisibility": 18,
+            "name": "Fake Ethereum",
+            "symbol": "fakeETH",
+            "icon_url": "https://assets.instabridge.io/tokens/icons/xETH.png"
+        },
+        "resource_tdx_2_1tkffdu25wz59q7kvpyr6r0k0klaewzcr7pntcvrexqp3zj6hh7x3qu": {
+            "divisibility": 6,
+            "name": "Fake USDC",
+            "symbol": "fakeUSDC",
+            "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDC.png"
+        },
+        "resource_tdx_2_1tknr7k3g2ra9kdyw2huxaje0u0xscx4hdwprndwad38t0frfkqjr79": {
+            "divisibility": 6,
+            "name": "Fake USDT",
+            "symbol": "fakeUSDT",
+            "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDT.png"
+        }
+    },
+    "protocol": {
+        "ignition_package_address": "package_tdx_2_1p4t77qrmj0rmkccfdteqmqs5w7kwfjv6xcf6lm9x99xm8pzvzyhgqa",
+        "ignition": "component_tdx_2_1czymw99sd6pfgw94h9mj2etvv5nzxc6k3tzkqmze4f7ptzqdycaewh",
+        "protocol_resource": "resource_tdx_2_1t4hs29n9cqypt6n62gml9sn3k7jlxknga53pp084s5n2f5twp0kecw",
+        "oracle_package_address": "package_tdx_2_1pkajnpa3x5k02j23c83usy5vcv00qzse46zu7pyl4x46ashk3k99fv",
+        "oracle": "component_tdx_2_1cqy36pm6srr5e9sdkuyjf8chqwcphzxk5cw3xjqv2v2r8le3w7l8j7"
+    },
+    "caviarnine": {
+        "package": "package_tdx_2_1p57g523zj736u370z6g4ynrytn7t6r2hledvzkhl6tzpg3urn0707e",
+        "pools": {
+            "resource_tdx_2_1t4fe64e7uk07nshzqxz2hdhpfm7muszyrnsr2htl7kx32l2qmttu6t": "component_tdx_2_1crsxum0nld9zkz0xhxphjqn9cul2mv8xwdddhpzeyvcpv29cv8nwat",
+            "resource_tdx_2_1thqf6ljrj4p7e4y3nzj0r9m7x2q05sfa43ghva6nrg4hqgk4tgm69k": "component_tdx_2_1crmq6ukltrfj2g2c0yzuyzs0kys6ngs4ad5uwr0s0rkck8n7tuevuf",
+            "resource_tdx_2_1tkffdu25wz59q7kvpyr6r0k0klaewzcr7pntcvrexqp3zj6hh7x3qu": "component_tdx_2_1cpgvset3vdzythucfyqn0kk7lxw4532vuw53xt3pq38aef6gng6ye7",
+            "resource_tdx_2_1tknr7k3g2ra9kdyw2huxaje0u0xscx4hdwprndwad38t0frfkqjr79": "component_tdx_2_1cpm9x98rweqd89a5kn0clwg0gwt5rve7h3qwkkyaayx8f3hktvwfud"
+        },
+        "adapter_package": "package_tdx_2_1pk3uk3lja9s9ak6wt77hj8vfv4gcs94ln5alvdgm0vnkj6tpugxlpt",
+        "adapter": "component_tdx_2_1cqdh08w62nq0xtaff0r8qlxck3znxn4cmtye4xzyujuquh94lp8jgm"
+    }
+}
