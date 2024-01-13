@@ -29,6 +29,25 @@ pub mod adapter {
     struct OciswapAdapter;
 
     impl OciswapAdapter {
+        pub fn instantiate(
+            owner_role: OwnerRole,
+            address_reservation: Option<GlobalAddressReservation>,
+        ) -> Global<OciswapAdapter> {
+            let address_reservation = address_reservation.unwrap_or(
+                Runtime::allocate_component_address(BlueprintId {
+                    package_address: Runtime::package_address(),
+                    blueprint_name: Runtime::blueprint_name(),
+                })
+                .0,
+            );
+
+            Self {}
+                .instantiate()
+                .prepare_to_globalize(owner_role)
+                .with_address(address_reservation)
+                .globalize()
+        }
+
         fn pool(
             component_address: ComponentAddress,
         ) -> OciswapPoolInterfaceScryptoStub {
