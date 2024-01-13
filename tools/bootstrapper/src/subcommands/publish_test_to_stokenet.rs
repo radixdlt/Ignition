@@ -151,12 +151,15 @@ impl PublishTestToStokenet {
         let serializable_testing_bootstrap_information =
             SerializableTestingBootstrapInformation::new(
                 testing_bootstrap_information,
+                network_definition.id,
                 &address_encoder,
             );
         std::fs::write(
             self.output_path,
-            serde_json::to_string(&serializable_testing_bootstrap_information)
-                .unwrap(),
+            serde_json::to_string_pretty(
+                &serializable_testing_bootstrap_information,
+            )
+            .unwrap(),
         )?;
 
         Ok(())
@@ -268,6 +271,7 @@ fn submit_manifest(
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SerializableTestingBootstrapInformation {
+    pub network_id: u8,
     pub resources: BTreeMap<String, SerializableResourceInformation>,
     pub protocol: SerializableProtocolEntities,
     pub caviarnine: SerializableDexEntities,
@@ -276,9 +280,11 @@ pub struct SerializableTestingBootstrapInformation {
 impl SerializableTestingBootstrapInformation {
     pub fn new(
         value: TestingBootstrapInformation,
+        network_id: u8,
         encoder: &AddressBech32Encoder,
     ) -> Self {
         Self {
+            network_id,
             resources: value
                 .resources
                 .into_iter()

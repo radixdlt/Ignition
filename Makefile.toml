@@ -14,3 +14,18 @@ args = ["clippy", "--all"]
 install_crate = "rustfmt"
 command = "cargo"
 args = ["fmt"]
+
+[tasks.publish-stokenet]
+command = "cargo"
+args = [
+    "run",
+    "--package",
+    "bootstrapper",
+    "--",
+    "publish-test-to-stokenet",
+    "./frontend/public/addresses.json",
+]
+
+[tasks.frontend-start]
+command = "npm"
+args = ["start", "--prefix", "./frontend"]
