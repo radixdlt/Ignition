@@ -151,12 +151,12 @@ mod bootstrap {
             let caviar_nine_liquidity_receipt =
                 ResourceBuilder::new_ruid_non_fungible::<LiquidityReceipt>(OwnerRole::None)
                     .mint_roles(mint_roles! {
-                        minter => rule!(require(global_caller(ignition_package_address)));
-                        minter_updater => rule!(require(global_caller(ignition_package_address)));
+                        minter => rule!(allow_all);
+                        minter_updater => rule!(allow_all);
                     })
                     .burn_roles(burn_roles! {
-                        burner => rule!(require(global_caller(ignition_package_address)));
-                        burner_updater => rule!(require(global_caller(ignition_package_address)));
+                        burner => rule!(allow_all);
+                        burner_updater => rule!(allow_all);
                     })
                     .metadata(metadata! {
                         init {
@@ -181,7 +181,7 @@ mod bootstrap {
                             protocol_resource,
                             oracle,
                             300i64,
-                            dec!(0.05),
+                            Decimal::MAX,
                             None::<GlobalAddressReservation>
                         ),
                     ),
@@ -231,6 +231,10 @@ mod bootstrap {
                 ignition
             };
 
+            // Creating a dApp definition account for the protocol
+            let (dapp_definition, bucket) = Blueprint::<Account>::create();
+            buckets.push(bucket);
+
             let bootstrap_information = TestingBootstrapInformation {
                 resources: user_resources
                     .into_iter()
@@ -244,6 +248,7 @@ mod bootstrap {
                     protocol_resource: protocol_resource.address(),
                     oracle_package_address,
                     oracle,
+                    dapp_definition: dapp_definition.address(),
                 },
                 caviarnine: DexEntities {
                     package: caviarnine_package_address,
@@ -252,7 +257,6 @@ mod bootstrap {
                     adapter: caviarnine_adapter.address(),
                 },
             };
-            Runtime::emit_event(bootstrap_information.clone());
             Runtime::emit_event(EncodedTestingBootstrapInformation::from(
                 bootstrap_information.clone(),
             ));
@@ -287,6 +291,8 @@ pub struct ProtocolEntities {
     /* Oracle */
     pub oracle_package_address: PackageAddress,
     pub oracle: ComponentAddress,
+    /* Misc */
+    pub dapp_definition: ComponentAddress,
 }
 
 /// A struct that defines the entities that belong to a Decentralized Exchange.
