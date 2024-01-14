@@ -371,23 +371,6 @@ mod ignition {
                     .expect(UNEXPECTED_ERROR)
                     .1;
 
-            // Determine the amount of upfront tokens to provide to the user
-            // based on the lockup period specified.
-            let upfront_rewards_amount_in_protocol_resource = {
-                let associated_rewards_rate = self
-                    .reward_rates
-                    .get(&lockup_period)
-                    .expect(LOCKUP_PERIOD_HAS_NO_ASSOCIATED_REWARDS_RATE_ERROR);
-
-                oracle_reported_value_of_user_resource_in_protocol_resource
-                    * *associated_rewards_rate
-            };
-
-            let upfront_reward = self.withdraw_resources(
-                self.protocol_resource.address(),
-                upfront_rewards_amount_in_protocol_resource,
-            );
-
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
             let protocol_side_of_liquidity = self.withdraw_resources(
@@ -416,6 +399,32 @@ mod ignition {
                         .get(&self.protocol_resource.address())
                         .map(Bucket::amount)
                         .unwrap_or(Decimal::ZERO);
+
+            // Determine the amount of upfront tokens to provide to the user
+            // based on the lockup period specified.
+            let upfront_rewards_amount_in_protocol_resource = {
+                let oracle_reported_value_of_user_resource_actually_contributed_in_protocol_resource =
+                    oracle_reported_price
+                        .exchange(
+                            user_resource_address,
+                            amount_of_user_tokens_contributed,
+                        )
+                        .expect(UNEXPECTED_ERROR)
+                        .1;
+
+                let associated_rewards_rate = self
+                    .reward_rates
+                    .get(&lockup_period)
+                    .expect(LOCKUP_PERIOD_HAS_NO_ASSOCIATED_REWARDS_RATE_ERROR);
+
+                oracle_reported_value_of_user_resource_actually_contributed_in_protocol_resource
+                    * *associated_rewards_rate
+            };
+
+            let upfront_reward = self.withdraw_resources(
+                self.protocol_resource.address(),
+                upfront_rewards_amount_in_protocol_resource,
+            );
 
             // Deposit the pool units into the protocol itself and mint an NFT
             // used to represent these locked pool units.
