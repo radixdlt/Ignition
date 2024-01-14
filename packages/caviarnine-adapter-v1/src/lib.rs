@@ -96,12 +96,12 @@ pub mod adapter {
                 higher_bins,
                 lower_bins,
                 ..
-            } = SelectedBins::select(active_bin, bin_span, 198);
+            } = SelectedBins::select(active_bin, bin_span, 50);
 
             // Determine the amount of resources that we will add to each of the
-            // bins. We have 99 on the left and 99 on the right. But, we also
+            // bins. We have 50 on the left and 50 on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
-            // be like contributing to 99.x and 99.y bins where x = 1-y. X here
+            // be like contributing to 50.x and 50.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
