@@ -10,6 +10,7 @@ mod test_oracle {
         },
         methods {
             set_price => restrict_to: [oracle_manager];
+            set_price_batch => restrict_to: [oracle_manager];
             get_price => PUBLIC;
         }
     }
@@ -58,6 +59,16 @@ mod test_oracle {
                 (base, quote),
                 (price, Clock::current_time_rounded_to_minutes()),
             )
+        }
+
+        pub fn set_price_batch(
+            &mut self,
+            prices: IndexMap<(ResourceAddress, ResourceAddress), Decimal>,
+        ) {
+            let time = Clock::current_time_rounded_to_minutes();
+            for (addresses, price) in prices.into_iter() {
+                self.prices.insert(addresses, (price, time))
+            }
         }
     }
 
