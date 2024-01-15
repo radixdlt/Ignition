@@ -102,7 +102,7 @@ export const CloseLiquidityPosition = (props: Props) => {
         })
         .then(setState);
     }
-  }, [configuration, connectedAccount, dAppToolkit, state, lastTx]);
+  }, [connectedAccount, configuration, lastTx]);
 
   if (connectedAccount.status === "success") {
     return (
@@ -117,7 +117,7 @@ export const CloseLiquidityPosition = (props: Props) => {
               <th>Exchange</th>
               <th>Resource</th>
               <th>User Contribution</th>
-              <th>Has Matured</th>
+              <th>Maturity Date</th>
               <th></th>
             </tr>
           </thead>
@@ -150,10 +150,9 @@ export const CloseLiquidityPosition = (props: Props) => {
                     </td>
                     <td>{receiptData.userContributionAmount}</td>
                     <td>
-                      {Date.now().valueOf() >=
-                      parseInt(receiptData.maturityTimestamp)
-                        ? "✅"
-                        : "❌"}
+                      {new Date(
+                        parseInt(receiptData.maturityTimestamp) * 1000,
+                      ).toLocaleString()}
                     </td>
                     <td>
                       <Button
@@ -161,10 +160,6 @@ export const CloseLiquidityPosition = (props: Props) => {
                           minWidth: "100%",
                         }}
                         variant="dark"
-                        disabled={
-                          Date.now().valueOf() <
-                          parseInt(receiptData.maturityTimestamp)
-                        }
                         onClick={(_) => {
                           constructAndSendManifestToWallet(
                             dAppToolkit,
