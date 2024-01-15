@@ -23,7 +23,8 @@ args = [
     "bootstrapper",
     "--",
     "publish-test-to-stokenet",
-    "./frontend/public/addresses.json",
+    "./frontend/public/config.json",
+    "./frontend/src/config.json",
 ]
 
 [tasks.frontend-start]

@@ -18,7 +18,7 @@ use transaction::prelude::*;
 #[derive(Parser, Debug)]
 pub struct PublishTestToStokenet {
     /// The path to write the addresses out to, this should be to a JSON file.
-    pub output_path: String,
+    pub output_path: Vec<String>,
 }
 
 impl PublishTestToStokenet {
@@ -54,6 +54,7 @@ impl PublishTestToStokenet {
             ) = PackageLoader::get(CAVIARNINE_ADAPTER_V1_PACKAGE_NAME);
             let (test_oracle_code, test_oracle_package_definition) =
                 PackageLoader::get(TEST_ORACLE_PACKAGE_NAME);
+
             let (bootstrap_code, bootstrap_package_definition) =
                 PackageLoader::get(BOOTSTRAP_PACKAGE_NAME);
 
@@ -178,13 +179,15 @@ impl PublishTestToStokenet {
                 network_definition.id,
                 &address_encoder,
             );
-        std::fs::write(
-            self.output_path,
-            serde_json::to_string_pretty(
-                &serializable_testing_bootstrap_information,
-            )
-            .unwrap(),
-        )?;
+        for output_path in self.output_path {
+            std::fs::write(
+                output_path,
+                serde_json::to_string_pretty(
+                    &serializable_testing_bootstrap_information,
+                )
+                .unwrap(),
+            )?;
+        }
 
         Ok(())
     }
