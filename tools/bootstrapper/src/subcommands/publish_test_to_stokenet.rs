@@ -148,6 +148,30 @@ impl PublishTestToStokenet {
             })
             .expect("Should not fail");
 
+        // Constructing a manifest to fees the oracle with prices.
+        {
+            let mut builder = ManifestBuilder::new().lock_fee_from_faucet();
+
+            for address in
+                testing_bootstrap_information.resources.keys().copied()
+            {
+                builder = builder.call_method(
+                    testing_bootstrap_information.protocol.oracle,
+                    "set_price",
+                    manifest_args!(
+                        address,
+                        testing_bootstrap_information
+                            .protocol
+                            .protocol_resource,
+                        dec!(1000)
+                    ),
+                )
+            }
+
+            let manifest = builder.build();
+            submit_manifest(manifest)?;
+        }
+
         let serializable_testing_bootstrap_information =
             SerializableTestingBootstrapInformation::new(
                 testing_bootstrap_information,
@@ -273,7 +297,7 @@ fn submit_manifest(
 pub struct SerializableTestingBootstrapInformation {
     pub network_id: u8,
     pub resources: BTreeMap<String, SerializableResourceInformation>,
-    pub protocol: SerializableProtocolEntities,
+    pub protocol: SerializableProtocolConfiguration,
     pub caviarnine: SerializableDexEntities,
 }
 
@@ -295,7 +319,7 @@ impl SerializableTestingBootstrapInformation {
                     )
                 })
                 .collect(),
-            protocol: SerializableProtocolEntities::new(
+            protocol: SerializableProtocolConfiguration::new(
                 value.protocol,
                 encoder,
             ),
@@ -305,7 +329,7 @@ impl SerializableTestingBootstrapInformation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SerializableProtocolEntities {
+pub struct SerializableProtocolConfiguration {
     /* Ignition */
     pub ignition_package_address: String,
     pub ignition: String,
@@ -313,11 +337,14 @@ pub struct SerializableProtocolEntities {
     /* Oracle */
     pub oracle_package_address: String,
     pub oracle: String,
+    /* dApp Definition */
+    pub dapp_definition: String,
+    pub reward_rates: BTreeMap<String, String>,
 }
 
-impl SerializableProtocolEntities {
+impl SerializableProtocolConfiguration {
     pub fn new(
-        value: ProtocolEntities,
+        value: ProtocolConfiguration,
         encoder: &AddressBech32Encoder,
     ) -> Self {
         Self {
@@ -332,6 +359,14 @@ impl SerializableProtocolEntities {
                 encoder,
             ),
             oracle: encode(value.oracle, encoder),
+            dapp_definition: encode(value.dapp_definition, encoder),
+            reward_rates: value
+                .reward_rates
+                .into_iter()
+                .map(|(key, value)| {
+                    (key.seconds().to_string(), value.to_string())
+                })
+                .collect(),
         }
     }
 }
@@ -346,6 +381,8 @@ pub struct SerializableDexEntities {
     /* Adapter */
     pub adapter_package: String,
     pub adapter: String,
+    /* Receipt */
+    pub receipt_resource: String,
 }
 
 impl SerializableDexEntities {
@@ -359,6 +396,7 @@ impl SerializableDexEntities {
                 .collect(),
             adapter_package: encode(value.adapter_package, encoder),
             adapter: encode(value.adapter, encoder),
+            receipt_resource: encode(value.receipt_resource, encoder),
         }
     }
 }

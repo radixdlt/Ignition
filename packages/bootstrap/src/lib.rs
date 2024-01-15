@@ -168,6 +168,10 @@ mod bootstrap {
 
             // Creating the ignition component and initializing it to the
             // expected state.
+            let reward_rates = indexmap! {
+                LockupPeriod::from_seconds(0) => dec!(0.10),
+                LockupPeriod::from_seconds(60) => dec!(0.20),
+            };
             let ignition = {
                 let ignition = scrypto_decode::<ComponentAddress>(
                     &ScryptoVmV1Api::blueprint_call(
@@ -180,7 +184,7 @@ mod bootstrap {
                             rule!(allow_all),
                             protocol_resource,
                             oracle,
-                            300i64,
+                            i64::MAX,
                             Decimal::MAX,
                             None::<GlobalAddressReservation>
                         ),
@@ -206,12 +210,9 @@ mod bootstrap {
                 ));
 
                 // Add the reward rates that Ignition will use.
-                ignition
-                    .add_reward_rate(LockupPeriod::from_seconds(0), dec!(0.10));
-                ignition.add_reward_rate(
-                    LockupPeriod::from_seconds(60),
-                    dec!(0.20),
-                );
+                for (lockup_period, reward) in reward_rates.iter() {
+                    ignition.add_reward_rate(*lockup_period, *reward);
+                }
 
                 // Adding the pool information for CaviarSwap
                 ignition.insert_pool_information(
@@ -242,19 +243,21 @@ mod bootstrap {
                         (manager.address(), information)
                     })
                     .collect(),
-                protocol: ProtocolEntities {
+                protocol: ProtocolConfiguration {
                     ignition_package_address,
                     ignition: ignition.address(),
                     protocol_resource: protocol_resource.address(),
                     oracle_package_address,
                     oracle,
                     dapp_definition: dapp_definition.address(),
+                    reward_rates,
                 },
                 caviarnine: DexEntities {
                     package: caviarnine_package_address,
                     pools: caviarnine_pools,
                     adapter_package: caviarnine_adapter_v1_package_address,
                     adapter: caviarnine_adapter.address(),
+                    receipt_resource: caviar_nine_liquidity_receipt.address(),
                 },
             };
             Runtime::emit_event(EncodedTestingBootstrapInformation::from(
@@ -278,12 +281,12 @@ impl From<TestingBootstrapInformation> for EncodedTestingBootstrapInformation {
 #[derive(Debug, Clone, PartialEq, Eq, ScryptoSbor, ScryptoEvent)]
 pub struct TestingBootstrapInformation {
     pub resources: IndexMap<ResourceAddress, ResourceInformation>,
-    pub protocol: ProtocolEntities,
+    pub protocol: ProtocolConfiguration,
     pub caviarnine: DexEntities,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ScryptoSbor)]
-pub struct ProtocolEntities {
+pub struct ProtocolConfiguration {
     /* Ignition */
     pub ignition_package_address: PackageAddress,
     pub ignition: ComponentAddress,
@@ -293,6 +296,7 @@ pub struct ProtocolEntities {
     pub oracle: ComponentAddress,
     /* Misc */
     pub dapp_definition: ComponentAddress,
+    pub reward_rates: IndexMap<LockupPeriod, Decimal>,
 }
 
 /// A struct that defines the entities that belong to a Decentralized Exchange.
@@ -305,6 +309,8 @@ pub struct DexEntities {
     /* Adapter */
     pub adapter_package: PackageAddress,
     pub adapter: ComponentAddress,
+    /* Receipt */
+    pub receipt_resource: ResourceAddress,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, ScryptoSbor)]

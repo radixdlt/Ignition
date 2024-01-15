@@ -1305,7 +1305,7 @@ mod ignition {
                 self.oracle_adapter.get_price(base, quote);
             let final_price_validity = last_update
                 .add_seconds(self.maximum_allowed_price_staleness)
-                .unwrap();
+                .unwrap_or(Instant::new(i64::MAX));
 
             // Check for staleness
             assert!(
