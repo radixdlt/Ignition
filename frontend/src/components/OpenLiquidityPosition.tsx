@@ -20,7 +20,6 @@ import {
 import { RadixDappToolkit } from "@radixdlt/radix-dapp-toolkit";
 import { SUPPORTED_EXCHANGES } from "../constants";
 import { dAppToolkit } from "../RadixDappToolkit";
-import { useLastTransactionHash } from "../hooks/LastTransactionHash";
 import { Dispatch, SetStateAction } from "react";
 
 const NO_X_AXIS_BORDERS_CLASS_NAME: string = "mx-0 px-0";
@@ -28,7 +27,6 @@ const NO_X_AXIS_BORDERS_CLASS_NAME: string = "mx-0 px-0";
 export const OpenLiquidityPosition = (props: Props) => {
   const [openLiquidityPositionData, setOpenLiquidityPositionData] =
     useOpenLiquidityPositionData();
-  const [lastTx, setLastTx] = useLastTransactionHash();
 
   const connectedAccount = useConnectedAccounts();
 
@@ -210,7 +208,7 @@ export const OpenLiquidityPosition = (props: Props) => {
                   bootstrapInformation,
                   connectedAccount,
                   openLiquidityPositionData,
-                  setLastTx,
+                  props.setLastTx,
                 );
               }}
             >
@@ -230,6 +228,9 @@ interface Props {
   onExchangeChange?: (newExchange?: string) => void;
   onUserResourceChange?: (newResourceAddress?: string) => void;
   onAmountChange?: (newAmount?: string) => void;
+  /* Last Tx */
+  lastTx: string | null;
+  setLastTx: Dispatch<SetStateAction<string | null>>;
 }
 
 const constructManifest = (
@@ -291,7 +292,8 @@ const constructAndSendManifestToWallet = (
   console.log(manifest);
   dAppToolkit.walletApi
     .sendTransaction({ transactionManifest: manifest })
-    .map((item) => setLastTxHash(item.transactionIntentHash));
+    .map((item) => item.transactionIntentHash)
+    .map(setLastTxHash);
 };
 
 const highLevelConstructAndSendManifestToWallet = (

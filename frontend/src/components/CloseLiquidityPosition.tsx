@@ -13,15 +13,12 @@ import { useConnectedAccounts } from "../hooks/ConnectedAccounts";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { Button } from "react-bootstrap";
 import { dAppToolkit } from "../RadixDappToolkit";
-import { useLastTransactionHash } from "../hooks/LastTransactionHash";
 
 export const CloseLiquidityPosition = (props: Props) => {
   // Map<address, Map<local_id, data>>
   const [state, setState] = useState<
     Record<string, Record<string, LiquidityReceipt>>
   >({});
-  const [lastTx, setLastTx] = useLastTransactionHash();
-
   // Getting the state
   const configuration = bootstrapInformation;
   const connectedAccount = useConnectedAccounts();
@@ -102,7 +99,7 @@ export const CloseLiquidityPosition = (props: Props) => {
         })
         .then(setState);
     }
-  }, [connectedAccount, configuration, lastTx]);
+  }, [connectedAccount, configuration, props.lastTx]);
 
   if (connectedAccount.status === "success") {
     return (
@@ -167,7 +164,7 @@ export const CloseLiquidityPosition = (props: Props) => {
                             bootstrapInformation.protocol.ignition,
                             liquidityResourceAddress,
                             localId,
-                            setLastTx,
+                            props.setLastTx,
                           );
                         }}
                       >
@@ -200,6 +197,9 @@ interface Props {
   onExchangeChange?: (newExchange?: string) => void;
   onUserResourceChange?: (newResourceAddress?: string) => void;
   onAmountChange?: (newAmount?: string) => void;
+  /* Last Tx */
+  lastTx: string | null;
+  setLastTx: Dispatch<SetStateAction<string | null>>;
 }
 
 interface LiquidityReceipt {

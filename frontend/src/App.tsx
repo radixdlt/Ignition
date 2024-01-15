@@ -1,8 +1,10 @@
+import { useReducer } from "react";
 import "./App.css";
 import { CloseLiquidityPosition } from "./components/CloseLiquidityPosition";
 
 import { OpenLiquidityPosition } from "./components/OpenLiquidityPosition";
 import { useConnectedAccounts } from "./hooks/ConnectedAccounts";
+import { useLastTransactionHash } from "./hooks/LastTransactionHash";
 
 declare global {
   namespace JSX {
@@ -25,6 +27,8 @@ declare global {
 
 function App() {
   useConnectedAccounts();
+
+  const [lastTx, setLastTx] = useLastTransactionHash();
 
   return (
     <>
@@ -52,8 +56,14 @@ function App() {
           <OpenLiquidityPosition
             style={{ width: "100%" }}
             title="Open Liquidity Position"
+            lastTx={lastTx}
+            setLastTx={setLastTx}
           />
-          <CloseLiquidityPosition title="Close Liquidity Position" />
+          <CloseLiquidityPosition
+            title="Close Liquidity Position"
+            lastTx={lastTx}
+            setLastTx={setLastTx}
+          />
         </div>
       </div>
     </>
