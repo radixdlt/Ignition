@@ -1,25 +1,62 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import "./App.css";
+import { CloseLiquidityPosition } from "./components/CloseLiquidityPosition";
+
+import { OpenLiquidityPosition } from "./components/OpenLiquidityPosition";
+import { useConnectedAccounts } from "./hooks/ConnectedAccounts";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "radix-connect-button": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      >;
+      "radix-dapps-dropdown": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      >;
+      "radix-tabs-menu": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement>,
+        HTMLElement
+      >;
+    }
+  }
+}
 
 function App() {
+  useConnectedAccounts();
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
+    <>
+      <div
+        style={{
+          zIndex: 2,
+          position: "absolute",
+          right: 30,
+          top: 30,
+        }}
+      >
+        <radix-connect-button />
+      </div>
+      <div id="ignition-root" className="iosevka">
+        <h1 className="iosevka" style={{ fontSize: 48, fontWeight: 700 }}>
+          🔥 Ignition
+        </h1>
+        <p className="iosevka">
+          Double your liquidity contributions and get protection from
+          impermanent loss.
         </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+
+        {/* Main Body */}
+        <div style={{ minWidth: 900, width: 900, maxWidth: 900 }}>
+          <OpenLiquidityPosition
+            style={{ width: "100%" }}
+            title="Open Liquidity Position"
+          />
+          <CloseLiquidityPosition title="Close Liquidity Position" />
+        </div>
+      </div>
+    </>
   );
 }
 
