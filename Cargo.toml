@@ -12,7 +12,9 @@ members = [
     "libraries/scrypto-interface",
     "libraries/adapters-interface",
     # Tools
-    "tools/bootstrapper"
+    "tools/bootstrapper",
+    # Tests
+    "tests"
 ]
 
 [workspace.package]
