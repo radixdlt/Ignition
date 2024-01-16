@@ -39,7 +39,7 @@ impl PublishTestToStokenet {
             ignition_package,
             ociswap_adapter_v1_package,
             caviarnine_adapter_v1_package,
-            test_oracle_package,
+            simple_oracle_package,
             bootstrap_package,
         ) = {
             let (ignition_code, ignition_package_definition) =
@@ -52,8 +52,8 @@ impl PublishTestToStokenet {
                 caviarnine_adapter_v1_code,
                 caviarnine_adapter_v1_package_definition,
             ) = PackageLoader::get(CAVIARNINE_ADAPTER_V1_PACKAGE_NAME);
-            let (test_oracle_code, test_oracle_package_definition) =
-                PackageLoader::get(TEST_ORACLE_PACKAGE_NAME);
+            let (simple_oracle_code, simple_oracle_package_definition) =
+                PackageLoader::get(SIMPLE_ORACLE_PACKAGE_NAME);
 
             let (bootstrap_code, bootstrap_package_definition) =
                 PackageLoader::get(BOOTSTRAP_PACKAGE_NAME);
@@ -68,9 +68,9 @@ impl PublishTestToStokenet {
                 caviarnine_adapter_v1_code,
                 caviarnine_adapter_v1_package_definition,
             );
-            let test_oracle_package = publish_package(
-                test_oracle_code,
-                test_oracle_package_definition,
+            let simple_oracle_package = publish_package(
+                simple_oracle_code,
+                simple_oracle_package_definition,
             );
             let bootstrap_package =
                 publish_package(bootstrap_code, bootstrap_package_definition);
@@ -79,7 +79,7 @@ impl PublishTestToStokenet {
                 ignition_package,
                 ociswap_adapter_v1_package,
                 caviarnine_adapter_v1_package,
-                test_oracle_package,
+                simple_oracle_package,
                 bootstrap_package,
             )
         };
@@ -92,7 +92,7 @@ impl PublishTestToStokenet {
                 "bootstrap_for_testing",
                 manifest_args!(
                     ignition_package,
-                    test_oracle_package,
+                    simple_oracle_package,
                     caviarnine_package,
                     ociswap_adapter_v1_package,
                     caviarnine_adapter_v1_package,

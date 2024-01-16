@@ -30,7 +30,7 @@ mod bootstrap {
             let oracle = scrypto_decode::<ComponentAddress>(
                 &ScryptoVmV1Api::blueprint_call(
                     oracle_package_address,
-                    "TestOracle",
+                    "SimpleOracle",
                     "instantiate",
                     scrypto_args!(
                         rule!(allow_all),

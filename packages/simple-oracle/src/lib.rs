@@ -3,7 +3,7 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 #[blueprint_with_traits]
-mod test_oracle {
+mod simple_oracle {
     enable_method_auth! {
         roles {
             oracle_manager => updatable_by: [oracle_manager];
@@ -15,7 +15,7 @@ mod test_oracle {
         }
     }
 
-    pub struct TestOracle {
+    pub struct SimpleOracle {
         /// Maps the (base, quote) to the (price, updated_at).
         prices: KeyValueStore<
             (ResourceAddress, ResourceAddress),
@@ -23,12 +23,12 @@ mod test_oracle {
         >,
     }
 
-    impl TestOracle {
+    impl SimpleOracle {
         pub fn instantiate(
             oracle_manager: AccessRule,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
-        ) -> Global<TestOracle> {
+        ) -> Global<SimpleOracle> {
             let address_reservation = address_reservation.unwrap_or(
                 Runtime::allocate_component_address(BlueprintId {
                     package_address: Runtime::package_address(),
@@ -72,7 +72,7 @@ mod test_oracle {
         }
     }
 
-    impl OracleAdapterInterfaceTrait for TestOracle {
+    impl OracleAdapterInterfaceTrait for SimpleOracle {
         fn get_price(
             &self,
             base: ResourceAddress,

@@ -1,5 +1,5 @@
 [package]
-name = "test-oracle"
+name = "simple-oracle"
 version = { workspace = true }
 edition = { workspace = true }
 description = "A simple oracle used in tests."
