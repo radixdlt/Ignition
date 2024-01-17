@@ -12,7 +12,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            const $name: &'static str = concat!("[Ociswap Adapter]", " ", $item);
+            pub const $name: &'static str = concat!("[Ociswap Adapter]", " ", $item);
         )*
     };
 }
@@ -22,6 +22,8 @@ define_error! {
         => "Failed to get resource addresses - unexpected error.";
     FAILED_TO_GET_VAULT_ERROR
         => "Failed to get vault - unexpected error.";
+    PRICE_IS_UNDEFINED
+        => "Price is undefined.";
 }
 
 #[blueprint_with_traits]
@@ -118,7 +120,7 @@ pub mod adapter {
             Price {
                 base: resource_address1,
                 quote: resource_address2,
-                price: amount2 / amount1,
+                price: amount2.checked_div(amount1).expect(PRICE_IS_UNDEFINED),
             }
         }
 

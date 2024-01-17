@@ -339,6 +339,12 @@ mod ignition {
                         || resource2 == user_resource_address,
                     "{}",
                     USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR
+                );
+
+                assert!(
+                    user_resource_address != self.protocol_resource.address(),
+                    "{}",
+                    USER_MUST_NOT_PROVIDE_PROTOCOL_ASSET_ERROR
                 )
             }
 

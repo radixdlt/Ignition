@@ -45,4 +45,6 @@ define_error! {
         => "Not a valid liquidity receipt resource.";
     LIQUIDITY_POSITION_HAS_NOT_MATURED_ERROR
         => "Can't close a liquidity position before it has matured.";
+    USER_MUST_NOT_PROVIDE_PROTOCOL_ASSET_ERROR
+        => "The user has provided the protocol asset, which is not allowed";
 }

@@ -8,7 +8,7 @@ macro_rules! define_error_checking_functions {
                     $error: ident
                 ),* $(,)?
             ]
-        )* $(,)?
+        ),* $(,)?
     ) => {
         paste::paste! {
             $(
@@ -64,5 +64,11 @@ define_error_checking_functions! {
         MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR,
         NOT_A_VALID_LIQUIDITY_RECEIPT_ERROR,
         LIQUIDITY_POSITION_HAS_NOT_MATURED_ERROR,
+        USER_MUST_NOT_PROVIDE_PROTOCOL_ASSET_ERROR
+    ],
+    ociswap_adapter => [
+        FAILED_TO_GET_RESOURCE_ADDRESSES_ERROR,
+        FAILED_TO_GET_VAULT_ERROR,
+        PRICE_IS_UNDEFINED
     ]
 }

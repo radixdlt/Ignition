@@ -32,16 +32,12 @@ impl Environment {
         include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
 
     pub fn new() -> Result<Self, RuntimeError> {
-        Self::new_with_configuration(Configuration {
-            fees: Some(dec!(0.01)),
-        })
+        Self::new_with_configuration(Configuration::default())
     }
 
     pub fn new_with_configuration(
         configuration: Configuration,
     ) -> Result<Self, RuntimeError> {
-        let fees = configuration.fees();
-
         // Flash the substates to the ledger so that they can be used in tests.
         let (addresses, db_flash) =
             scrypto_decode::<(Vec<NodeId>, DbFlash)>(Self::PACKAGES_BINARY)
@@ -133,14 +129,24 @@ impl Environment {
 
         // Creating the Ociswap pools of the resources.
         let ociswap_pools = resource_addresses.try_map(|resource_address| {
-            OciswapPoolInterfaceScryptoTestStub::instantiate(
-                *resource_address,
-                XRD,
-                fees,
-                FAUCET,
-                ociswap_package,
-                &mut env,
-            )
+            let mut ociswap_pool =
+                OciswapPoolInterfaceScryptoTestStub::instantiate(
+                    *resource_address,
+                    XRD,
+                    configuration.fees,
+                    FAUCET,
+                    ociswap_package,
+                    &mut env,
+                )?;
+
+            let resource_x = ResourceManager(*resource_address)
+                .mint_fungible(dec!(100_000_000), &mut env)?;
+            let resource_y = ResourceManager(XRD)
+                .mint_fungible(dec!(100_000_000), &mut env)?;
+            let _ =
+                ociswap_pool.add_liquidity(resource_x, resource_y, &mut env)?;
+
+            Ok::<_, RuntimeError>(ociswap_pool)
         })?;
 
         // Creating the Caviarnine pools of the resources.
@@ -172,8 +178,8 @@ impl Environment {
             protocol_manager_rule,
             XRD.into(),
             simple_oracle.try_into().unwrap(),
-            300i64,
-            dec!(0.01),
+            configuration.maximum_allowed_price_staleness_seconds,
+            configuration.maximum_allowed_relative_price_difference,
             None,
             ignition_package,
             &mut env,
@@ -193,13 +199,24 @@ impl Environment {
 
         // Submitting some dummy prices to the oracle to get things going.
         resource_addresses.try_map(|resource_address| {
-            simple_oracle.set_price(*resource_address, XRD, dec!(100), &mut env)
+            simple_oracle.set_price(*resource_address, XRD, dec!(1), &mut env)
         })?;
 
         // Initializing ignition with information
         {
             ignition.set_is_open_position_enabled(true, &mut env)?;
             ignition.set_is_close_position_enabled(true, &mut env)?;
+
+            ignition.add_reward_rate(
+                LockupPeriod::from_months(6),
+                dec!(0.2),
+                &mut env,
+            )?;
+            ignition.add_reward_rate(
+                LockupPeriod::from_months(12),
+                dec!(0.4),
+                &mut env,
+            )?;
 
             let xrd_bucket = ResourceManager(XRD)
                 .mint_fungible(dec!(100_000_000_000_000), &mut env)?;
@@ -348,11 +365,20 @@ impl<T> ResourceInformation<T> {
 
 #[derive(Clone, Debug)]
 pub struct Configuration {
-    pub fees: Option<Decimal>,
+    pub fees: Decimal,
+    pub maximum_allowed_price_staleness_seconds: i64,
+    pub maximum_allowed_relative_price_difference: Decimal,
 }
 
-impl Configuration {
-    pub fn fees(&self) -> Decimal {
-        self.fees.unwrap_or(Decimal::ZERO)
+impl Default for Configuration {
+    fn default() -> Self {
+        Self {
+            // 1%
+            fees: dec!(0.01),
+            // 5 Minutes
+            maximum_allowed_price_staleness_seconds: 300i64,
+            // 1%
+            maximum_allowed_relative_price_difference: dec!(0.01),
+        }
     }
 }
