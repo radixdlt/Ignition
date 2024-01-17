@@ -39,7 +39,7 @@ fn build_blueprints() -> Result<(), Error> {
     }
 
     // Getting the name of all of the blueprints found in the packages directory
-    let package_names = read_dir(&packages_path)?
+    let package_names = read_dir(packages_path)?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             if entry.file_type().is_ok_and(|ty| ty.is_dir()) {

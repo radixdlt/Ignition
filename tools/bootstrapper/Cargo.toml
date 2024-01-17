@@ -11,7 +11,7 @@ radix-engine = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 bootstrap = { path = "../../packages/bootstrap" }
-package-loader = { path = "../../libraries/package-loader" }
+package-loader = { path = "../../libraries/package-loader", features = ["build-time-blueprints"] }
 caviarnine-adapter-v1 = { path = "../../packages/caviarnine-adapter-v1", features = ["transaction"] }
 
 clap = { version = "4.4.16", features = ["derive"] }
