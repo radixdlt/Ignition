@@ -229,7 +229,7 @@ impl Environment {
                 PoolBlueprintInformation {
                     adapter: ociswap_adapter_v1.into(),
                     allowed_pools: ociswap_pools
-                        .into_iter()
+                        .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
                     liquidity_receipt: ociswap_liquidity_receipt_resource
@@ -245,7 +245,7 @@ impl Environment {
                 PoolBlueprintInformation {
                     adapter: caviarnine_adapter_v1.into(),
                     allowed_pools: caviarnine_pools
-                        .into_iter()
+                        .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
                     liquidity_receipt: caviarnine_liquidity_receipt_resource
@@ -358,7 +358,7 @@ impl<T> ResourceInformation<T> {
         })
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = T> {
+    pub fn iter(self) -> impl Iterator<Item = T> {
         [self.bitcoin, self.ethereum, self.usdc, self.usdt].into_iter()
     }
 }
