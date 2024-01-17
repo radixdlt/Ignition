@@ -909,7 +909,7 @@ mod ignition {
         ///
         /// # Arguments
         ///
-        /// `blueprint_id``: [`BlueprintId`] - The blueprint id of the pool
+        /// `blueprint_id`: [`BlueprintId`] - The blueprint id of the pool
         /// blueprint.
         /// `liquidity_receipt``: [`ResourceManager`] - The resource address of
         /// the new liquidity receipt resource to use.

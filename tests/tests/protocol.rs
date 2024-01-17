@@ -333,32 +333,25 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
 #[allow(unused_must_use)]
 fn oracle_price_cutoffs_for_opening_liquidity_positions_are_implemented_correctly(
 ) {
+    const SMALL_DECIMAL: Decimal = dec!(0.000000000000000010);
+
     test_oracle_price(dec!(1) / dec!(1.01), dec!(0.01))
         .expect("Should succeed!");
     test_oracle_price(dec!(1) / dec!(0.99), dec!(0.01))
         .expect("Should succeed!");
-    test_oracle_price(
-        dec!(1) / dec!(0.99) - dec!(0.000000000000000010),
-        dec!(0.01),
-    )
-    .expect("Should succeed!");
-    test_oracle_price(
-        dec!(1) / dec!(1.01) + dec!(0.000000000000000010),
-        dec!(0.01),
-    )
-    .expect("Should succeed!");
+    test_oracle_price(dec!(1) / dec!(0.99) - SMALL_DECIMAL, dec!(0.01))
+        .expect("Should succeed!");
+    test_oracle_price(dec!(1) / dec!(1.01) + SMALL_DECIMAL, dec!(0.01))
+        .expect("Should succeed!");
 
     assert_is_ignition_relative_price_difference_larger_than_allowed_error(
         &test_oracle_price(
-            dbg!(dec!(1) / dec!(0.99) + dec!(0.000000000000000010)),
+            dbg!(dec!(1) / dec!(0.99) + SMALL_DECIMAL),
             dec!(0.01),
         ),
     );
     assert_is_ignition_relative_price_difference_larger_than_allowed_error(
-        &test_oracle_price(
-            dec!(1) / dec!(1.01) - dec!(0.000000000000000010),
-            dec!(0.01),
-        ),
+        &test_oracle_price(dec!(1) / dec!(1.01) - SMALL_DECIMAL, dec!(0.01)),
     );
 }
 
@@ -391,4 +384,160 @@ fn test_oracle_price(
         LockupPeriod::from_months(6),
         env,
     )
+}
+
+#[test]
+fn cant_open_a_liquidity_position_with_an_invalid_lockup_period(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    // Act
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let rtn = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_seconds(1),
+        env,
+    );
+
+    // Assert
+    assert_is_ignition_lockup_period_has_no_associated_rewards_rate_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_set_the_adapter_of_a_blueprint_that_is_not_registered(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = Environment::new()?;
+
+    // Act
+    let rtn = protocol.ignition.set_pool_adapter(
+        BlueprintId {
+            package_address: FAUCET_PACKAGE,
+            blueprint_name: "Faucet".into(),
+        },
+        FAUCET,
+        env,
+    );
+
+    // Assert
+    assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_add_allowed_pool_of_a_blueprint_that_is_not_registered(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = Environment::new()?;
+
+    // Act
+    let rtn = protocol.ignition.add_allowed_pool(FAUCET, env);
+
+    // Assert
+    assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
+}
+
+// TODO: Maybe we also need a caviarnine version of this.
+#[test]
+fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resource(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        ..
+    } = Environment::new()?;
+
+    let fungible1 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let fungible2 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let pool = OciswapPoolInterfaceScryptoTestStub::instantiate(
+        fungible1.resource_address(env)?,
+        fungible2.resource_address(env)?,
+        dec!(0),
+        FAUCET,
+        ociswap.package,
+        env,
+    )?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .add_allowed_pool(pool.try_into().unwrap(), env);
+
+    // Assert
+    assert_is_ignition_neither_pool_resource_is_protocol_resource_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_remove_an_allowed_pool_for_a_blueprint_with_no_registered_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = Environment::new()?;
+
+    // Act
+    let rtn = protocol.ignition.remove_allowed_pool(FAUCET, env);
+
+    // Assert
+    assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_set_liquidity_receipt_of_a_pool_with_no_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = Environment::new()?;
+
+    // Act
+    let rtn = protocol.ignition.set_liquidity_receipt(
+        BlueprintId {
+            package_address: FAUCET_PACKAGE,
+            blueprint_name: "Faucet".into(),
+        },
+        ACCOUNT_OWNER_BADGE.into(),
+        env,
+    );
+
+    // Assert
+    assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
 }
