@@ -16,7 +16,7 @@ use crate::prelude::*;
 /// that must happen after the creation of the environment.  
 pub struct Environment {
     /* Test Environment */
-    pub environment: TestEnvironment,
+    pub environment: TestEnvironment<InMemorySubstateDatabase>,
     /* Various entities */
     pub resources: ResourceInformation<ResourceAddress>,
     pub protocol: ProtocolEntities,
@@ -285,7 +285,7 @@ impl Environment {
 
     fn publish_package(
         name: &str,
-        env: &mut TestEnvironment,
+        env: &mut TestEnvironment<InMemorySubstateDatabase>,
     ) -> Result<PackageAddress, RuntimeError> {
         let (code, definition) = package_loader::PackageLoader::get(name);
         Package::publish(code, definition, Default::default(), env)

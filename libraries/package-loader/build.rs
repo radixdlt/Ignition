@@ -56,54 +56,69 @@ fn build_blueprints() -> Result<(), Error> {
         .flatten()
         .collect::<Vec<_>>();
 
-    // Building each of the packages that have been discovered.
-    let mut packages = HashMap::new();
-    for package_name in package_names {
-        // Build the package
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "--target",
-                "wasm32-unknown-unknown",
-                "--release",
-                "--target-dir",
-                builds_target_path.as_path().display().to_string().as_str(),
-                "--package",
-                package_name.as_str(),
-            ])
-            .status()?;
-        if !status.success() {
-            return Err(Error::CompilationOfPackageFailed(package_name));
-        }
+    // Build 1: Building each of the packages with the package definition.
+    let status = Command::new("cargo")
+        .args([
+            "build",
+            "--target",
+            "wasm32-unknown-unknown",
+            "--release",
+            "--target-dir",
+            builds_target_path.as_path().display().to_string().as_str(),
+        ])
+        .args(package_names.iter().flat_map(|package_name| {
+            ["--package".to_owned(), package_name.to_owned()]
+        }))
+        .status()?;
+    if !status.success() {
+        return Err(Error::CompilationOfPackageFailed);
+    }
 
-        // Construct the path to the WASM file.
+    // Read the package definition of the various packages - assume code to be
+    // an empty byte array for now.
+    let mut packages = package_names
+        .iter()
+        .map(|package_name| {
+            let wasm_path = builds_target_path
+                .join("wasm32-unknown-unknown")
+                .join("release")
+                .join(format!("{}.wasm", package_name.replace('-', "_")));
+
+            let package_definition =
+                radix_engine::utils::extract_definition(&read(wasm_path)?)?;
+
+            Ok::<_, Error>((
+                package_name.clone(),
+                (Vec::<u8>::new(), package_definition),
+            ))
+        })
+        .collect::<Result<IndexMap<_, _>, _>>()?;
+
+    // Build 2: Build without the package definition.
+    let status = Command::new("cargo")
+        .args([
+            "build",
+            "--target",
+            "wasm32-unknown-unknown",
+            "--release",
+            "--target-dir",
+            builds_target_path.as_path().display().to_string().as_str(),
+            "--features",
+            "scrypto/no-schema",
+        ])
+        .args(package_names.iter().flat_map(|package_name| {
+            ["--package".to_owned(), package_name.to_owned()]
+        }))
+        .status()?;
+    if !status.success() {
+        return Err(Error::CompilationOfPackageFailed);
+    }
+
+    for package_name in package_names.iter() {
         let wasm_path = builds_target_path
             .join("wasm32-unknown-unknown")
             .join("release")
             .join(format!("{}.wasm", package_name.replace('-', "_")));
-
-        // Extract the package definition
-        let package_definition =
-            radix_engine::utils::extract_definition(&read(&wasm_path)?)?;
-
-        // Build a new WASM build without any of the schema information
-        let status = Command::new("cargo")
-            .args([
-                "build",
-                "--target",
-                "wasm32-unknown-unknown",
-                "--release",
-                "--target-dir",
-                builds_target_path.as_path().display().to_string().as_str(),
-                "--package",
-                package_name.as_str(),
-                "--features",
-                "scrypto/no-schema",
-            ])
-            .status()?;
-        if !status.success() {
-            return Err(Error::CompilationOfPackageFailed(package_name));
-        }
 
         // Optimize the WASM using wasm-opt for size
         wasm_opt::OptimizationOptions::new_optimize_for_size_aggressively()
@@ -112,10 +127,9 @@ fn build_blueprints() -> Result<(), Error> {
             .add_pass(wasm_opt::Pass::StripProducers)
             .run(&wasm_path, &wasm_path)?;
 
-        // Read the final wasm.
         let wasm = read(wasm_path)?;
 
-        packages.insert(package_name, (wasm, package_definition));
+        packages.get_mut(package_name.as_str()).unwrap().0 = wasm;
     }
 
     let out_dir =
@@ -137,7 +151,7 @@ pub enum Error {
     IoError(std::io::Error),
     #[cfg(feature = "build-time-blueprints")]
     ManifestError(cargo_toml::Error),
-    CompilationOfPackageFailed(String),
+    CompilationOfPackageFailed,
     #[cfg(feature = "build-time-blueprints")]
     ExtractSchemaError(radix_engine::utils::ExtractSchemaError),
     #[cfg(feature = "build-time-blueprints")]
