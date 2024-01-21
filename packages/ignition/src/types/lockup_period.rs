@@ -11,32 +11,32 @@ use humantime::format_duration;
 pub struct LockupPeriod(u64);
 
 impl LockupPeriod {
-    pub fn from_seconds(seconds: u64) -> Self {
+    pub const fn from_seconds(seconds: u64) -> Self {
         Self(seconds)
     }
 
-    pub fn from_minutes(minutes: u64) -> Self {
+    pub const fn from_minutes(minutes: u64) -> Self {
         Self::from_seconds(minutes * 60)
     }
 
-    pub fn from_hours(hours: u64) -> Self {
+    pub const fn from_hours(hours: u64) -> Self {
         Self::from_minutes(hours * 60)
     }
 
-    pub fn from_days(days: u64) -> Self {
+    pub const fn from_days(days: u64) -> Self {
         Self::from_hours(days * 24)
     }
 
-    pub fn from_weeks(weeks: u64) -> Self {
+    pub const fn from_weeks(weeks: u64) -> Self {
         Self::from_days(weeks * 7)
     }
 
     // One month approx 30.44 days
-    pub fn from_months(months: u64) -> Self {
+    pub const fn from_months(months: u64) -> Self {
         Self::from_seconds(months * 2_630_016)
     }
 
-    pub fn seconds(&self) -> &u64 {
+    pub const fn seconds(&self) -> &u64 {
         &self.0
     }
 }

@@ -145,7 +145,8 @@ mod ignition {
             open_liquidity_position => PUBLIC;
             close_liquidity_position => PUBLIC;
             /* Getters */
-            get_user_resource_vault_amount => PUBLIC;
+            get_user_resource_reserves_amount => PUBLIC;
+            get_protocol_resource_reserves_amount => PUBLIC;
         }
     }
 
@@ -346,8 +347,8 @@ mod ignition {
                 OPENING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
             );
 
-            // Getting a few information so that it is not constantly read from
-            // the system.
+            // Caching a few information so that it is not constantly read from
+            // the engine.
             let user_resource_address = bucket.resource_address();
             let user_resource_amount = bucket.amount();
 
@@ -560,8 +561,9 @@ mod ignition {
             );
             // Ensure that there is only a single NFT in the bucket, we do not
             // service more than a single one at a time.
-            assert!(
-                liquidity_receipt.amount() == Decimal::ONE,
+            assert_eq!(
+                liquidity_receipt.amount(),
+                Decimal::ONE,
                 "{}",
                 MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR
             );
@@ -1359,7 +1361,7 @@ mod ignition {
         }
 
         /* Getters */
-        pub fn get_user_resource_vault_amount(
+        pub fn get_user_resource_reserves_amount(
             &self,
             resource_address: ResourceAddress,
         ) -> Decimal {
@@ -1367,6 +1369,13 @@ mod ignition {
                 .get(&resource_address)
                 .map(|vault| vault.amount())
                 .unwrap_or_default()
+        }
+
+        pub fn get_protocol_resource_reserves_amount(
+            &self,
+            volatility: Volatility,
+        ) -> Decimal {
+            self.protocol_resource_reserves.vault(volatility).amount()
         }
 
         /// An internal method that is used to execute callbacks against the
@@ -1568,6 +1577,13 @@ impl ProtocolResourceReserves {
         match volatility {
             Volatility::Volatile => &mut self.volatile,
             Volatility::NonVolatile => &mut self.non_volatile,
+        }
+    }
+
+    fn vault(&self, volatility: Volatility) -> &FungibleVault {
+        match volatility {
+            Volatility::Volatile => &self.volatile,
+            Volatility::NonVolatile => &self.non_volatile,
         }
     }
 }

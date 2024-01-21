@@ -1,4 +1,5 @@
 use tests::prelude::*;
+use Volatility::*;
 
 #[test]
 fn simple_testing_environment_can_be_created() {
@@ -334,33 +335,43 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
     Ok(())
 }
 
+// TODO: Similar test is required for closing of a position.
 #[test]
 #[allow(unused_must_use)]
 fn oracle_price_cutoffs_for_opening_liquidity_positions_are_implemented_correctly(
 ) {
     const SMALL_DECIMAL: Decimal = dec!(0.000000000000000010);
 
-    test_oracle_price(dec!(1) / dec!(1.01), dec!(0.01))
+    test_open_position_oracle_price_cutoffs(dec!(1) / dec!(1.01), dec!(0.01))
         .expect("Should succeed!");
-    test_oracle_price(dec!(1) / dec!(0.99), dec!(0.01))
+    test_open_position_oracle_price_cutoffs(dec!(1) / dec!(0.99), dec!(0.01))
         .expect("Should succeed!");
-    test_oracle_price(dec!(1) / dec!(0.99) - SMALL_DECIMAL, dec!(0.01))
-        .expect("Should succeed!");
-    test_oracle_price(dec!(1) / dec!(1.01) + SMALL_DECIMAL, dec!(0.01))
-        .expect("Should succeed!");
+    test_open_position_oracle_price_cutoffs(
+        dec!(1) / dec!(0.99) - SMALL_DECIMAL,
+        dec!(0.01),
+    )
+    .expect("Should succeed!");
+    test_open_position_oracle_price_cutoffs(
+        dec!(1) / dec!(1.01) + SMALL_DECIMAL,
+        dec!(0.01),
+    )
+    .expect("Should succeed!");
 
     assert_is_ignition_relative_price_difference_larger_than_allowed_error(
-        &test_oracle_price(
+        &test_open_position_oracle_price_cutoffs(
             dbg!(dec!(1) / dec!(0.99) + SMALL_DECIMAL),
             dec!(0.01),
         ),
     );
     assert_is_ignition_relative_price_difference_larger_than_allowed_error(
-        &test_oracle_price(dec!(1) / dec!(1.01) - SMALL_DECIMAL, dec!(0.01)),
+        &test_open_position_oracle_price_cutoffs(
+            dec!(1) / dec!(1.01) - SMALL_DECIMAL,
+            dec!(0.01),
+        ),
     );
 }
 
-fn test_oracle_price(
+fn test_open_position_oracle_price_cutoffs(
     oracle_price: Decimal,
     allowed_price_difference: Decimal,
 ) -> Result<(NonFungibleBucket, FungibleBucket, Vec<Bucket>), RuntimeError> {
@@ -637,7 +648,9 @@ fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_va
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
 
     assert_eq!(
-        protocol.ignition.get_user_resource_vault_amount(XRD, env)?,
+        protocol
+            .ignition
+            .get_user_resource_reserves_amount(XRD, env)?,
         Decimal::ZERO
     );
 
@@ -716,4 +729,282 @@ fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_
     );
 
     Ok(())
+}
+
+#[test]
+fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
+{
+    // Arrange
+    const ORACLE_PRICE: Decimal = dec!(0.85);
+    const POOL_PRICE: Decimal = dec!(1);
+    const BITCOIN_CONTRIBUTION: Decimal = dec!(100);
+
+    const LOCKUP_PERIOD: LockupPeriod = LockupPeriod::from_months(6);
+    const LOCKUP_REWARD: Decimal = dec!(0.2);
+
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+    protocol
+        .oracle
+        .set_price(resources.bitcoin, XRD, ORACLE_PRICE, env)?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(Decimal::MAX, env)?;
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(BITCOIN_CONTRIBUTION, env)?;
+
+    let initial_bitcoin_reserves = protocol
+        .ignition
+        .get_user_resource_reserves_amount(resources.bitcoin, env)?;
+    let initial_volatile_xrd_reserves = protocol
+        .ignition
+        .get_protocol_resource_reserves_amount(Volatile, env);
+    let initial_non_volatile_xrd_reserves = protocol
+        .ignition
+        .get_protocol_resource_reserves_amount(NonVolatile, env);
+
+    // Act
+    let (receipt, upfront_reward, bitcoin_change) =
+        protocol.ignition.open_liquidity_position(
+            FungibleBucket(bitcoin_bucket),
+            ociswap.pools.bitcoin.try_into().unwrap(),
+            LOCKUP_PERIOD,
+            env,
+        )?;
+
+    // Assert
+    let final_bitcoin_reserves = protocol
+        .ignition
+        .get_user_resource_reserves_amount(resources.bitcoin, env)?;
+    let final_volatile_xrd_reserves = protocol
+        .ignition
+        .get_protocol_resource_reserves_amount(Volatile, env);
+    let final_non_volatile_xrd_reserves = protocol
+        .ignition
+        .get_protocol_resource_reserves_amount(NonVolatile, env);
+
+    assert_eq!(initial_bitcoin_reserves, final_bitcoin_reserves);
+    assert_ne!(initial_volatile_xrd_reserves, final_volatile_xrd_reserves);
+    assert_eq!(
+        initial_non_volatile_xrd_reserves,
+        final_non_volatile_xrd_reserves
+    );
+    assert!(bitcoin_change.is_empty() || bitcoin_change.len() == 1);
+    let bitcoin_change = if bitcoin_change.len() == 1 {
+        let bucket = bitcoin_change.first().unwrap();
+        let resource_address = bucket.resource_address(env)?;
+        assert_eq!(resource_address, resources.bitcoin);
+        bucket.amount(env)?
+    } else {
+        Decimal::ZERO
+    };
+
+    let liquidity_receipt_data = ResourceManager(ociswap.liquidity_receipt)
+        .get_non_fungible_data::<_, _, LiquidityReceipt>(
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+        env,
+    )?;
+
+    assert_eq!(
+        liquidity_receipt_data.lockup_period,
+        LOCKUP_PERIOD.to_string()
+    );
+    assert_eq!(
+        liquidity_receipt_data.pool_address,
+        ComponentAddress::try_from(ociswap.pools.bitcoin).unwrap()
+    );
+    assert_eq!(
+        liquidity_receipt_data.user_resource_address,
+        resources.bitcoin
+    );
+    assert_eq!(
+        liquidity_receipt_data.user_contribution_amount,
+        BITCOIN_CONTRIBUTION - bitcoin_change
+    );
+    assert_eq!(
+        liquidity_receipt_data.user_resource_volatility_classification,
+        Volatile
+    );
+    assert_eq!(
+        liquidity_receipt_data.protocol_contribution_amount,
+        (BITCOIN_CONTRIBUTION - bitcoin_change) * POOL_PRICE
+    );
+    assert_eq!(
+        liquidity_receipt_data.maturity_date,
+        env.get_current_time()
+            .add_seconds(*LOCKUP_PERIOD.seconds() as i64)
+            .unwrap()
+    );
+
+    let upfront_reward_resource_address =
+        upfront_reward.0.resource_address(env)?;
+    let upfront_reward_amount = upfront_reward.0.amount(env)?;
+    assert_eq!(upfront_reward_resource_address, XRD);
+    assert_eq!(
+        upfront_reward_amount,
+        (BITCOIN_CONTRIBUTION - bitcoin_change) * ORACLE_PRICE * LOCKUP_REWARD
+    );
+
+    Ok(())
+}
+
+#[test]
+fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError>
+{
+    //Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        ociswap,
+        ..
+    } = Environment::new()?;
+
+    let fake_liquidity_receipt =
+        ResourceBuilder::new_ruid_non_fungible(OwnerRole::None)
+            .mint_roles(mint_roles! {
+                minter => rule!(allow_all);
+                minter_updater => rule!(allow_all);
+            })
+            .burn_roles(burn_roles! {
+                burner => rule!(allow_all);
+                burner_updater => rule!(allow_all);
+            })
+            .mint_initial_supply(
+                [utils::liquidity_receipt_data_with_modifier(|receipt| {
+                    receipt.pool_address =
+                        ociswap.pools.bitcoin.try_into().unwrap();
+                    receipt.user_resource_address = resources.bitcoin
+                })],
+                env,
+            )?;
+
+    //Act
+    let rtn = protocol.ignition.close_liquidity_position(
+        NonFungibleBucket(fake_liquidity_receipt),
+        env,
+    );
+
+    //Assert
+    assert_is_ignition_not_a_valid_liquidity_receipt_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_close_a_liquidity_position_when_closing_is_closed(
+) -> Result<(), RuntimeError> {
+    //Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        ociswap,
+        ..
+    } = Environment::new()?;
+    protocol
+        .ignition
+        .set_is_close_position_enabled(false, env)?;
+
+    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+        .mint_non_fungible_single_ruid(
+            utils::liquidity_receipt_data_with_modifier(|receipt| {
+                receipt.pool_address =
+                    ociswap.pools.bitcoin.try_into().unwrap();
+                receipt.user_resource_address = resources.bitcoin
+            }),
+            env,
+        )?;
+
+    //Act
+    let rtn = protocol
+        .ignition
+        .close_liquidity_position(NonFungibleBucket(bucket), env);
+
+    //Assert
+    assert_is_ignition_closing_liquidity_positions_is_closed_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_close_a_liquidity_position_with_more_than_one_nft(
+) -> Result<(), RuntimeError> {
+    //Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        ociswap,
+        ..
+    } = Environment::new()?;
+
+    let (bucket1, _) = ResourceManager(ociswap.liquidity_receipt)
+        .mint_non_fungible_single_ruid(
+            utils::liquidity_receipt_data_with_modifier(|receipt| {
+                receipt.pool_address =
+                    ociswap.pools.bitcoin.try_into().unwrap();
+                receipt.user_resource_address = resources.bitcoin
+            }),
+            env,
+        )?;
+    let (bucket2, _) = ResourceManager(ociswap.liquidity_receipt)
+        .mint_non_fungible_single_ruid(
+            utils::liquidity_receipt_data_with_modifier(|receipt| {
+                receipt.pool_address =
+                    ociswap.pools.bitcoin.try_into().unwrap();
+                receipt.user_resource_address = resources.bitcoin
+            }),
+            env,
+        )?;
+    bucket1.put(bucket2, env)?;
+
+    //Act
+    let rtn = protocol
+        .ignition
+        .close_liquidity_position(NonFungibleBucket(bucket1), env);
+
+    //Assert
+    assert_is_ignition_more_than_one_liquidity_receipt_nfts_error(&rtn);
+
+    Ok(())
+}
+
+mod utils {
+    use super::*;
+
+    pub fn liquidity_receipt_data() -> LiquidityReceipt {
+        LiquidityReceipt {
+            name: "Some name".to_owned(),
+            description: "".to_owned(),
+            key_image_url: UncheckedUrl("https://www.google.com".to_owned()),
+            lockup_period: "6 months".to_owned(),
+            redemption_url: UncheckedUrl("https://www.google.com".to_owned()),
+            pool_address: FAUCET,
+            user_resource_address: XRD,
+            user_contribution_amount: dec!(100_000_000_000),
+            user_resource_volatility_classification: NonVolatile,
+            protocol_contribution_amount: dec!(1),
+            maturity_date: Instant::new(1),
+        }
+    }
+
+    pub fn liquidity_receipt_data_with_modifier(
+        modifier: impl FnOnce(&mut LiquidityReceipt),
+    ) -> LiquidityReceipt {
+        let mut data = liquidity_receipt_data();
+        modifier(&mut data);
+        data
+    }
 }
