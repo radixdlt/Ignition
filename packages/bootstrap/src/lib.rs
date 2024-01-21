@@ -1,5 +1,6 @@
 use caviarnine_adapter_v1::*;
 use ignition::ignition::*;
+use ignition::Volatility;
 use ignition::{LiquidityReceipt, LockupPeriod, PoolBlueprintInformation};
 use scrypto::prelude::*;
 
@@ -203,11 +204,18 @@ mod bootstrap {
 
                 // Fund ignition with the protocol resources that it needs to
                 // start lending out to users.
-                let protocol_resources_bucket =
-                    protocol_resource.mint(dec!(100_000_000_000_000));
-                ignition.deposit_resources(FungibleBucket(
-                    protocol_resources_bucket,
-                ));
+                ignition.deposit_protocol_resources(
+                    FungibleBucket(
+                        protocol_resource.mint(dec!(100_000_000_000_000)),
+                    ),
+                    Volatility::Volatile,
+                );
+                ignition.deposit_protocol_resources(
+                    FungibleBucket(
+                        protocol_resource.mint(dec!(100_000_000_000_000)),
+                    ),
+                    Volatility::NonVolatile,
+                );
 
                 // Add the reward rates that Ignition will use.
                 for (lockup_period, reward) in reward_rates.iter() {

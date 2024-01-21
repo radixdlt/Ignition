@@ -38,6 +38,8 @@ fn build_blueprints() -> Result<(), Error> {
         create_dir(&builds_target_path)?;
     }
 
+    println!("cargo:rerun-if-changed={}", packages_path.display());
+
     // Getting the name of all of the blueprints found in the packages directory
     let package_names = read_dir(packages_path)?
         .filter_map(Result::ok)

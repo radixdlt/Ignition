@@ -29,6 +29,11 @@ pub struct LiquidityReceipt {
     /// protocol.
     pub user_contribution_amount: Decimal,
 
+    /// The volatility classification of the user resource at the time when the
+    /// liquidity position was opened. This will be used to later deposit any
+    /// protocol assets back into the same vault.
+    pub user_resource_volatility_classification: Volatility,
+
     /// The amount of XRD that was contributed by the Ignition protocol to match
     /// the users contribution.
     pub protocol_contribution_amount: Decimal,
@@ -43,6 +48,7 @@ impl LiquidityReceipt {
         pool_address: ComponentAddress,
         user_resource_address: ResourceAddress,
         user_contribution_amount: Decimal,
+        user_volatility_classification: Volatility,
         protocol_contribution_amount: Decimal,
     ) -> Self {
         let maturity_date = Clock::current_time_rounded_to_minutes()
@@ -60,6 +66,7 @@ impl LiquidityReceipt {
             user_contribution_amount,
             maturity_date,
             protocol_contribution_amount,
+            user_resource_volatility_classification: user_volatility_classification
         }
     }
 }

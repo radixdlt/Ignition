@@ -12,7 +12,6 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
         ..
     } = Environment::new()?;
 
-    // Act
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
 

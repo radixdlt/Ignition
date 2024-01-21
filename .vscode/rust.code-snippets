@@ -1,0 +1,17 @@
+{
+  "Scrypto TestEnvironment Test": {
+    "prefix": ["ig-test"],
+    "body": [
+      "#[test]",
+      "fn ${0:test_name}() -> Result<(), RuntimeError> {",
+      "\t//Arrange",
+      "\tlet Environment { environment: ref mut env, protocol, resources, ociswap, caviarnine } = Environment::new()?;",
+      "\t//Act",
+      "\t//Assert",
+      "",
+      "\tOk(())",
+      "}"
+    ],
+    "description": "The boilderplate code of a simple ignition test."
+  }
+}

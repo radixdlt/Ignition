@@ -131,12 +131,21 @@ mod ignition {
                 protocol_owner,
                 protocol_manager
             ];
-            deposit_resources => restrict_to: [protocol_owner];
-            withdraw_resources => restrict_to: [protocol_owner];
+            insert_user_resource_volatility => restrict_to: [
+                protocol_owner,
+                protocol_manager
+            ];
+            deposit_protocol_resources => restrict_to: [protocol_owner];
+            withdraw_protocol_resources => restrict_to: [protocol_owner];
+            deposit_user_resources => restrict_to: [protocol_owner];
+            withdraw_user_resources => restrict_to: [protocol_owner];
             deposit_pool_units => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
+            /* User methods */
             open_liquidity_position => PUBLIC;
             close_liquidity_position => PUBLIC;
+            /* Getters */
+            get_user_resource_vault_amount => PUBLIC;
         }
     }
 
@@ -169,12 +178,30 @@ mod ignition {
         /// protocol.
         pool_information: KeyValueStore<BlueprintId, PoolBlueprintInformation>,
 
+        /// Maps a resource address to its volatility classification in the
+        /// protocol. This is used to store whether a resource is considered to
+        /// be volatile or non-volatile to then determine which vault of the
+        /// protocol resources to use when matching the contributions.
+        ///
+        /// This is not quite meant to be an allow or deny list so the only
+        /// operation that is allowed to this KVStore is an upsert, removals
+        /// are not allowed.
+        user_resource_volatility: KeyValueStore<ResourceAddress, Volatility>,
+
         /* Vaults */
-        /// A key value store of all of the vaults of ignition, including the
-        /// vault of the protocol resources that the protocol uses to provide
-        /// liquidity to pools. Only the owner of the protocol is allowed to
-        /// deposit and withdraw from these vaults.
-        vaults: KeyValueStore<ResourceAddress, FungibleVault>,
+        /// The reserves of the ignition protocol resource where they are split
+        /// by the resources to use for volatile assets and the ones to use for
+        /// non-volatile assets.
+        protocol_resource_reserves: ProtocolResourceReserves,
+
+        /// A key value store of all of the vaults of ignition that contain the
+        /// user resources. These vaults do not need to be funded with anything
+        /// for the protocol to run, they're primarily used by the protocol to
+        /// deposit some of the user assets obtained when closing liquidity
+        /// positions. `protocol_resource_reserves` stores the protocol assets
+        /// required for the protocol operations. Only the owner of the protocol
+        /// is allowed to deposit and withdraw from these vaults.
+        user_resources_vaults: KeyValueStore<ResourceAddress, FungibleVault>,
 
         /// The vaults storing the pool units and liquidity receipts obtained
         /// from providing the liquidity. It is indexed by the non-fungible
@@ -236,13 +263,17 @@ mod ignition {
                 protocol_resource,
                 oracle_adapter: oracle_adapter.into(),
                 pool_information: KeyValueStore::new(),
-                vaults: KeyValueStore::new(),
+                user_resources_vaults: KeyValueStore::new(),
                 pool_units: KeyValueStore::new(),
                 reward_rates: KeyValueStore::new(),
                 is_open_position_enabled: false,
                 is_close_position_enabled: false,
                 maximum_allowed_price_staleness,
                 maximum_allowed_price_difference_percentage,
+                user_resource_volatility: KeyValueStore::new(),
+                protocol_resource_reserves: ProtocolResourceReserves::new(
+                    protocol_resource.address(),
+                ),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -320,6 +351,12 @@ mod ignition {
             let user_resource_address = bucket.resource_address();
             let user_resource_amount = bucket.amount();
 
+            // Getting the volatility of the user asset from the volatility map.
+            let volatility = *self
+                .user_resource_volatility
+                .get(&user_resource_address)
+                .expect(RESOURCES_VOLATILITY_UNKNOWN_ERROR);
+
             // Ensure that the pool has an adapter and that it is a registered
             // pool. If it is, this means that we can move ahead with the pool.
             // Also, it means that the pool is guaranteed to have the protocol
@@ -379,9 +416,10 @@ mod ignition {
 
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
-            let protocol_side_of_liquidity = self.withdraw_resources(
-                self.protocol_resource.address(),
+            let protocol_side_of_liquidity = self.withdraw_protocol_resources(
                 oracle_reported_value_of_user_resource_in_protocol_resource,
+                WithdrawStrategy::Rounded(RoundingMode::ToZero),
+                volatility,
             );
             let OpenLiquidityPositionOutput {
                 pool_units,
@@ -427,9 +465,10 @@ mod ignition {
                     * *associated_rewards_rate
             };
 
-            let upfront_reward = self.withdraw_resources(
-                self.protocol_resource.address(),
+            let upfront_reward = self.withdraw_protocol_resources(
                 upfront_rewards_amount_in_protocol_resource,
+                WithdrawStrategy::Rounded(RoundingMode::ToZero),
+                volatility,
             );
 
             // Deposit the pool units into the protocol itself and mint an NFT
@@ -440,6 +479,7 @@ mod ignition {
                     pool_address,
                     user_resource_address,
                     amount_of_user_tokens_contributed,
+                    volatility,
                     amount_of_protocol_tokens_contributed,
                 );
                 let liquidity_receipt = liquidity_receipt_resource
@@ -461,7 +501,10 @@ mod ignition {
             for bucket in change.into_values() {
                 let bucket_resource_address = bucket.resource_address();
                 if bucket_resource_address == self.protocol_resource.address() {
-                    self.deposit_resources(FungibleBucket(bucket))
+                    self.deposit_protocol_resources(
+                        FungibleBucket(bucket),
+                        volatility,
+                    )
                 } else {
                     buckets_to_return.push(bucket);
                 }
@@ -706,8 +749,11 @@ mod ignition {
             ));
 
             // Deposit the remaining resources back into the protocol.
-            self.deposit_resources(user_resource_bucket.as_fungible());
-            self.deposit_resources(protocol_resource_bucket.as_fungible());
+            self.deposit_user_resources(user_resource_bucket.as_fungible());
+            self.deposit_protocol_resources(
+                protocol_resource_bucket.as_fungible(),
+                liquidity_receipt_data.user_resource_volatility_classification,
+            );
 
             // Return the buckets back
             bucket_returns
@@ -826,8 +872,8 @@ mod ignition {
         ///
         /// # Example Scenario
         ///
-        /// We may wish to incentivize liquidity for a new bridged resource and a
-        /// new set of pools. An even more compelling scenario, we may wish to
+        /// We may wish to incentivize liquidity for a new bridged resource and
+        /// a new set of pools. An even more compelling scenario, we may wish to
         /// provide incentives for a newly released DEX.
         ///
         /// # Arguments
@@ -836,6 +882,12 @@ mod ignition {
         /// component to add to the set of allowed pools.
         pub fn add_allowed_pool(&mut self, pool_address: ComponentAddress) {
             let protocol_resource_address = self.protocol_resource.address();
+            let user_resource_volatility = KeyValueStore {
+                id: self.user_resource_volatility.id,
+                key: PhantomData,
+                value: PhantomData,
+            };
+
             self.with_pool_blueprint_information_mut(
                 pool_address,
                 |pool_information| {
@@ -843,11 +895,10 @@ mod ignition {
                         .adapter
                         .resource_addresses(pool_address);
 
-                    assert!(
-                        resources.0 == protocol_resource_address
-                            || resources.1 == protocol_resource_address,
-                        "{}",
-                        NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR
+                    Self::check_pool_resources(
+                        resources,
+                        protocol_resource_address,
+                        &user_resource_volatility,
                     );
 
                     pool_information.allowed_pools.insert(pool_address);
@@ -942,6 +993,18 @@ mod ignition {
             blueprint_id: BlueprintId,
             pool_information: PoolBlueprintInformation,
         ) {
+            let protocol_resource_address = self.protocol_resource.address();
+            pool_information.allowed_pools.iter().for_each(|pool| {
+                let resources =
+                    pool_information.adapter.clone().resource_addresses(*pool);
+
+                Self::check_pool_resources(
+                    resources,
+                    protocol_resource_address,
+                    &self.user_resource_volatility,
+                );
+            });
+
             self.pool_information.insert(blueprint_id, pool_information)
         }
 
@@ -959,6 +1022,67 @@ mod ignition {
             self.pool_information.remove(&blueprint_id);
         }
 
+        /// Deposits protocol resources into the appropriate vaults.
+        ///
+        /// Depending on whether the protocol resources deposited are to be used
+        /// for volatile or non-volatile contributions this method deposits them
+        /// into the appropriate vaults.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` roles.
+        ///
+        /// # Arguments
+        ///
+        /// * `bucket`: [`FungibleBucket`] - A bucket of the protocol resources
+        /// to deposit into the protocol, making them available to the protocol
+        /// to be used in matching the contribution of users.
+        /// * `volatility`: [`Volatility`] - Whether the resources are to be
+        /// used for matching volatile or non-volatile user assets.
+        pub fn deposit_protocol_resources(
+            &mut self,
+            bucket: FungibleBucket,
+            volatility: Volatility,
+        ) {
+            self.protocol_resource_reserves.deposit(bucket, volatility)
+        }
+
+        /// Withdraws protocol resources from the protocol.
+        ///
+        /// Withdraws the specified amount from the appropriate vault which is
+        /// either that of the volatile or non-volatile contributions.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` roles.
+        ///
+        /// # Arguments
+        ///
+        /// * `amount`: [`Decimal`] - The amount of resources to withdraw.
+        /// * `withdraw_strategy`: [`WithdrawStrategy`] - The strategy to use
+        /// when withdrawing. This is only relevant when the protocol resource's
+        /// divisibility is not 18. If it is 18, then this does not really make
+        /// any difference.
+        /// * `volatility`: [`Volatility`] - Controls whether the withdraw
+        /// should happen against the volatile or non-volatile vaults.
+        ///
+        /// # Returns
+        ///
+        /// * [`FungibleBucket`] - A bucket of the fungible protocol resources
+        /// withdrawn from the protocol.
+        pub fn withdraw_protocol_resources(
+            &mut self,
+            amount: Decimal,
+            withdraw_strategy: WithdrawStrategy,
+            volatility: Volatility,
+        ) -> FungibleBucket {
+            self.protocol_resource_reserves.withdraw(
+                amount,
+                withdraw_strategy,
+                volatility,
+            )
+        }
+
         /// Deposits resources into the protocol.
         ///
         /// # Access
@@ -974,13 +1098,15 @@ mod ignition {
         ///
         /// * `bucket`: [`FungibleBucket`] - A bucket of resources to deposit
         /// into the protocol.
-        pub fn deposit_resources(&mut self, bucket: FungibleBucket) {
-            let entry = self.vaults.get_mut(&bucket.resource_address());
+        pub fn deposit_user_resources(&mut self, bucket: FungibleBucket) {
+            let entry = self
+                .user_resources_vaults
+                .get_mut(&bucket.resource_address());
             if let Some(mut vault) = entry {
                 vault.put(bucket);
             } else {
                 drop(entry);
-                self.vaults.insert(
+                self.user_resources_vaults.insert(
                     bucket.resource_address(),
                     FungibleVault::with_bucket(bucket),
                 )
@@ -1008,12 +1134,12 @@ mod ignition {
         /// # Returns
         ///
         /// * [`FungibleBucket`] - A bucket of the withdrawn tokens.
-        pub fn withdraw_resources(
+        pub fn withdraw_user_resources(
             &mut self,
             resource_address: ResourceAddress,
             amount: Decimal,
         ) -> FungibleBucket {
-            self.vaults
+            self.user_resources_vaults
                 .get_mut(&resource_address)
                 .expect(NO_ASSOCIATED_VAULT_ERROR)
                 .take(amount)
@@ -1153,6 +1279,23 @@ mod ignition {
             self.reward_rates.remove(&lockup_period);
         }
 
+        /// Inserts the volatility of the user resource to the protocol.
+        ///
+        /// # Arguments
+        ///
+        /// * `resource_address`: [`ResourceAddress`] - The address of the
+        /// resource to add a volatility classification for.
+        /// * `volatility`: [`Volatility`] - The volatility classification of
+        /// the resource.
+        pub fn insert_user_resource_volatility(
+            &mut self,
+            resource_address: ResourceAddress,
+            volatility: Volatility,
+        ) {
+            self.user_resource_volatility
+                .insert(resource_address, volatility)
+        }
+
         /// Enables or disables the ability to open new liquidity positions
         ///
         /// # Access
@@ -1213,6 +1356,17 @@ mod ignition {
             value: Decimal,
         ) {
             self.maximum_allowed_price_difference_percentage = value
+        }
+
+        /* Getters */
+        pub fn get_user_resource_vault_amount(
+            &self,
+            resource_address: ResourceAddress,
+        ) -> Decimal {
+            self.user_resources_vaults
+                .get(&resource_address)
+                .map(|vault| vault.amount())
+                .unwrap_or_default()
         }
 
         /// An internal method that is used to execute callbacks against the
@@ -1326,6 +1480,36 @@ mod ignition {
             // Return price
             price
         }
+
+        fn check_pool_resources(
+            resources: (ResourceAddress, ResourceAddress),
+            protocol_resource_address: ResourceAddress,
+            user_resource_volatility: &KeyValueStore<
+                ResourceAddress,
+                Volatility,
+            >,
+        ) {
+            // Ensure that one of the resources is the protocol resource.
+            assert!(
+                resources.0 == protocol_resource_address
+                    || resources.1 == protocol_resource_address,
+                "{}",
+                NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR
+            );
+
+            // Ensure that the user asset has a registered volatility.
+            let user_resource = if resources.0 == protocol_resource_address {
+                resources.1
+            } else if resources.1 == protocol_resource_address {
+                resources.0
+            } else {
+                panic!("{}", NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR)
+            };
+
+            user_resource_volatility
+                .get(&user_resource)
+                .expect(RESOURCES_VOLATILITY_UNKNOWN_ERROR);
+        }
     }
 }
 
@@ -1344,4 +1528,53 @@ pub struct PoolBlueprintInformation {
     /// A reference to the resource manager of the resource used as a receipt
     /// for providing liquidity to pools of this blueprint
     pub liquidity_receipt: ResourceManager,
+}
+
+/// The reserves of the ignition protocol asset split by the assets to use in
+/// volatile and non-volatile contributions.
+#[derive(Debug, PartialEq, Eq, ScryptoSbor)]
+pub struct ProtocolResourceReserves {
+    /// A fungible vault of the protocol asset used for matching contributions
+    /// to pools of volatile assets.
+    pub volatile: FungibleVault,
+    /// A fungible vault of the protocol asset used for matching contributions
+    /// to pools of non volatile assets.
+    pub non_volatile: FungibleVault,
+}
+
+impl ProtocolResourceReserves {
+    pub fn new(protocol_resource_address: ResourceAddress) -> Self {
+        Self {
+            volatile: FungibleVault::new(protocol_resource_address),
+            non_volatile: FungibleVault::new(protocol_resource_address),
+        }
+    }
+
+    pub fn withdraw(
+        &mut self,
+        amount: Decimal,
+        withdraw_strategy: WithdrawStrategy,
+        volatility: Volatility,
+    ) -> FungibleBucket {
+        self.vault_mut(volatility)
+            .take_advanced(amount, withdraw_strategy)
+    }
+
+    pub fn deposit(&mut self, bucket: FungibleBucket, volatility: Volatility) {
+        self.vault_mut(volatility).put(bucket)
+    }
+
+    fn vault_mut(&mut self, volatility: Volatility) -> &mut FungibleVault {
+        match volatility {
+            Volatility::Volatile => &mut self.volatile,
+            Volatility::NonVolatile => &mut self.non_volatile,
+        }
+    }
+}
+
+/// An enum that describes the volatility of an asset.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ScryptoSbor)]
+pub enum Volatility {
+    Volatile,
+    NonVolatile,
 }

@@ -220,7 +220,48 @@ impl Environment {
 
             let xrd_bucket = ResourceManager(XRD)
                 .mint_fungible(dec!(100_000_000_000_000), &mut env)?;
-            ignition.deposit_resources(FungibleBucket(xrd_bucket), &mut env)?;
+            ignition.deposit_protocol_resources(
+                FungibleBucket(xrd_bucket),
+                Volatility::Volatile,
+                &mut env,
+            )?;
+            let xrd_bucket = ResourceManager(XRD)
+                .mint_fungible(dec!(100_000_000_000_000), &mut env)?;
+            ignition.deposit_protocol_resources(
+                FungibleBucket(xrd_bucket),
+                Volatility::NonVolatile,
+                &mut env,
+            )?;
+
+            {
+                let ResourceInformation {
+                    bitcoin,
+                    ethereum,
+                    usdc,
+                    usdt,
+                } = resource_addresses;
+                ignition.insert_user_resource_volatility(
+                    bitcoin,
+                    Volatility::Volatile,
+                    &mut env,
+                )?;
+                ignition.insert_user_resource_volatility(
+                    ethereum,
+                    Volatility::Volatile,
+                    &mut env,
+                )?;
+
+                ignition.insert_user_resource_volatility(
+                    usdc,
+                    Volatility::NonVolatile,
+                    &mut env,
+                )?;
+                ignition.insert_user_resource_volatility(
+                    usdt,
+                    Volatility::NonVolatile,
+                    &mut env,
+                )?;
+            }
 
             ignition.insert_pool_information(
                 OciswapPoolInterfaceScryptoTestStub::blueprint_id(

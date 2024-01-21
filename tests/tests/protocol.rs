@@ -1,4 +1,5 @@
 use tests::prelude::*;
+use Volatility::*;
 
 #[test]
 fn simple_testing_environment_can_be_created() {
@@ -155,7 +156,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
     );
 
     // Assert
-    assert_is_ignition_user_asset_does_not_belong_to_pool_error(&rtn);
+    assert_is_ignition_resources_volatility_unknown_error(&rtn);
 
     Ok(())
 }
@@ -173,6 +174,11 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
 
     let protocol_resource =
         ResourceManager(XRD).mint_fungible(dec!(100), env)?;
+    protocol.ignition.insert_user_resource_volatility(
+        XRD,
+        Volatility::NonVolatile,
+        env,
+    )?;
 
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
@@ -538,6 +544,177 @@ fn cant_set_liquidity_receipt_of_a_pool_with_no_adapter(
 
     // Assert
     assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_open_a_liquidity_position_with_volatile_user_resource_when_volatile_vault_is_empty(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        ociswap,
+        ..
+    } = Environment::new()?;
+
+    let _ = env.with_component_state::<IgnitionState, _, _, _>(
+        protocol.ignition,
+        |state, env| state.protocol_resource_reserves.volatile.0.take_all(env),
+    )?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let rtn = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    assert!(rtn.is_err());
+
+    Ok(())
+}
+
+#[test]
+fn cant_open_a_liquidity_position_with_non_volatile_user_resource_when_non_volatile_vault_is_empty(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        ociswap,
+        ..
+    } = Environment::new()?;
+
+    let _ = env.with_component_state::<IgnitionState, _, _, _>(
+        protocol.ignition,
+        |state, env| {
+            state
+                .protocol_resource_reserves
+                .non_volatile
+                .0
+                .take_all(env)
+        },
+    )?;
+
+    let usdc_bucket =
+        ResourceManager(resources.usdc).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let rtn = protocol.ignition.open_liquidity_position(
+        FungibleBucket(usdc_bucket),
+        ociswap.pools.usdc.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    assert!(rtn.is_err());
+
+    Ok(())
+}
+
+#[test]
+fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_vaults(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    assert_eq!(
+        protocol.ignition.get_user_resource_vault_amount(XRD, env)?,
+        Decimal::ZERO
+    );
+
+    // Act
+    let rtn = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    );
+
+    // Assert
+    let _ = rtn.expect("Should succeed!");
+
+    Ok(())
+}
+
+#[test]
+fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_from_the_volatile_vault(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    let initial_volatile_vault_amount = env
+        .with_component_state::<IgnitionState, _, _, _>(
+            protocol.ignition,
+            |state, env| {
+                state.protocol_resource_reserves.volatile.0.amount(env)
+            },
+        )??;
+    let initial_non_volatile_vault_amount = env
+        .with_component_state::<IgnitionState, _, _, _>(
+            protocol.ignition,
+            |state, env| {
+                state.protocol_resource_reserves.non_volatile.0.amount(env)
+            },
+        )??;
+
+    // Act
+    let _ = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    // Assert
+    let final_volatile_vault_amount = env
+        .with_component_state::<IgnitionState, _, _, _>(
+            protocol.ignition,
+            |state, env| {
+                state.protocol_resource_reserves.volatile.0.amount(env)
+            },
+        )??;
+    let final_non_volatile_vault_amount = env
+        .with_component_state::<IgnitionState, _, _, _>(
+            protocol.ignition,
+            |state, env| {
+                state.protocol_resource_reserves.non_volatile.0.amount(env)
+            },
+        )??;
+
+    assert_ne!(initial_volatile_vault_amount, final_volatile_vault_amount);
+    assert_eq!(
+        initial_non_volatile_vault_amount,
+        final_non_volatile_vault_amount
+    );
 
     Ok(())
 }
