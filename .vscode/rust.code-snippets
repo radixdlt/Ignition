@@ -4,10 +4,10 @@
     "body": [
       "#[test]",
       "fn ${0:test_name}() -> Result<(), RuntimeError> {",
-      "\t//Arrange",
+      "\t// Arrange",
       "\tlet Environment { environment: ref mut env, protocol, resources, ociswap, caviarnine } = Environment::new()?;",
-      "\t//Act",
-      "\t//Assert",
+      "\t// Act",
+      "\t// Assert",
       "",
       "\tOk(())",
       "}"

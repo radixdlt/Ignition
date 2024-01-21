@@ -862,7 +862,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
 #[test]
 fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError>
 {
-    //Arrange
+    // Arrange
     let Environment {
         environment: ref mut env,
         mut protocol,
@@ -890,13 +890,13 @@ fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError
                 env,
             )?;
 
-    //Act
+    // Act
     let rtn = protocol.ignition.close_liquidity_position(
         NonFungibleBucket(fake_liquidity_receipt),
         env,
     );
 
-    //Assert
+    // Assert
     assert_is_ignition_not_a_valid_liquidity_receipt_error(&rtn);
 
     Ok(())
@@ -905,7 +905,7 @@ fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError
 #[test]
 fn cant_close_a_liquidity_position_when_closing_is_closed(
 ) -> Result<(), RuntimeError> {
-    //Arrange
+    // Arrange
     let Environment {
         environment: ref mut env,
         mut protocol,
@@ -927,12 +927,12 @@ fn cant_close_a_liquidity_position_when_closing_is_closed(
             env,
         )?;
 
-    //Act
+    // Act
     let rtn = protocol
         .ignition
         .close_liquidity_position(NonFungibleBucket(bucket), env);
 
-    //Assert
+    // Assert
     assert_is_ignition_closing_liquidity_positions_is_closed_error(&rtn);
 
     Ok(())
@@ -941,7 +941,7 @@ fn cant_close_a_liquidity_position_when_closing_is_closed(
 #[test]
 fn cant_close_a_liquidity_position_with_more_than_one_nft(
 ) -> Result<(), RuntimeError> {
-    //Arrange
+    // Arrange
     let Environment {
         environment: ref mut env,
         mut protocol,
@@ -970,13 +970,95 @@ fn cant_close_a_liquidity_position_with_more_than_one_nft(
         )?;
     bucket1.put(bucket2, env)?;
 
-    //Act
+    // Act
     let rtn = protocol
         .ignition
         .close_liquidity_position(NonFungibleBucket(bucket1), env);
 
-    //Assert
+    // Assert
     assert_is_ignition_more_than_one_liquidity_receipt_nfts_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_close_a_liquidity_position_before_its_maturity_date(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+        .mint_non_fungible_single_ruid(
+            utils::liquidity_receipt_data_with_modifier(|receipt| {
+                receipt.pool_address =
+                    ociswap.pools.bitcoin.try_into().unwrap();
+                receipt.user_resource_address = resources.bitcoin;
+                env.set_current_time(Instant::new(60));
+                receipt.maturity_date = Instant::new(120);
+            }),
+            env,
+        )?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .close_liquidity_position(NonFungibleBucket(bucket), env);
+
+    // Assert
+    assert_is_ignition_liquidity_position_has_not_matured_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn can_close_a_liquidity_position_the_minute_it_matures(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (liquidity_receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let liquidity_receipt_data = ResourceManager(ociswap.liquidity_receipt)
+        .get_non_fungible_data::<_, _, LiquidityReceipt>(
+        liquidity_receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+        env,
+    )?;
+    env.set_current_time(liquidity_receipt_data.maturity_date);
+    protocol
+        .oracle
+        .set_price(resources.bitcoin, XRD, dec!(1), env)?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .close_liquidity_position(liquidity_receipt, env);
+
+    // Assert
+    assert!(rtn.is_ok(), "{rtn:#?}");
 
     Ok(())
 }
