@@ -1,5 +1,4 @@
 use tests::prelude::*;
-use Volatility::*;
 
 #[test]
 fn simple_testing_environment_can_be_created() {
