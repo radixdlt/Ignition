@@ -152,16 +152,30 @@ impl Environment {
         // Creating the Caviarnine pools of the resources.
         let caviarnine_pools =
             resource_addresses.try_map(|resource_address| {
-                CaviarNinePoolInterfaceScryptoTestStub::new(
-                    rule!(allow_all),
-                    rule!(allow_all),
-                    *resource_address,
-                    XRD,
-                    50,
-                    None,
-                    caviarnine_package,
+                let mut caviarnine_pool =
+                    CaviarNinePoolInterfaceScryptoTestStub::new(
+                        rule!(allow_all),
+                        rule!(allow_all),
+                        *resource_address,
+                        XRD,
+                        50,
+                        None,
+                        caviarnine_package,
+                        &mut env,
+                    )?;
+
+                let resource_x = ResourceManager(*resource_address)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_y = ResourceManager(XRD)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let _ = caviarnine_pool.add_liquidity(
+                    resource_x,
+                    resource_y,
+                    vec![(27000, dec!(100_000_000), dec!(100_000_000))],
                     &mut env,
-                )
+                )?;
+
+                Ok::<_, RuntimeError>(caviarnine_pool)
             })?;
 
         // Instantiating the components.

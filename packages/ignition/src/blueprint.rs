@@ -474,8 +474,11 @@ mod ignition {
 
             // Deposit the pool units into the protocol itself and mint an NFT
             // used to represent these locked pool units.
+            let exchange_specific_liquidity_receipt_data =
+                adapter.exchange_specific_liquidity_receipt_data();
             let liquidity_receipt = {
                 let data = LiquidityReceipt::new(
+                    exchange_specific_liquidity_receipt_data,
                     lockup_period,
                     pool_address,
                     user_resource_address,

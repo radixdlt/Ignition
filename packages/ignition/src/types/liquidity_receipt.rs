@@ -1,4 +1,5 @@
 use crate::*;
+use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Ignition.
@@ -44,6 +45,7 @@ pub struct LiquidityReceipt {
 
 impl LiquidityReceipt {
     pub fn new(
+        exchange_specific: LiquidityReceiptExchangeSpecificData,
         lockup_period: LockupPeriod,
         pool_address: ComponentAddress,
         user_resource_address: ResourceAddress,
@@ -55,18 +57,26 @@ impl LiquidityReceipt {
             .add_seconds(*lockup_period.seconds() as i64)
             .unwrap();
 
+        let LiquidityReceiptExchangeSpecificData {
+            name,
+            description,
+            key_image_url,
+            redemption_url,
+        } = exchange_specific;
+
         Self {
-            name: "Ignition Liquidity Position".to_string(),
-            description: "A non-fungible representing an open liquidity position in the Ignition protocol.".to_string(),
-            key_image_url: Url::of("https://www.google.com"),
+            name,
+            description,
+            key_image_url,
+            redemption_url,
             lockup_period: lockup_period.to_string(),
-            redemption_url: Url::of("https://www.google.com"),
             pool_address,
             user_resource_address,
             user_contribution_amount,
             maturity_date,
             protocol_contribution_amount,
-            user_resource_volatility_classification: user_volatility_classification
+            user_resource_volatility_classification:
+                user_volatility_classification,
         }
     }
 }

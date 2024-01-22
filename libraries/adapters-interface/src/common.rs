@@ -114,6 +114,16 @@ impl Price {
     }
 }
 
+/// Information to include in the liquidity receipt that are specified by the
+/// exchanges themselves and not the protocol.
+#[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
+pub struct LiquidityReceiptExchangeSpecificData {
+    pub name: String,
+    pub description: String,
+    pub key_image_url: Url,
+    pub redemption_url: Url,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
