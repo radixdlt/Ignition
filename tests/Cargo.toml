@@ -6,18 +6,28 @@ description.workspace = true
 build = "build.rs"
 
 [dependencies]
+sbor = { workspace = true }
 scrypto-test = { workspace = true }
+scrypto-unit = { workspace = true }
+radix-engine = { workspace = true }
 radix-engine-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 ignition = { path = "../packages/ignition", features = ["test"] }
 simple-oracle = { path = "../packages/simple-oracle", features = ["test"] }
-ociswap-adapter-v1 = { path = "../packages/ociswap-adapter-v1", features = ["test"] }
-caviarnine-adapter-v1 = { path = "../packages/caviarnine-adapter-v1", features = ["test"] }
+ociswap-adapter-v1 = { path = "../packages/ociswap-adapter-v1", features = [
+    "test",
+    "manifest-builder-stubs"
+] }
+caviarnine-adapter-v1 = { path = "../packages/caviarnine-adapter-v1", features = [
+    "test",
+    "manifest-builder-stubs"
+] }
 
-package-loader = { path ="../libraries/package-loader" }
+package-loader = { path = "../libraries/package-loader" }
 
 paste = { version = "1.0.14" }
+extend = { version = "1.2.0" }
 
 [build-dependencies]
 flate2 = { version = "1.0.28" }

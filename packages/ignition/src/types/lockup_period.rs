@@ -1,4 +1,3 @@
-use radix_engine_derive::*;
 use scrypto::prelude::*;
 use std::ops::*;
 
@@ -6,7 +5,7 @@ use humantime::format_duration;
 
 /// A type used for the lockup period that can be creates from various time
 /// durations and that implements display in the desired way.
-#[derive(Clone, Copy, ScryptoSbor, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Sbor, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[sbor(transparent)]
 pub struct LockupPeriod(u64);
 

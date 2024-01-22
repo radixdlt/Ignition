@@ -3,6 +3,7 @@
 
 mod environment;
 mod errors;
+mod extensions;
 mod indexed_buckets;
 
 pub mod prelude;

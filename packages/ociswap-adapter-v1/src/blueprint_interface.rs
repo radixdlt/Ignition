@@ -2,7 +2,12 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 define_interface! {
-    BasicPool as OciswapPool impl [ScryptoStub, ScryptoTestStub] {
+    BasicPool as OciswapPool impl [
+        ScryptoStub,
+        ScryptoTestStub,
+        #[cfg(feature = "manifest-builder-stubs")]
+        ManifestBuilderStub
+    ] {
         fn instantiate(
             a_address: ResourceAddress,
             b_address: ResourceAddress,
@@ -10,18 +15,30 @@ define_interface! {
             dapp_definition: ComponentAddress,
         ) -> Self;
         fn instantiate_with_liquidity(
+            #[manifest_type = "ManifestBucket"]
             a_bucket: Bucket,
+            #[manifest_type = "ManifestBucket"]
             b_bucket: Bucket,
             input_fee_rate: Decimal,
             dapp_definition: ComponentAddress,
         ) -> (Self, Bucket, Option<Bucket>);
         fn add_liquidity(
             &mut self,
+            #[manifest_type = "ManifestBucket"]
             a_bucket: Bucket,
+            #[manifest_type = "ManifestBucket"]
             b_bucket: Bucket
         ) -> (Bucket, Option<Bucket>);
-        fn remove_liquidity(&mut self, lp_token: Bucket) -> (Bucket, Bucket);
-        fn swap(&mut self, input_bucket: Bucket) -> Bucket;
+        fn remove_liquidity(
+            &mut self,
+            #[manifest_type = "ManifestBucket"]
+            lp_token: Bucket
+        ) -> (Bucket, Bucket);
+        fn swap(
+            &mut self,
+            #[manifest_type = "ManifestBucket"]
+            input_bucket: Bucket
+        ) -> Bucket;
         fn price_sqrt(&mut self) -> Option<PreciseDecimal>;
         fn liquidity_pool(&self) -> ComponentAddress;
         fn set_liquidity_pool_meta(

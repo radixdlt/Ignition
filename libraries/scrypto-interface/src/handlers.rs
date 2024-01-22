@@ -427,7 +427,7 @@ fn generate_manifest_builder_stub(
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
                         parse_quote!(
-                            ::radix_engine_interface::prelude::ComponentAddress
+                            impl ::transaction::builder::ResolvableGlobalAddress
                         ),
                     );
                 }
@@ -486,7 +486,7 @@ fn generate_manifest_builder_stub(
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
                         parse_quote!(
-                            ::radix_engine_interface::prelude::ComponentAddress
+                            impl ::transaction::builder::ResolvableGlobalAddress
                         ),
                     );
 

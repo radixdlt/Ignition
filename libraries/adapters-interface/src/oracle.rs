@@ -10,11 +10,11 @@ define_interface! {
     OracleAdapter impl [
         #[cfg(feature = "trait")]
         Trait,
-        #[cfg(feature = "scrypto")]
+        #[cfg(feature = "scrypto-stubs")]
         ScryptoStub,
-        #[cfg(feature = "scrypto-test")]
+        #[cfg(feature = "scrypto-test-stubs")]
         ScryptoTestStub,
-        #[cfg(feature = "manifest-builder")]
+        #[cfg(feature = "manifest-builder-stubs")]
         ManifestBuilderStub
     ] {
         /// Gets the price of one asset in terms of another.

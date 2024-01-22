@@ -147,8 +147,8 @@ pub mod adapter {
             LiquidityReceiptExchangeSpecificData {
                 name: "Ociswap Liquidity Receipt".to_owned(),
                 description: "A receipt of liquidity provided to a Ociswap pool through the Ignition protocol".to_owned(),
-                key_image_url: Url::of("https://assets.caviarnine.com/tokens/resource_rdx1t5pyvlaas0ljxy0wytm5gvyamyv896m69njqdmm2stukr3xexc2up9.png"),
-                redemption_url: Url::of("https://ociswap.com/icons/oci.png"),
+                key_image_url: Url::of("https://ociswap.com/icons/oci.png"),
+                redemption_url: Url::of("https://ociswap.com/"),
             }
         }
     }

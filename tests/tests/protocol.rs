@@ -3,7 +3,7 @@ use Volatility::*;
 
 #[test]
 fn simple_testing_environment_can_be_created() {
-    Environment::new().expect("Must succeed!");
+    ScryptoTestEnv::new().expect("Must succeed!");
 }
 
 #[test]
@@ -16,7 +16,7 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     protocol.ignition.set_is_open_position_enabled(false, env)?;
     let bitcoin_bucket =
@@ -45,7 +45,7 @@ fn cant_open_a_liquidity_position_on_a_pool_that_has_no_adapter(
         resources,
         mut protocol,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -74,7 +74,7 @@ fn cant_open_liquidity_position_against_a_pool_outside_of_the_allow_list(
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let new_pool = OciswapPoolInterfaceScryptoTestStub::instantiate(
         resources.bitcoin,
@@ -111,7 +111,7 @@ fn cant_open_a_liquidity_position_in_a_pool_after_it_has_been_removed_from_allow
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     protocol
         .ignition
@@ -142,7 +142,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let random_resource = ResourceBuilder::new_fungible(OwnerRole::None)
         .mint_initial_supply(100, env)?;
@@ -170,7 +170,7 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let protocol_resource =
         ResourceManager(XRD).mint_fungible(dec!(100), env)?;
@@ -204,7 +204,7 @@ pub fn can_open_a_liquidity_position_before_the_price_is_stale(
         ociswap,
         resources,
         ..
-    } = Environment::new_with_configuration(Configuration {
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
         maximum_allowed_price_staleness_seconds: 5 * 60,
         ..Default::default()
     })?;
@@ -237,7 +237,7 @@ pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
         ociswap,
         resources,
         ..
-    } = Environment::new_with_configuration(Configuration {
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
         maximum_allowed_price_staleness_seconds: 5 * 60,
         ..Default::default()
     })?;
@@ -273,7 +273,7 @@ pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
         ociswap,
         resources,
         ..
-    } = Environment::new_with_configuration(Configuration {
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
         maximum_allowed_price_staleness_seconds: 5 * 60,
         ..Default::default()
     })?;
@@ -309,7 +309,7 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
         ociswap,
         resources,
         ..
-    } = Environment::new_with_configuration(Configuration {
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
         maximum_allowed_relative_price_difference: dec!(0.01),
         ..Default::default()
     })?;
@@ -381,7 +381,7 @@ fn test_open_position_oracle_price_cutoffs(
         ociswap,
         resources,
         ..
-    } = Environment::new_with_configuration(Configuration {
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
         maximum_allowed_relative_price_difference: allowed_price_difference,
         ..Default::default()
     })?;
@@ -412,7 +412,7 @@ fn cant_open_a_liquidity_position_with_an_invalid_lockup_period(
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     // Act
     let bitcoin_bucket =
@@ -440,7 +440,7 @@ fn cant_set_the_adapter_of_a_blueprint_that_is_not_registered(
         environment: ref mut env,
         mut protocol,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     // Act
     let rtn = protocol.ignition.set_pool_adapter(
@@ -466,7 +466,7 @@ fn cant_add_allowed_pool_of_a_blueprint_that_is_not_registered(
         environment: ref mut env,
         mut protocol,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     // Act
     let rtn = protocol.ignition.add_allowed_pool(FAUCET, env);
@@ -487,7 +487,7 @@ fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resou
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let fungible1 = ResourceBuilder::new_fungible(OwnerRole::None)
         .mint_initial_supply(100, env)?;
@@ -521,7 +521,7 @@ fn cant_remove_an_allowed_pool_for_a_blueprint_with_no_registered_adapter(
         environment: ref mut env,
         mut protocol,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     // Act
     let rtn = protocol.ignition.remove_allowed_pool(FAUCET, env);
@@ -540,7 +540,7 @@ fn cant_set_liquidity_receipt_of_a_pool_with_no_adapter(
         environment: ref mut env,
         mut protocol,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     // Act
     let rtn = protocol.ignition.set_liquidity_receipt(
@@ -568,7 +568,7 @@ fn cant_open_a_liquidity_position_with_volatile_user_resource_when_volatile_vaul
         resources,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let _ = env.with_component_state::<IgnitionState, _, _, _>(
         protocol.ignition,
@@ -602,7 +602,7 @@ fn cant_open_a_liquidity_position_with_non_volatile_user_resource_when_non_volat
         resources,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let _ = env.with_component_state::<IgnitionState, _, _, _>(
         protocol.ignition,
@@ -642,7 +642,7 @@ fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_va
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -678,7 +678,7 @@ fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -748,7 +748,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
     protocol
         .oracle
         .set_price(resources.bitcoin, XRD, ORACLE_PRICE, env)?;
@@ -869,7 +869,7 @@ fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError
         resources,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let fake_liquidity_receipt =
         ResourceBuilder::new_ruid_non_fungible(OwnerRole::None)
@@ -912,7 +912,7 @@ fn cant_close_a_liquidity_position_when_closing_is_closed(
         resources,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
     protocol
         .ignition
         .set_is_close_position_enabled(false, env)?;
@@ -948,7 +948,7 @@ fn cant_close_a_liquidity_position_with_more_than_one_nft(
         resources,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let (bucket1, _) = ResourceManager(ociswap.liquidity_receipt)
         .mint_non_fungible_single_ruid(
@@ -991,7 +991,7 @@ fn cant_close_a_liquidity_position_before_its_maturity_date(
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
         .mint_non_fungible_single_ruid(
@@ -1026,7 +1026,7 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
         ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -1072,7 +1072,7 @@ fn cant_close_a_liquidity_position_of_a_pool_with_no_adapter(
         mut protocol,
         ociswap,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
     let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
@@ -1102,7 +1102,7 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
         mut ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -1172,7 +1172,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         mut ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -1243,7 +1243,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         mut ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -1314,7 +1314,7 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
         mut ociswap,
         resources,
         ..
-    } = Environment::new()?;
+    } = ScryptoTestEnv::new()?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;

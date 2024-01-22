@@ -16,7 +16,8 @@ adapters-interface = { path = "../../libraries/adapters-interface" }
 [features]
 default = []
 test = []
-transaction = ["dep:transaction"]
+
+manifest-builder-stubs = ["dep:transaction"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

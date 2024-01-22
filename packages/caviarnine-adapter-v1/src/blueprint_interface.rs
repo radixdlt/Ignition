@@ -5,7 +5,7 @@ define_interface! {
     QuantaSwap as CaviarNinePool impl [
         ScryptoStub,
         ScryptoTestStub,
-        #[cfg(feature = "transaction")]
+        #[cfg(feature = "manifest-builder-stubs")]
         ManifestBuilderStub
     ] {
         fn new(

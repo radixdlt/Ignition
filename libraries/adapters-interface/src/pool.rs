@@ -8,11 +8,11 @@ define_interface! {
     PoolAdapter impl [
         #[cfg(feature = "trait")]
         Trait,
-        #[cfg(feature = "scrypto")]
+        #[cfg(feature = "scrypto-stubs")]
         ScryptoStub,
-        #[cfg(feature = "scrypto-test")]
+        #[cfg(feature = "scrypto-test-stubs")]
         ScryptoTestStub,
-        #[cfg(feature = "manifest-builder")]
+        #[cfg(feature = "manifest-builder-stubs")]
         ManifestBuilderStub
     ] {
         /// Opens a liquidity position in the pool.

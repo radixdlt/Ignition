@@ -17,14 +17,14 @@ scrypto-interface = { path = "../scrypto-interface" }
 [features]
 default = [
     "trait",
-    "scrypto",
-    "scrypto-test",
-    "manifest-builder",
+    "scrypto-stubs",
+    "scrypto-test-stubs",
+    "manifest-builder-stubs",
 ]
 trait = []
-scrypto = []
-scrypto-test = []
-manifest-builder = ["dep:transaction"]
+scrypto-stubs = []
+scrypto-test-stubs = []
+manifest-builder-stubs = ["dep:transaction"]
 
 [lib]
 crate-type = ["cdylib", "lib"]
