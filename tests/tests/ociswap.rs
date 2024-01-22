@@ -28,3 +28,39 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
 
     Ok(())
 }
+
+#[test]
+pub fn price_reported_by_pool_is_equal_to_price_reported_by_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(dec!(10_000_000), env)?;
+    let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
+
+    // Act
+    let pool_reported_price = ociswap
+        .pools
+        .bitcoin
+        .price_sqrt(env)?
+        .unwrap()
+        .checked_powi(2)
+        .unwrap()
+        .checked_truncate(RoundingMode::ToZero)
+        .unwrap();
+    let adapter_reported_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?
+        .price;
+
+    // Assert
+    assert_eq!(pool_reported_price, adapter_reported_price);
+
+    Ok(())
+}
