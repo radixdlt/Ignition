@@ -156,7 +156,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
     );
 
     // Assert
-    assert_is_ignition_resources_volatility_unknown_error(&rtn);
+    assert_is_ignition_user_resources_volatility_unknown_error(&rtn);
 
     Ok(())
 }

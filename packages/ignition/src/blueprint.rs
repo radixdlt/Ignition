@@ -250,6 +250,8 @@ mod ignition {
             oracle_adapter: ComponentAddress,
             maximum_allowed_price_staleness: i64,
             maximum_allowed_price_difference_percentage: Decimal,
+            /* Initializers */
+            initialization_parameters: InitializationParameters,
             /* Misc */
             address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<Ignition> {
@@ -260,31 +262,98 @@ mod ignition {
                 Runtime::allocate_component_address(Ignition::blueprint_id()).0,
             );
 
-            Self {
-                protocol_resource,
-                oracle_adapter: oracle_adapter.into(),
-                pool_information: KeyValueStore::new(),
-                user_resources_vaults: KeyValueStore::new(),
-                pool_units: KeyValueStore::new(),
-                reward_rates: KeyValueStore::new(),
-                is_open_position_enabled: false,
-                is_close_position_enabled: false,
-                maximum_allowed_price_staleness,
-                maximum_allowed_price_difference_percentage,
-                user_resource_volatility: KeyValueStore::new(),
-                protocol_resource_reserves: ProtocolResourceReserves::new(
-                    protocol_resource.address(),
-                ),
-            }
-            .instantiate()
-            .prepare_to_globalize(owner_role)
-            // TODO: update metadata
-            .roles(roles! {
-                protocol_owner => protocol_owner_role;
-                protocol_manager => protocol_manager_role;
-            })
-            .with_address(address_reservation)
-            .globalize()
+            let ignition = {
+                let InitializationParameters {
+                    initial_pool_information,
+                    initial_user_resource_volatility,
+                    initial_reward_rates,
+                    initial_volatile_protocol_resources,
+                    initial_non_volatile_protocol_resources,
+                    initial_is_open_position_enabled,
+                    initial_is_close_position_enabled,
+                } = initialization_parameters;
+
+                let mut ignition = Self {
+                    protocol_resource,
+                    oracle_adapter: oracle_adapter.into(),
+                    pool_information: KeyValueStore::new(),
+                    user_resources_vaults: KeyValueStore::new(),
+                    pool_units: KeyValueStore::new(),
+                    reward_rates: KeyValueStore::new(),
+                    is_open_position_enabled: false,
+                    is_close_position_enabled: false,
+                    maximum_allowed_price_staleness,
+                    maximum_allowed_price_difference_percentage,
+                    user_resource_volatility: KeyValueStore::new(),
+                    protocol_resource_reserves: ProtocolResourceReserves::new(
+                        protocol_resource.address(),
+                    ),
+                };
+
+                if let Some(resource_volatility) =
+                    initial_user_resource_volatility
+                {
+                    for (resource_address, volatility) in
+                        resource_volatility.into_iter()
+                    {
+                        ignition.insert_user_resource_volatility(
+                            resource_address,
+                            volatility,
+                        )
+                    }
+                }
+
+                if let Some(pool_information) = initial_pool_information {
+                    for (blueprint_id, information) in
+                        pool_information.into_iter()
+                    {
+                        ignition
+                            .insert_pool_information(blueprint_id, information)
+                    }
+                }
+
+                if let Some(reward_rates) = initial_reward_rates {
+                    for (lockup_period, reward) in reward_rates.into_iter() {
+                        ignition.add_reward_rate(lockup_period, reward)
+                    }
+                }
+
+                if let Some(volatile_protocol_resources) =
+                    initial_volatile_protocol_resources
+                {
+                    ignition.deposit_protocol_resources(
+                        volatile_protocol_resources,
+                        Volatility::Volatile,
+                    )
+                }
+
+                if let Some(non_volatile_protocol_resources) =
+                    initial_non_volatile_protocol_resources
+                {
+                    ignition.deposit_protocol_resources(
+                        non_volatile_protocol_resources,
+                        Volatility::NonVolatile,
+                    )
+                }
+
+                ignition.is_open_position_enabled =
+                    initial_is_open_position_enabled.unwrap_or(false);
+                ignition.is_close_position_enabled =
+                    initial_is_close_position_enabled.unwrap_or(false);
+
+                ignition
+            };
+
+            ignition
+                .instantiate()
+                .prepare_to_globalize(owner_role)
+                // TODO: update metadata
+                .roles(roles! {
+                    protocol_owner => protocol_owner_role;
+                    protocol_manager => protocol_manager_role;
+                })
+                .with_address(address_reservation)
+                .globalize()
         }
 
         /// Opens a liquidity position for the user.
@@ -356,7 +425,7 @@ mod ignition {
             let volatility = *self
                 .user_resource_volatility
                 .get(&user_resource_address)
-                .expect(RESOURCES_VOLATILITY_UNKNOWN_ERROR);
+                .expect(USER_RESOURCES_VOLATILITY_UNKNOWN_ERROR);
 
             // Ensure that the pool has an adapter and that it is a registered
             // pool. If it is, this means that we can move ahead with the pool.
@@ -1520,7 +1589,7 @@ mod ignition {
 
             user_resource_volatility
                 .get(&user_resource)
-                .expect(RESOURCES_VOLATILITY_UNKNOWN_ERROR);
+                .expect(USER_RESOURCES_VOLATILITY_UNKNOWN_ERROR);
         }
     }
 }
@@ -1596,4 +1665,35 @@ impl ProtocolResourceReserves {
 pub enum Volatility {
     Volatile,
     NonVolatile,
+}
+
+/// Optional parameters to set on Ignition when its first instantiated. All of
+/// the items here are not required to be provided when ignition is first
+/// created, but providing them this way saves on fees.
+#[derive(Debug, PartialEq, Eq, ScryptoSbor, Default)]
+pub struct InitializationParameters {
+    /// The initial set of pool information to add to to Ignition.
+    pub initial_pool_information:
+        Option<IndexMap<BlueprintId, PoolBlueprintInformation>>,
+
+    /// The initial volatility settings to add to Ignition.
+    pub initial_user_resource_volatility:
+        Option<IndexMap<ResourceAddress, Volatility>>,
+
+    /// The initial set of reward rates to add to Ignition.
+    pub initial_reward_rates: Option<IndexMap<LockupPeriod, Decimal>>,
+
+    /// The initial volatile protocol resources to deposit into that vault.
+    pub initial_volatile_protocol_resources: Option<FungibleBucket>,
+
+    /// The initial non volatile protocol resources to deposit into that vault.
+    pub initial_non_volatile_protocol_resources: Option<FungibleBucket>,
+
+    /// The initial control of whether the user is allowed to open a liquidity
+    /// position or not. Defaults to [`false`] if not specified.
+    pub initial_is_open_position_enabled: Option<bool>,
+
+    /// The initial control of whether the user is allowed to close a liquidity
+    /// position or not. Defaults to [`false`] if not specified.
+    pub initial_is_close_position_enabled: Option<bool>,
 }

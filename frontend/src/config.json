@@ -1,38 +1,38 @@
 {
   "network_id": 2,
   "resources": {
-    "resource_tdx_2_1t4xw4me8xqwtmg5dygpvr4cvmaa62dzag9f9934s5u2kh3p4n3urm2": {
+    "resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8": {
       "divisibility": 6,
       "name": "Fake USDT",
       "symbol": "fakeUSDT",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDT.png"
     },
-    "resource_tdx_2_1t5k3f6dk7pns9w5ukta6m5ez27466tf4gkjk8s22rvzs3ppsqny64j": {
-      "divisibility": 6,
-      "name": "Fake Bitcoin",
-      "symbol": "fakeBTC",
-      "icon_url": "https://assets.instabridge.io/tokens/icons/xwBTC.png"
+    "resource_tdx_2_1t59gx963vzd6u6fz63h5de2zh9nmgwxc8y832edmr6pxvz98wg6zu3": {
+      "divisibility": 18,
+      "name": "Fake Ethereum",
+      "symbol": "fakeETH",
+      "icon_url": "https://assets.instabridge.io/tokens/icons/xETH.png"
     },
-    "resource_tdx_2_1t5qeyn7v6vrgq3w0cl97jagf0efasms5dsn5gzyv5u3rmr3ryqcpj2": {
+    "resource_tdx_2_1thfv477eqwlh8x4wt6xsc62myt4z0zxmdpr4ea74fa8jnxh243y60r": {
       "divisibility": 6,
       "name": "Fake USDC",
       "symbol": "fakeUSDC",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDC.png"
     },
-    "resource_tdx_2_1th55w24steknwe78gwr9edng4cav7myf6jyk3pt55mhlwhksxj5tjy": {
-      "divisibility": 18,
-      "name": "Fake Ethereum",
-      "symbol": "fakeETH",
-      "icon_url": "https://assets.instabridge.io/tokens/icons/xETH.png"
+    "resource_tdx_2_1thltk578jr4v7axqpu5ceznhlha6ca2qtzcflqdmytgtf37xncu7l9": {
+      "divisibility": 6,
+      "name": "Fake Bitcoin",
+      "symbol": "fakeBTC",
+      "icon_url": "https://assets.instabridge.io/tokens/icons/xwBTC.png"
     }
   },
   "protocol": {
-    "ignition_package_address": "package_tdx_2_1pk5zs9y4x0pr6e3ppn8pnjngsazvgjuu8gc0hw3r2vednycs5fdkwr",
-    "ignition": "component_tdx_2_1cq5z6eqvwhq3d4nzf8h0es5qlqldly9c3rexarjclh0wz6qmus2n6e",
-    "protocol_resource": "resource_tdx_2_1thayg2ayl8fqqqkm4m5257kclsypzapvtegwrzkdffql5tsvnwxsdd",
-    "oracle_package_address": "package_tdx_2_1p5js542s3e2vxvzv4wnlgy6mzydq5metd525k596m65nvtu3us6dsm",
-    "oracle": "component_tdx_2_1czgtrzd2zvd3wh49x8w2gyfc8msqut24jptcc77qeuwn6r4wyaapjj",
-    "dapp_definition": "account_tdx_2_1cykn5n7lh25zujtr827u2jq53n2l3pnyzv9eyvznnmsxf0573wz7ce",
+    "ignition_package_address": "package_tdx_2_1p40dekel26tp2a2srma4sc3lj2ukr6y8k4amr7x8yav86lyyeg7ta7",
+    "ignition": "component_tdx_2_1cz7hwk3vzkr7wm4q8ndvpl7vy3396dp8mn7qraq4httd79hwlayul4",
+    "protocol_resource": "resource_tdx_2_1thwmtk9qet08y3wpujd8nddmvjuqyptg5nt0mw0zcdgcrahu5k36qx",
+    "oracle_package_address": "package_tdx_2_1phce7mezulh5mzzrz3yxxyxg7quz3jpgyghve7ul2w9vpcs48r6cz7",
+    "oracle": "component_tdx_2_1cqz4fg2nnhctxl4fh2m64n0j6jegw4fra9hyc9fhxsta9g9zf5x40x",
+    "dapp_definition": "account_tdx_2_1cxa5nppn4zrz2cuwpay5wdmyu830a43d6j42epwpv57p3dc6esgmz3",
     "reward_rates": {
       "0": "0.1",
       "60": "0.2"
@@ -41,13 +41,13 @@
   "caviarnine": {
     "package": "package_tdx_2_1p57g523zj736u370z6g4ynrytn7t6r2hledvzkhl6tzpg3urn0707e",
     "pools": {
-      "resource_tdx_2_1t4xw4me8xqwtmg5dygpvr4cvmaa62dzag9f9934s5u2kh3p4n3urm2": "component_tdx_2_1cr074q5ws7a3ukqn5c0k2fjjpye0p5r0a5kgfxd3lyq6u4pve7tdw5",
-      "resource_tdx_2_1t5k3f6dk7pns9w5ukta6m5ez27466tf4gkjk8s22rvzs3ppsqny64j": "component_tdx_2_1cpuspfj4drc72kq4yw4at0jva2f87v5vcfyq43lf8vatqdsjxa60fl",
-      "resource_tdx_2_1t5qeyn7v6vrgq3w0cl97jagf0efasms5dsn5gzyv5u3rmr3ryqcpj2": "component_tdx_2_1cqk75ln5gf0kc982ldl3jdql6drnmmwxk9z4n6hggd2zfnmkqen97x",
-      "resource_tdx_2_1th55w24steknwe78gwr9edng4cav7myf6jyk3pt55mhlwhksxj5tjy": "component_tdx_2_1crp0vvg9exfdv4md4pc676txds7nmx47cswpafevdt8vts2hjsseaj"
+      "resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8": "component_tdx_2_1czmdhtq0u8f40khky4c6j74msskuz60yq3y0zewu85phrdj0ryz2hl",
+      "resource_tdx_2_1t59gx963vzd6u6fz63h5de2zh9nmgwxc8y832edmr6pxvz98wg6zu3": "component_tdx_2_1crqpgnpf3smh7kg8d4sz4h3502l65s4tslwhg46ru07ra6l30pcsj4",
+      "resource_tdx_2_1thfv477eqwlh8x4wt6xsc62myt4z0zxmdpr4ea74fa8jnxh243y60r": "component_tdx_2_1cpwkf9uhel3ut4ydm58g0uyaw7sxckmp2pz7sdv79vzt9y3p7ad4fu",
+      "resource_tdx_2_1thltk578jr4v7axqpu5ceznhlha6ca2qtzcflqdmytgtf37xncu7l9": "component_tdx_2_1czt59vxdqg7q4l0gzphmt5ev6lagl2cu6sm2hsaz9y8ypcf0aukf8r"
     },
-    "adapter_package": "package_tdx_2_1p5nk7ljmlvmjarl7z7u6ggynjlj4u7cjsdkg9qccjata8dcux8re3h",
-    "adapter": "component_tdx_2_1czfwt340nxfrrhfv086n6vz96caq6cq2xgr3guvrflx70czve0cqtj",
-    "receipt_resource": "resource_tdx_2_1ng2gc7rnt35s9h26q7u27vky9fm46pgr2mmclqq6vltd87khztxurq"
+    "adapter_package": "package_tdx_2_1pkkp4u6htglnez4vzy2wuwpmm6chhrntf0xh7qhcfgfwra3p8s0q2u",
+    "adapter": "component_tdx_2_1cpfw55r3m2qfv36m52tr092fqqvhat0gzplmmldq775njxecfm4p96",
+    "receipt_resource": "resource_tdx_2_1n2ht9mjvpgfmqsgkzw7e2m0wu7nvdn6ugfnxkmzprtjnmk2j0uqgkr"
   }
 }

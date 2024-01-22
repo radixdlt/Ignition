@@ -1,7 +1,9 @@
 use caviarnine_adapter_v1::*;
-use ignition::ignition::*;
 use ignition::Volatility;
-use ignition::{LiquidityReceipt, LockupPeriod, PoolBlueprintInformation};
+use ignition::{
+    InitializationParameters, LiquidityReceipt, LockupPeriod,
+    PoolBlueprintInformation,
+};
 use scrypto::prelude::*;
 
 use caviarnine_adapter_v1::adapter::*;
@@ -51,6 +53,7 @@ mod bootstrap {
                 icon_url:
                     "https://assets.radixdlt.com/icons/icon-xrd-32x32.png"
                         .into(),
+                volatility: None,
             };
             let protocol_resource =
                 protocol_resource_information.create_resource();
@@ -65,6 +68,7 @@ mod bootstrap {
                     icon_url:
                         "https://assets.instabridge.io/tokens/icons/xwBTC.png"
                             .into(),
+                    volatility: Some(Volatility::Volatile),
                 },
                 ResourceInformation {
                     divisibility: 18,
@@ -73,6 +77,7 @@ mod bootstrap {
                     icon_url:
                         "https://assets.instabridge.io/tokens/icons/xETH.png"
                             .into(),
+                    volatility: Some(Volatility::Volatile),
                 },
                 ResourceInformation {
                     divisibility: 6,
@@ -81,6 +86,7 @@ mod bootstrap {
                     icon_url:
                         "https://assets.instabridge.io/tokens/icons/xUSDC.png"
                             .into(),
+                    volatility: Some(Volatility::Volatile),
                 },
                 ResourceInformation {
                     divisibility: 6,
@@ -89,6 +95,7 @@ mod bootstrap {
                     icon_url:
                         "https://assets.instabridge.io/tokens/icons/xUSDT.png"
                             .into(),
+                    volatility: Some(Volatility::Volatile),
                 },
             ];
             let mut user_resources = user_resources_information
@@ -173,72 +180,62 @@ mod bootstrap {
                 LockupPeriod::from_seconds(0) => dec!(0.10),
                 LockupPeriod::from_seconds(60) => dec!(0.20),
             };
-            let ignition = {
-                let ignition = scrypto_decode::<ComponentAddress>(
-                    &ScryptoVmV1Api::blueprint_call(
-                        ignition_package_address,
-                        "Ignition",
-                        "instantiate",
-                        scrypto_args!(
-                            OwnerRole::None,
-                            rule!(allow_all),
-                            rule!(allow_all),
-                            protocol_resource,
-                            oracle,
-                            i64::MAX,
-                            Decimal::MAX,
-                            None::<GlobalAddressReservation>
-                        ),
+            let ignition = scrypto_decode::<ComponentAddress>(
+                &ScryptoVmV1Api::blueprint_call(
+                    ignition_package_address,
+                    "Ignition",
+                    "instantiate",
+                    scrypto_args!(
+                        OwnerRole::None,
+                        rule!(allow_all),
+                        rule!(allow_all),
+                        protocol_resource,
+                        oracle,
+                        i64::MAX,
+                        Decimal::MAX,
+                        InitializationParameters {
+                            initial_pool_information: Some(indexmap! {
+                                CaviarNinePoolInterfaceScryptoStub::blueprint_id(
+                                    caviarnine_package_address,
+                                ) => PoolBlueprintInformation {
+                                    adapter: caviarnine_adapter.address().into(),
+                                    allowed_pools: caviarnine_pools
+                                        .values()
+                                        .copied()
+                                        .collect(),
+                                    liquidity_receipt: caviar_nine_liquidity_receipt,
+                                }
+                            }),
+                            initial_user_resource_volatility: Some(
+                                user_resources
+                                    .iter()
+                                    .filter_map(|(information, manager)| {
+                                        information.volatility.map(
+                                            |volatility| {
+                                                (manager.address(), volatility)
+                                            },
+                                        )
+                                    })
+                                    .collect()
+                            ),
+                            initial_reward_rates: Some(reward_rates.clone()),
+                            initial_volatile_protocol_resources: Some(
+                                protocol_resource
+                                    .mint(dec!(100_000_000_000_000))
+                                    .as_fungible()
+                            ),
+                            initial_non_volatile_protocol_resources: Some(
+                                protocol_resource
+                                    .mint(dec!(100_000_000_000_000))
+                                    .as_fungible()
+                            ),
+                            initial_is_open_position_enabled: Some(true),
+                            initial_is_close_position_enabled: Some(true),
+                        },
+                        None::<GlobalAddressReservation>
                     ),
-                )
-                .map(|address| {
-                    Global::<Ignition>(IgnitionObjectStub {
-                        handle: ObjectStubHandle::Global(address.into()),
-                    })
-                })
-                .unwrap();
-
-                // Allow the opening and closing of liquidity positions.
-                ignition.set_is_close_position_enabled(true);
-                ignition.set_is_open_position_enabled(true);
-
-                // Fund ignition with the protocol resources that it needs to
-                // start lending out to users.
-                ignition.deposit_protocol_resources(
-                    FungibleBucket(
-                        protocol_resource.mint(dec!(100_000_000_000_000)),
-                    ),
-                    Volatility::Volatile,
-                );
-                ignition.deposit_protocol_resources(
-                    FungibleBucket(
-                        protocol_resource.mint(dec!(100_000_000_000_000)),
-                    ),
-                    Volatility::NonVolatile,
-                );
-
-                // Add the reward rates that Ignition will use.
-                for (lockup_period, reward) in reward_rates.iter() {
-                    ignition.add_reward_rate(*lockup_period, *reward);
-                }
-
-                // Adding the pool information for CaviarSwap
-                ignition.insert_pool_information(
-                    CaviarNinePoolInterfaceScryptoStub::blueprint_id(
-                        caviarnine_package_address,
-                    ),
-                    PoolBlueprintInformation {
-                        adapter: caviarnine_adapter.address().into(),
-                        allowed_pools: caviarnine_pools
-                            .values()
-                            .copied()
-                            .collect(),
-                        liquidity_receipt: caviar_nine_liquidity_receipt,
-                    },
-                );
-
-                ignition
-            };
+                ),
+            ).unwrap();
 
             // Creating a dApp definition account for the protocol
             let (dapp_definition, bucket) = Blueprint::<Account>::create();
@@ -253,7 +250,7 @@ mod bootstrap {
                     .collect(),
                 protocol: ProtocolConfiguration {
                     ignition_package_address,
-                    ignition: ignition.address(),
+                    ignition: ignition,
                     protocol_resource: protocol_resource.address(),
                     oracle_package_address,
                     oracle,
@@ -327,6 +324,7 @@ pub struct ResourceInformation {
     pub name: String,
     pub symbol: String,
     pub icon_url: String,
+    pub volatility: Option<Volatility>,
 }
 
 impl ResourceInformation {

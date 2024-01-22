@@ -47,6 +47,6 @@ define_error! {
         => "Can't close a liquidity position before it has matured.";
     USER_MUST_NOT_PROVIDE_PROTOCOL_ASSET_ERROR
         => "The user has provided the protocol asset, which is not allowed";
-    RESOURCES_VOLATILITY_UNKNOWN_ERROR
-        => "The user has contributed a resource of an unknown volatility.";
+    USER_RESOURCES_VOLATILITY_UNKNOWN_ERROR
+        => "A user resource with no registered volatility status was interacted with.";
 }
