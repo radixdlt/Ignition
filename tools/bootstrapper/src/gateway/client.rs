@@ -84,7 +84,7 @@ mod test {
         let client = GatewayClient::stokenet();
 
         // Act
-        let epoch = dbg!(client.get_current_epoch());
+        let epoch = client.get_current_epoch();
 
         // Assert
         assert!(epoch.is_ok())

@@ -359,7 +359,7 @@ fn oracle_price_cutoffs_for_opening_liquidity_positions_are_implemented_correctl
 
     assert_is_ignition_relative_price_difference_larger_than_allowed_error(
         &test_open_position_oracle_price_cutoffs(
-            dbg!(dec!(1) / dec!(0.99) + SMALL_DECIMAL),
+            dec!(1) / dec!(0.99) + SMALL_DECIMAL,
             dec!(0.01),
         ),
     );
@@ -1059,6 +1059,318 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
 
     // Assert
     assert!(rtn.is_ok(), "{rtn:#?}");
+
+    Ok(())
+}
+
+#[test]
+fn cant_close_a_liquidity_position_of_a_pool_with_no_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap,
+        ..
+    } = Environment::new()?;
+    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+        .mint_non_fungible_single_ruid(
+            utils::liquidity_receipt_data_with_modifier(|receipt| {
+                receipt.pool_address = FAUCET;
+            }),
+            env,
+        )?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .close_liquidity_position(NonFungibleBucket(bucket), env);
+
+    // Assert
+    assert_is_ignition_no_adapter_found_for_pool_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(dec!(10_000_000), env)?;
+    let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
+
+    let current_time = env.get_current_time();
+    env.set_current_time(
+        current_time
+            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .unwrap(),
+    );
+
+    let pool_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    assert_eq!(pool_price.base, resources.bitcoin);
+    assert_eq!(pool_price.quote, XRD);
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price,
+        env,
+    )?;
+
+    // Act
+    let assets_back =
+        protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    assert_eq!(indexed_buckets.len(), 2);
+
+    assert_eq!(
+        indexed_buckets
+            .get(&resources.bitcoin)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(100)
+    );
+    assert_eq!(
+        indexed_buckets
+            .get(&XRD)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(0)
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_impermanent_loss(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let xrd_bucket =
+        ResourceManager(XRD).mint_fungible(dec!(10_000_000), env)?;
+    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+
+    let current_time = env.get_current_time();
+    env.set_current_time(
+        current_time
+            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .unwrap(),
+    );
+
+    let pool_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    let oracle_price = pool_price;
+    assert_eq!(pool_price.base, resources.bitcoin);
+    assert_eq!(pool_price.quote, XRD);
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        oracle_price.price,
+        env,
+    )?;
+
+    // Act
+    let assets_back =
+        protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    assert_eq!(indexed_buckets.len(), 2);
+
+    assert_eq!(
+        indexed_buckets
+            .get(&resources.bitcoin)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(90.99181893)
+    );
+    assert_eq!(
+        indexed_buckets
+            .get(&XRD)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        (dec!(100) - dec!(90.99181893)) * oracle_price.price
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_impermanent_loss_according_to_oracle_price_not_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let xrd_bucket =
+        ResourceManager(XRD).mint_fungible(dec!(10_000_000), env)?;
+    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+
+    let current_time = env.get_current_time();
+    env.set_current_time(
+        current_time
+            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .unwrap(),
+    );
+
+    let pool_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    let oracle_price = pool_price.price - (dec!(0.005) * pool_price.price);
+    assert_eq!(pool_price.base, resources.bitcoin);
+    assert_eq!(pool_price.quote, XRD);
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        oracle_price,
+        env,
+    )?;
+
+    // Act
+    let assets_back =
+        protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    assert_eq!(indexed_buckets.len(), 2);
+
+    assert_eq!(
+        indexed_buckets
+            .get(&resources.bitcoin)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(90.99181893)
+    );
+    assert_eq!(
+        indexed_buckets
+            .get(&XRD)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        (dec!(100) - dec!(90.99181893)) * oracle_price
+    );
+
+    Ok(())
+}
+
+#[test]
+fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amount_obtained_from_the_pool(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap,
+        resources,
+        ..
+    } = Environment::new()?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let xrd_bucket =
+        ResourceManager(XRD).mint_fungible(dec!(10_000_000_000), env)?;
+    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+
+    let current_time = env.get_current_time();
+    env.set_current_time(
+        current_time
+            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .unwrap(),
+    );
+
+    let pool_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    let oracle_price = pool_price;
+    assert_eq!(pool_price.base, resources.bitcoin);
+    assert_eq!(pool_price.quote, XRD);
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        oracle_price.price,
+        env,
+    )?;
+
+    // Act
+    let assets_back =
+        protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    assert_eq!(indexed_buckets.len(), 2);
+
+    assert_eq!(
+        indexed_buckets
+            .get(&resources.bitcoin)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(1.00000098)
+    );
+    assert_eq!(
+        indexed_buckets
+            .get(&XRD)
+            .expect("We expect to get bitcoin back!")
+            .amount(env)?,
+        dec!(10099.99000000999999)
+    );
 
     Ok(())
 }

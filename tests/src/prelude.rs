@@ -2,6 +2,7 @@
 
 pub use crate::environment::*;
 pub use crate::errors::*;
+pub use crate::indexed_buckets::*;
 
 pub use radix_engine_common::prelude::*;
 pub use radix_engine_interface::api::node_modules::auth::*;

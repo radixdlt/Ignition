@@ -68,7 +68,7 @@ fn build_blueprints() -> Result<(), Error> {
             "--target-dir",
             builds_target_path.as_path().display().to_string().as_str(),
             "--features",
-            "scrypto/log-trace",
+            "scrypto/log-info",
         ])
         .args(package_names.iter().flat_map(|package_name| {
             ["--package".to_owned(), package_name.to_owned()]
@@ -110,7 +110,7 @@ fn build_blueprints() -> Result<(), Error> {
             "--features",
             "scrypto/no-schema",
             "--features",
-            "scrypto/log-trace",
+            "scrypto/log-info",
         ])
         .args(package_names.iter().flat_map(|package_name| {
             ["--package".to_owned(), package_name.to_owned()]
