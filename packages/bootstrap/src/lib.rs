@@ -203,7 +203,7 @@ mod bootstrap {
                                         .values()
                                         .copied()
                                         .collect(),
-                                    liquidity_receipt: caviar_nine_liquidity_receipt,
+                                    liquidity_receipt: caviar_nine_liquidity_receipt.address(),
                                 }
                             }),
                             initial_user_resource_volatility: Some(

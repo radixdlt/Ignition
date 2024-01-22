@@ -189,6 +189,7 @@ fn generate_scrypto_stub(
     quote! {
         #[derive(
             ::radix_engine_interface::prelude::ScryptoSbor,
+            ::radix_engine_interface::prelude::ManifestSbor,
             Clone,
             Copy,
             Debug,
@@ -348,6 +349,7 @@ fn generate_scrypto_test_stub(
     quote! {
         #[derive(
             ::radix_engine_interface::prelude::ScryptoSbor,
+            ::radix_engine_interface::prelude::ManifestSbor,
             Clone,
             Copy,
             Debug,

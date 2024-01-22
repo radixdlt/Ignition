@@ -1046,7 +1046,7 @@ mod ignition {
             self.pool_information
                 .get_mut(&blueprint_id)
                 .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR)
-                .liquidity_receipt = liquidity_receipt;
+                .liquidity_receipt = liquidity_receipt.address();
         }
 
         /// Inserts the pool information, adding it to the protocol, performing
@@ -1519,7 +1519,7 @@ mod ignition {
                     POOL_IS_NOT_IN_ALLOW_LIST_ERROR
                 );
 
-                (entry.adapter, entry.liquidity_receipt, entry)
+                (entry.adapter, entry.liquidity_receipt(), entry)
             })
         }
 
@@ -1595,7 +1595,7 @@ mod ignition {
 }
 
 /// Represents the information of pools belonging to a particular blueprint.
-#[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
+#[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor, ManifestSbor)]
 pub struct PoolBlueprintInformation {
     /// The adapter to utilize when making calls to pools belonging to this
     /// blueprint.
@@ -1608,7 +1608,13 @@ pub struct PoolBlueprintInformation {
 
     /// A reference to the resource manager of the resource used as a receipt
     /// for providing liquidity to pools of this blueprint
-    pub liquidity_receipt: ResourceManager,
+    pub liquidity_receipt: ResourceAddress,
+}
+
+impl PoolBlueprintInformation {
+    pub fn liquidity_receipt(&self) -> ResourceManager {
+        ResourceManager::from(self.liquidity_receipt)
+    }
 }
 
 /// The reserves of the ignition protocol asset split by the assets to use in
@@ -1688,6 +1694,34 @@ pub struct InitializationParameters {
 
     /// The initial non volatile protocol resources to deposit into that vault.
     pub initial_non_volatile_protocol_resources: Option<FungibleBucket>,
+
+    /// The initial control of whether the user is allowed to open a liquidity
+    /// position or not. Defaults to [`false`] if not specified.
+    pub initial_is_open_position_enabled: Option<bool>,
+
+    /// The initial control of whether the user is allowed to close a liquidity
+    /// position or not. Defaults to [`false`] if not specified.
+    pub initial_is_close_position_enabled: Option<bool>,
+}
+
+#[derive(Debug, PartialEq, Eq, ManifestSbor, Default)]
+pub struct InitializationParametersManifest {
+    /// The initial set of pool information to add to to Ignition.
+    pub initial_pool_information:
+        Option<IndexMap<BlueprintId, PoolBlueprintInformation>>,
+
+    /// The initial volatility settings to add to Ignition.
+    pub initial_user_resource_volatility:
+        Option<IndexMap<ResourceAddress, Volatility>>,
+
+    /// The initial set of reward rates to add to Ignition.
+    pub initial_reward_rates: Option<IndexMap<LockupPeriod, Decimal>>,
+
+    /// The initial volatile protocol resources to deposit into that vault.
+    pub initial_volatile_protocol_resources: Option<ManifestBucket>,
+
+    /// The initial non volatile protocol resources to deposit into that vault.
+    pub initial_non_volatile_protocol_resources: Option<ManifestBucket>,
 
     /// The initial control of whether the user is allowed to open a liquidity
     /// position or not. Defaults to [`false`] if not specified.

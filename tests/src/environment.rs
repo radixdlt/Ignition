@@ -662,10 +662,7 @@ impl ScryptoUnitEnv {
                                 .maximum_allowed_price_staleness_seconds,
                             configuration
                                 .maximum_allowed_relative_price_difference,
-                            (
-                                None::<()>, None::<()>, None::<()>, None::<()>,
-                                None::<()>, None::<()>, None::<()>,
-                            ),
+                            InitializationParametersManifest::default(),
                             None::<ManifestAddressReservation>,
                         ),
                     )
