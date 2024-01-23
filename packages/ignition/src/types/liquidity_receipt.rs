@@ -43,6 +43,12 @@ pub struct LiquidityReceipt {
 
     /// The date after which this liquidity position can be closed.
     pub maturity_date: Instant,
+
+    /// This is adapter specific data passed by the adapter when a position is
+    /// opened. This is information that the adapter expects to be passed back
+    /// when a liquidity position is closed. This is used in calculating the
+    /// fees.
+    pub adapter_specific_information: AnyValue,
 }
 
 impl LiquidityReceipt {
@@ -54,6 +60,7 @@ impl LiquidityReceipt {
         user_contribution_amount: Decimal,
         user_volatility_classification: Volatility,
         protocol_contribution_amount: Decimal,
+        adapter_specific_information: AnyValue,
     ) -> Self {
         let maturity_date = Clock::current_time_rounded_to_minutes()
             .add_seconds(*lockup_period.seconds() as i64)
@@ -79,6 +86,7 @@ impl LiquidityReceipt {
             protocol_contribution_amount,
             user_resource_volatility_classification:
                 user_volatility_classification,
+            adapter_specific_information,
         }
     }
 }

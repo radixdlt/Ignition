@@ -42,6 +42,7 @@ define_interface! {
             pool_address: ComponentAddress,
             #[manifest_type = "ManifestBucket"]
             pool_units: Bucket,
+            adapter_specific_information: AnyValue
         ) -> CloseLiquidityPositionOutput;
 
         /// Returns the price of the pair of assets in the pool.
@@ -74,6 +75,10 @@ pub struct OpenLiquidityPositionOutput {
     pub change: IndexMap<ResourceAddress, Bucket>,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
+    /// Any adapter specific information that the adapter wishes to pass back
+    /// to the protocol and to be given back at a later time when the position
+    /// is being closed
+    pub adapter_specific_information: AnyValue,
 }
 
 #[derive(Debug, ScryptoSbor)]

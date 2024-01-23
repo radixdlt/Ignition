@@ -161,6 +161,8 @@ pub mod adapter {
                     change_y.resource_address() => change_y,
                 },
                 others: vec![],
+                adapter_specific_information:
+                    CaviarnineAdapterSpecificInformation {}.into(),
             }
         }
 
@@ -168,6 +170,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
+            _adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
 
@@ -218,5 +221,14 @@ pub mod adapter {
                 redemption_url: Url::of("https://www.caviarnine.com/"),
             }
         }
+    }
+}
+
+#[derive(ScryptoSbor, Debug, Clone)]
+pub struct CaviarnineAdapterSpecificInformation {/* TODO: Determine what is needed here */}
+
+impl From<CaviarnineAdapterSpecificInformation> for AnyValue {
+    fn from(value: CaviarnineAdapterSpecificInformation) -> Self {
+        AnyValue::from_typed(&value).unwrap()
     }
 }

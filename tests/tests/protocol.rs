@@ -1391,6 +1391,11 @@ mod utils {
             user_resource_volatility_classification: NonVolatile,
             protocol_contribution_amount: dec!(1),
             maturity_date: Instant::new(1),
+            adapter_specific_information: OciswapAdapterSpecificInformation {
+                pool_k_when_position_opened: pdec!(100),
+                user_share_in_pool_when_position_opened: dec!(0.01),
+            }
+            .into(),
         }
     }
 

@@ -495,6 +495,7 @@ mod ignition {
                 pool_units,
                 change,
                 others,
+                adapter_specific_information,
             } = adapter.open_liquidity_position(
                 pool_address,
                 (user_side_of_liquidity.0, protocol_side_of_liquidity.0),
@@ -554,6 +555,7 @@ mod ignition {
                     amount_of_user_tokens_contributed,
                     volatility,
                     amount_of_protocol_tokens_contributed,
+                    adapter_specific_information,
                 );
                 let liquidity_receipt = liquidity_receipt_resource
                     .mint_ruid_non_fungible(data)
@@ -728,6 +730,7 @@ mod ignition {
                 adapter.close_liquidity_position(
                     liquidity_receipt_data.pool_address,
                     pool_units,
+                    liquidity_receipt_data.adapter_specific_information,
                 )
             };
 

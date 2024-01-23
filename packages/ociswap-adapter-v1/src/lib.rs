@@ -24,6 +24,8 @@ define_error! {
         => "Failed to get vault - unexpected error.";
     PRICE_IS_UNDEFINED
         => "Price is undefined.";
+    FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR
+        => "Failed to calculate the K value of the pool.";
 }
 
 #[blueprint_with_traits]
@@ -68,6 +70,16 @@ pub mod adapter {
             // TODO: Is this actually pool units and change?
             let (pool_units, change) = pool.add_liquidity(buckets.0, buckets.1);
 
+            let user_share = pool_units.amount()
+                / pool_units.resource_manager().total_supply().unwrap();
+
+            let pool_k = Global::<TwoResourcePool>::from(pool.liquidity_pool())
+                .get_vault_amounts()
+                .values()
+                .map(|item| PreciseDecimal::from(*item))
+                .reduce(|acc, item| acc * item)
+                .expect(FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR);
+
             OpenLiquidityPositionOutput {
                 pool_units,
                 change: change
@@ -78,6 +90,12 @@ pub mod adapter {
                     })
                     .unwrap_or_default(),
                 others: Default::default(),
+                adapter_specific_information:
+                    OciswapAdapterSpecificInformation {
+                        user_share_in_pool_when_position_opened: user_share,
+                        pool_k_when_position_opened: pool_k,
+                    }
+                    .into(),
             }
         }
 
@@ -85,6 +103,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
+            _adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
 
@@ -149,5 +168,20 @@ pub mod adapter {
                 redemption_url: Url::of("https://ociswap.com/"),
             }
         }
+    }
+}
+
+#[derive(ScryptoSbor, Debug, Clone)]
+pub struct OciswapAdapterSpecificInformation {
+    /// The share of the user in the pool when the position was opened.
+    pub user_share_in_pool_when_position_opened: Decimal,
+
+    /// The value of the K of the pool when the position was opened.
+    pub pool_k_when_position_opened: PreciseDecimal,
+}
+
+impl From<OciswapAdapterSpecificInformation> for AnyValue {
+    fn from(value: OciswapAdapterSpecificInformation) -> Self {
+        AnyValue::from_typed(&value).unwrap()
     }
 }
