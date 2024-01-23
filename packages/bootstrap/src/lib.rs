@@ -250,7 +250,7 @@ mod bootstrap {
                     .collect(),
                 protocol: ProtocolConfiguration {
                     ignition_package_address,
-                    ignition: ignition,
+                    ignition,
                     protocol_resource: protocol_resource.address(),
                     oracle_package_address,
                     oracle,

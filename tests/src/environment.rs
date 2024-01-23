@@ -358,8 +358,7 @@ impl ScryptoTestEnv {
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
-                    liquidity_receipt: ociswap_liquidity_receipt_resource
-                        .into(),
+                    liquidity_receipt: ociswap_liquidity_receipt_resource,
                 },
                 &mut env,
             )?;
@@ -374,8 +373,7 @@ impl ScryptoTestEnv {
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
-                    liquidity_receipt: caviarnine_liquidity_receipt_resource
-                        .into(),
+                    liquidity_receipt: caviarnine_liquidity_receipt_resource,
                 },
                 &mut env,
             )?;
@@ -852,9 +850,11 @@ impl ScryptoUnitEnv {
             },
         }
     }
+}
 
-    pub fn account_address(&self) -> ComponentAddress {
-        self.protocol.protocol_manager_badge.1
+impl Default for ScryptoUnitEnv {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
