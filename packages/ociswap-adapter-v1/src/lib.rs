@@ -101,8 +101,6 @@ pub mod adapter {
             }
         }
 
-        // TODO: Is this the same as getting the price from Ociswap directly
-        // via a method call?
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
             let pool = Self::pool(pool_address);
             let pool = Global::<TwoResourcePool>::from(pool.liquidity_pool());

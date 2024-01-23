@@ -309,3 +309,83 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     );
     assert!(total_execution_cost_in_xrd <= dec!(4.5))
 }
+
+#[test]
+fn contributions_directly_to_caviarnine_could_fail_due_to_bucket_order(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let mut results = Vec::<bool>::new();
+    for order in [true, false] {
+        // Arrange
+        let Environment {
+            environment: ref mut env,
+            resources,
+            mut caviarnine,
+            ..
+        } = ScryptoTestEnv::new()?;
+
+        let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
+        let bitcoin_bucket =
+            ResourceManager(resources.bitcoin).mint_fungible(dec!(1), env)?;
+        let buckets = if order {
+            (xrd_bucket, bitcoin_bucket)
+        } else {
+            (bitcoin_bucket, xrd_bucket)
+        };
+
+        // Act
+        let result = caviarnine.pools.bitcoin.add_liquidity(
+            buckets.0,
+            buckets.1,
+            vec![(27000, dec!(1), dec!(1))],
+            env,
+        );
+        results.push(result.is_ok());
+    }
+
+    // Assert
+    assert_eq!(results.len(), 2);
+    assert_eq!(results.iter().filter(|item| **item).count(), 1);
+    assert_eq!(results.iter().filter(|item| !**item).count(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let mut results = Vec::<bool>::new();
+    for order in [true, false] {
+        // Arrange
+        let Environment {
+            environment: ref mut env,
+            resources,
+            mut caviarnine,
+            ..
+        } = ScryptoTestEnv::new()?;
+
+        let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
+        let bitcoin_bucket =
+            ResourceManager(resources.bitcoin).mint_fungible(dec!(1), env)?;
+        let buckets = if order {
+            (xrd_bucket, bitcoin_bucket)
+        } else {
+            (bitcoin_bucket, xrd_bucket)
+        };
+
+        // Act
+        let result = caviarnine.adapter.open_liquidity_position(
+            caviarnine.pools.bitcoin.try_into().unwrap(),
+            buckets,
+            env,
+        );
+        results.push(result.is_ok());
+    }
+
+    // Assert
+    assert_eq!(results.len(), 2);
+    assert_eq!(results.iter().filter(|item| **item).count(), 2);
+
+    Ok(())
+}
