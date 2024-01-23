@@ -62,7 +62,7 @@
 //! and not baked into the blueprint itself allowing additional reward rates to
 //! be added and for some reward rates to be removed.
 
-use std::cmp::min;
+use std::cmp::*;
 
 use crate::*;
 use adapters_interface::prelude::*;
@@ -720,7 +720,7 @@ mod ignition {
             let CloseLiquidityPositionOutput {
                 resources,
                 others,
-                fees,
+                mut fees,
             } = {
                 let pool_units = self
                     .pool_units
@@ -751,6 +751,13 @@ mod ignition {
             let protocol_resource_bucket_amount =
                 protocol_resource_bucket.amount();
 
+            fees.values_mut().for_each(|value| {
+                // Disallowing any fees from being zero by having a lower bound
+                // at 0. This is enforced by the protocol itself such that any
+                // adapter that returns any negative fees due to estimations
+                // does not cause the protocol to calculate incorrectly.
+                *value = max(*value, Decimal::ZERO)
+            });
             let (user_resource_fees, _) = {
                 let user_resource = fees
                     .get(&liquidity_receipt_data.user_resource_address)

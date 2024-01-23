@@ -416,3 +416,248 @@ fn contributions_to_ociswap_through_adapter_dont_fail_due_to_bucket_ordering(
 
     Ok(())
 }
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_stays_the_same_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_down_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_up_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_stays_the_same_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_down_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_up_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_stays_the_same_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_down_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_up_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+fn non_strict_testing_of_fees(
+    protocol_coefficient: Movement,
+    price_of_user_asset: Movement,
+    result: CloseLiquidityResult,
+) -> Result<(), RuntimeError> {
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let bitcoin_amount_in = dec!(100);
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(bitcoin_amount_in, env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    match price_of_user_asset {
+        // User asset price goes down - i.e., we inject it into the pool.
+        Movement::Down => {
+            let bitcoin_bucket = ResourceManager(resources.bitcoin)
+                .mint_fungible(dec!(100_000_000), env)?;
+            let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
+        }
+        // The user asset price stays the same. We do not do anything.
+        Movement::Same => {}
+        // User asset price goes up - i.e., we reduce it in the pool.
+        Movement::Up => {
+            let xrd_bucket =
+                ResourceManager(XRD).mint_fungible(dec!(100_000_000), env)?;
+            let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+        }
+    }
+
+    let pool_unit = {
+        let pool = ociswap.pools.bitcoin.liquidity_pool(env)?;
+        let output = env
+            .call_module_method_typed::<_, _, MetadataGetOutput>(
+                pool,
+                AttachedModuleId::Metadata,
+                METADATA_GET_IDENT,
+                &MetadataGetInput {
+                    key: "pool_unit".to_owned(),
+                },
+            )?
+            .unwrap();
+
+        let GenericMetadataValue::GlobalAddress(pool_unit) = output else {
+            panic!()
+        };
+        ResourceAddress::try_from(pool_unit).unwrap()
+    };
+
+    match protocol_coefficient {
+        // Somebody claims some portion of the pool
+        Movement::Down => {
+            // Claim 10% of the pool.
+            let total_supply =
+                ResourceManager(pool_unit).total_supply(env)?.unwrap();
+            let ten_percent_of_total_supply = total_supply * dec!(0.1);
+            let pool_units = BucketFactory::create_fungible_bucket(
+                pool_unit,
+                ten_percent_of_total_supply,
+                CreationStrategy::Mock,
+                env,
+            )?;
+            let _ = ociswap.pools.bitcoin.remove_liquidity(pool_units, env)?;
+        }
+        // Nothing
+        Movement::Same => {}
+        // Somebody contributed to the pool some amount
+        Movement::Up => {
+            let xrd = ResourceManager(XRD).mint_fungible(dec!(10_000), env)?;
+            let bitcoin = ResourceManager(resources.bitcoin)
+                .mint_fungible(dec!(10_000), env)?;
+            let _ = ociswap.pools.bitcoin.add_liquidity(xrd, bitcoin, env)?;
+        }
+    }
+
+    env.set_current_time(Instant::new(
+        *LockupPeriod::from_months(12).seconds() as i64,
+    ));
+    let pool_reported_price = ociswap
+        .adapter
+        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
+
+    let buckets = IndexedBuckets::from_buckets(
+        protocol.ignition.close_liquidity_position(receipt, env)?,
+        env,
+    )?;
+
+    let bitcoin_amount_out = buckets
+        .get(&resources.bitcoin)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToPositiveInfinity)
+        .unwrap();
+    let xrd_amount_out = buckets
+        .get(&XRD)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToZero)
+        .unwrap();
+
+    match result {
+        CloseLiquidityResult::GetFees => {
+            // Bitcoin we get back must be strictly greater than what we put in.
+            assert!(bitcoin_amount_out > bitcoin_amount_in);
+            // When we get back fees we MUST not get back any XRD
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::SameAmount => {
+            // Bitcoin we get back must be strictly equal to what we put in.
+            assert_eq!(bitcoin_amount_out, bitcoin_amount_in);
+            // If we get back the same amount then we must NOT get back any XRD.
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::Reimbursement => {
+            // Bitcoin we get back must be less than what we put in.
+            assert!(bitcoin_amount_out < bitcoin_amount_in);
+            // We must get back SOME xrd.
+            assert_ne!(xrd_amount_out, Decimal::ZERO);
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Movement {
+    Down,
+    Same,
+    Up,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CloseLiquidityResult {
+    GetFees,
+    SameAmount,
+    Reimbursement,
+}

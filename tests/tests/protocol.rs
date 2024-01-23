@@ -1114,7 +1114,7 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
     )?;
 
     let bitcoin_bucket = ResourceManager(resources.bitcoin)
-        .mint_fungible(dec!(10_000_000), env)?;
+        .mint_fungible(dec!(100_000_000), env)?;
     let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
 
     let current_time = env.get_current_time();
@@ -1149,7 +1149,8 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
             .get(&resources.bitcoin)
             .expect("We expect to get bitcoin back!")
             .amount(env)?,
-        dec!(100)
+        // Og Amount In + Estimated fees
+        dec!(100) + dec!(0.50062606)
     );
     assert_eq!(
         indexed_buckets
