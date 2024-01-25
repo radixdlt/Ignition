@@ -9,6 +9,7 @@ members = [
     "packages/caviarnine-adapter-v1",
     # Libraries
     "libraries/package-loader",
+    "libraries/gateway-client",
     "libraries/scrypto-interface",
     "libraries/adapters-interface",
     # Tools

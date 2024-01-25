@@ -15,6 +15,9 @@ install_crate = "rustfmt"
 command = "cargo"
 args = ["fmt"]
 
+[tasks.fmt]
+alias = "format"
+
 [tasks.publish-stokenet]
 command = "cargo"
 args = [

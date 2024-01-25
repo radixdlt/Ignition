@@ -415,4 +415,3 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
 
     Ok(())
 }
-
