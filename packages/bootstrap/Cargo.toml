@@ -2,7 +2,7 @@
 name = "bootstrap"
 version.workspace = true
 edition.workspace = true
-description = "Bootstraps Ignition either for testing or for production"
+description = "Bootstraps Ignition either for testing and not production."
 
 [dependencies]
 sbor = { workspace = true }
