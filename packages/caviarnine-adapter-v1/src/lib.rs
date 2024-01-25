@@ -31,6 +31,10 @@ define_error! {
         => "Pool has no price.";
 }
 
+/// The total number of bins that we will be using on the left and the right
+/// excluding the one in the middle.
+pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 40 * 2;
+
 #[blueprint_with_traits]
 pub mod adapter {
     struct CaviarNineAdapter;
@@ -96,7 +100,11 @@ pub mod adapter {
                 higher_bins,
                 lower_bins,
                 ..
-            } = SelectedBins::select(active_bin, bin_span, 62 * 2);
+            } = SelectedBins::select(
+                active_bin,
+                bin_span,
+                PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
+            );
 
             // Determine the amount of resources that we will add to each of the
             // bins. We have 62 on the left and 62 on the right. But, we also
@@ -146,10 +154,15 @@ pub mod adapter {
                     .map(|bin_id| (*bin_id, dec!(0), position_amount_y)),
             );
             positions.extend(
-                lower_bins
+                higher_bins
                     .iter()
                     .map(|bin_id| (*bin_id, position_amount_x, dec!(0))),
             );
+            let adapter_specific_information =
+                CaviarnineAdapterSpecificInformation::from_positions(
+                    &positions,
+                )
+                .into();
 
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(bucket_x, bucket_y, positions);
@@ -161,8 +174,7 @@ pub mod adapter {
                     change_y.resource_address() => change_y,
                 },
                 others: vec![],
-                adapter_specific_information:
-                    CaviarnineAdapterSpecificInformation {}.into(),
+                adapter_specific_information,
             }
         }
 
@@ -224,8 +236,33 @@ pub mod adapter {
     }
 }
 
-#[derive(ScryptoSbor, Debug, Clone)]
-pub struct CaviarnineAdapterSpecificInformation {/* TODO: Determine what is needed here */}
+#[derive(ScryptoSbor, Debug, Clone, Default)]
+pub struct CaviarnineAdapterSpecificInformation {
+    /// The amount of liquidity that was provided to each bin. The key of the
+    /// [`IndexMap`] is the bin number and the value is a tuple of the amount of
+    /// liquidity provided. The first element of the tuple is the x liquidity
+    /// and the second one is the y liquidity.
+    pub liquidity_provided_when_position_opened:
+        IndexMap<u32, (Decimal, Decimal)>,
+}
+
+impl CaviarnineAdapterSpecificInformation {
+    pub fn from_positions(positions: &[(u32, Decimal, Decimal)]) -> Self {
+        let mut this = CaviarnineAdapterSpecificInformation::default();
+
+        for (bin_number, x_liquidity, y_liquidity) in positions {
+            let entry = this
+                .liquidity_provided_when_position_opened
+                .entry(*bin_number)
+                .or_default();
+
+            entry.0 += *x_liquidity;
+            entry.1 += *y_liquidity;
+        }
+
+        this
+    }
+}
 
 impl From<CaviarnineAdapterSpecificInformation> for AnyValue {
     fn from(value: CaviarnineAdapterSpecificInformation) -> Self {

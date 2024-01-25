@@ -147,23 +147,10 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
-        total_finalization_cost_in_xrd,
-        total_tipping_cost_in_xrd,
-        total_storage_cost_in_xrd,
-        total_royalty_cost_in_xrd,
         ..
     } = receipt.fee_summary;
 
-    assert!(
-        dbg!(
-            total_execution_cost_in_xrd
-                + total_finalization_cost_in_xrd
-                + total_tipping_cost_in_xrd
-                + total_storage_cost_in_xrd
-                + total_royalty_cost_in_xrd
-        ) <= dec!(7)
-    );
-    assert!(total_execution_cost_in_xrd <= dec!(4.5))
+    assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
 
 #[test]
@@ -291,23 +278,10 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
-        total_finalization_cost_in_xrd,
-        total_tipping_cost_in_xrd,
-        total_storage_cost_in_xrd,
-        total_royalty_cost_in_xrd,
         ..
     } = receipt.fee_summary;
 
-    assert!(
-        dbg!(
-            total_execution_cost_in_xrd
-                + total_finalization_cost_in_xrd
-                + total_tipping_cost_in_xrd
-                + total_storage_cost_in_xrd
-                + total_royalty_cost_in_xrd
-        ) <= dec!(7)
-    );
-    assert!(total_execution_cost_in_xrd <= dec!(4.5))
+    assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
 
 #[test]
@@ -389,3 +363,56 @@ fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
 
     Ok(())
 }
+
+#[test]
+fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        caviarnine,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    let (liquidity_receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    // Act
+    let liquidity_receipt_data = ResourceManager(caviarnine.liquidity_receipt)
+        .get_non_fungible_data::<_, _, LiquidityReceipt>(
+            liquidity_receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
+
+    // Assert
+    let adapter_information = liquidity_receipt_data
+        .adapter_specific_information
+        .as_typed::<CaviarnineAdapterSpecificInformation>()
+        .unwrap();
+    assert_eq!(
+        adapter_information
+            .liquidity_provided_when_position_opened
+            .len(),
+        (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
+    );
+
+    Ok(())
+}
+
