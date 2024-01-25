@@ -63,3 +63,32 @@ $$
 $$
 y_{\mathrm{fees}} = y_{\mathrm{actual}} - y_{\mathrm{Price \space Action (calculated)}}
 $$
+
+On how to calculate the amount we expect to get back when closing a liquidity position due to price action alone, we do the following:
+
+* When the user opens a liquidity position we record all of the bins that we added liquidity to and the corresponding amount of liquidity added to them.
+* When the user closes the liquidity position we calculate the amount of resources we expect to find in each bin based on the pool's current price the amount we expect to find follows the following logic, which is also summarized in the table below:
+  * If a bin contained only X resource when the position was first opened and the current price of the pool is below that bin then we expect to get back the same amount of X tokens we initially put in that bin.
+  * If a bin contained only Y resource when the position was first opened and the current price of the pool is above that bin then we expect to get back the same amount of Y tokens we initially put in that bin.
+  * If a bin contained only X resource when the position was first opened and the current price of the pool is above that bin then we expect that the full amount of X put in that bin was swapped for Y.
+  * If a bin contained only Y resource when the position was first opened and the current price of the pool is below that bin then we expect that the full amount of Y put in that bin was swapped for X.
+  * If a bin contained only X resource when the position was first opened and the current price of the pool is inside that bin then some amount of the X resources will be swapped for Y (How much?).
+  * If a bin contained only Y resource when the position was first opened and the current price of the pool is inside that bin then some amount of the Y resources will be swapped for X (How much?).
+  * If a bin contained a composite amount of X and Y resources when the position was first opened and the current price of the pool is above that bin then all of the X resources that were there will be swapped for Y resources.
+  * If a bin contained a composite amount of X and Y resources when the position was first opened and the current price of the pool is below that bin then all of the Y resources that were there will be swapped for X resources.
+  * If a bin contained a composite amount of X and Y resources when the position was first opened and the current price of the pool is inside that bin then some amount of X or Y resources will be converted into the other resource.
+
+
+| Original Bin Composition | Current Bin Composition | Expected Amount | 
+| ---- | ---- | ---- |
+| Entirely X | Entirely X | No Action - Should be same as original | 
+| Entirely X | Entirely Y | Full swap of amount X to amount Y | 
+| Entirely X | Composite of X and Y | Partial Swap of some X | 
+| Entirely Y | Entirely X | Full swap of amount Y to amount X | 
+| Entirely Y | Entirely Y | No Action - Should be same as original | 
+| Entirely Y | Composite of X and Y | Partial Swap of some Y | 
+| Composite of X and Y | Entirely X | Partial Swap of some Y | 
+| Composite of X and Y | Entirely Y | Partial Swap of some X | 
+| Composite of X and Y | Composite of X and Y | Partial Swap of some X or Y | 
+
+
