@@ -2,9 +2,11 @@
 
 mod bin_selector;
 mod blueprint_interface;
+mod tick_math;
 
 pub use crate::bin_selector::*;
 pub use crate::blueprint_interface::*;
+pub use crate::tick_math::*;
 
 use adapters_interface::prelude::*;
 use scrypto::prelude::*;
@@ -27,12 +29,10 @@ macro_rules! define_error {
 define_error! {
     RESOURCE_DOES_NOT_BELONG_ERROR
         => "One or more of the resources do not belong to pool.";
-    NO_ACTIVE_BIN_ERROR
-        => "Pool has no active bin.";
-    NO_ACTIVE_AMOUNTS_ERROR
-        => "Pool has no active amounts.";
-    NO_PRICE_ERROR
-        => "Pool has no price.";
+    NO_ACTIVE_BIN_ERROR => "Pool has no active bin.";
+    NO_ACTIVE_AMOUNTS_ERROR => "Pool has no active amounts.";
+    NO_PRICE_ERROR => "Pool has no price.";
+    TICK_ARITHMETIC_ERROR => "An error has happened in the tick arithmetic.";
 }
 
 /// The total number of bins that we will be using on the left and the right
@@ -302,11 +302,144 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             pool_units: Bucket,
-            _adapter_specific_information: AnyValue,
+            adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
+            let bin_span = pool.get_bin_span();
 
             let (bucket1, bucket2) = pool.remove_liquidity(pool_units);
+
+            // Calculating the fees on the position. The way we go about this is
+            // by calculating how much we expect to close our position for based
+            // on information we know about it such as the contribution we made
+            // and the reserves in that particular bin. Once we have calculated
+            // this theoretical amount we say that the fees is the difference
+            // between this theoretical amount and the actual amount.
+            {
+                let mut amount_expected_in_bins =
+                    IndexMap::<u32, ResourceIndexedData<Decimal>>::new();
+
+                // Decoding the adapter specific information as the type we
+                // expect it to be.
+                let CaviarnineAdapterSpecificInformation {
+                    bin_information_when_position_opened,
+                } = adapter_specific_information.as_typed().unwrap();
+
+                // We want to calculate how much we expect to get back at this
+                // price of the pool
+                let pool_price = self.price(pool_address);
+
+                // Iterating over each bin we contributed to and doing the math
+                // needed to populate `amount_expected_in_bins`
+                for (tick, bin_information) in
+                    bin_information_when_position_opened.into_iter()
+                {
+                    // Determine the composition of the bin when the pool was first opened.
+                    let ResourceIndexedData {
+                        resource_x: reserves_x,
+                        resource_y: reserves_y,
+                    } = bin_information.reserves;
+                    let contribution @ ResourceIndexedData {
+                        resource_x: contribution_x,
+                        resource_y: contribution_y,
+                    } = bin_information.contribution;
+
+                    let bin_composition_when_position_opened = match (
+                        reserves_x == Decimal::ZERO,
+                        reserves_y == Decimal::ZERO,
+                    ) {
+                        // TODO: I think that this is impossible? I believe that
+                        // it is impossible since we only capture the bins that
+                        // we have contributed to and THEN store the reserves in
+                        // the bin. If we contributed to it, how come its empty
+                        // of both resources?
+                        //
+                        // If this is somehow possible, what do we want to do
+                        // in this case?
+                        (true, true) => panic!("What?"),
+                        (true, false) => Composition::EntirelyY,
+                        (false, true) => Composition::EntirelyX,
+                        (false, false) => Composition::Composite,
+                    };
+
+                    // Determine what we expect the composition of this bin to
+                    // be based on the current price.
+                    let expected_bin_composition_now = {
+                        let lower_price =
+                            tick_to_spot(tick).expect(TICK_ARITHMETIC_ERROR);
+                        let upper_price = tick_to_spot(tick + bin_span)
+                            .expect(TICK_ARITHMETIC_ERROR);
+                        let current_price = pool_price.price;
+
+                        // Case A: The current price is indie this bin. Since we
+                        // are the current active bin then it's expected that
+                        // this bin has both X and Y assets.
+                        if current_price >= lower_price
+                            && current_price <= upper_price
+                        {
+                            Composition::Composite
+                        }
+                        // Case B: The current price of the pool is greater than
+                        // the upper bound of the bin. We're outside of that
+                        // range and there should only be Y assets in the bin.
+                        else if current_price > upper_price {
+                            Composition::EntirelyY
+                        }
+                        // Case C: The current price of the pool is smaller than
+                        // the lower bound of the bin. We're outside of that
+                        // range and there should only be X assets in the bin.
+                        else {
+                            Composition::EntirelyX
+                        }
+                    };
+
+                    // Matching over what the bin composition was and what it is
+                    // expected to be now to determine what calculation to do.
+                    match (
+                        bin_composition_when_position_opened,
+                        expected_bin_composition_now,
+                    ) {
+                        // Case A: The bin was composed of some asset and is
+                        // still composed of the same asset. In this case, we
+                        // do not need to do any calculations. We expect to get
+                        // back the same amount we put in.
+                        (Composition::EntirelyX, Composition::EntirelyX)
+                        | (Composition::EntirelyY, Composition::EntirelyY) => {
+                            *amount_expected_in_bins
+                                .entry(tick)
+                                .or_default() += contribution;
+                        }
+                        // Case B: The bin was composed of one asset and is now
+                        // composed entirely of the other asset. In this case,
+                        // we need to "swap" the entire amount that was in the
+                        // bin for the other asset.
+                        (Composition::EntirelyX, Composition::EntirelyY) => {
+                            todo!()
+                        }
+                        (Composition::EntirelyY, Composition::EntirelyX) => {
+                            todo!()
+                        }
+                        // Case C:
+                        (Composition::EntirelyX, Composition::Composite) => {
+                            todo!()
+                        }
+                        (Composition::EntirelyY, Composition::Composite) => {
+                            todo!()
+                        }
+                        (Composition::Composite, Composition::EntirelyX) => {
+                            todo!()
+                        }
+                        (Composition::Composite, Composition::EntirelyY) => {
+                            todo!()
+                        }
+                        (Composition::Composite, Composition::Composite) => {
+                            todo!()
+                        }
+                    };
+                }
+
+                amount_expected_in_bins;
+            }
 
             CloseLiquidityPositionOutput {
                 resources: indexmap! {
@@ -460,6 +593,12 @@ where
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs
     }
+}
+
+pub enum Composition {
+    EntirelyX,
+    EntirelyY,
+    Composite,
 }
 
 #[cfg(test)]
