@@ -235,13 +235,30 @@ impl ScryptoTestEnv {
                     )?;
 
                 let resource_x = ResourceManager(*resource_address)
-                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                    .mint_fungible(dec!(2_000_000_000), &mut env)?;
                 let resource_y = ResourceManager(XRD)
-                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                    .mint_fungible(dec!(2_000_000_000), &mut env)?;
                 let _ = caviarnine_pool.add_liquidity(
                     resource_x,
                     resource_y,
-                    vec![(27000, dec!(100_000_000), dec!(100_000_000))],
+                    (0..10)
+                        .flat_map(|offset| {
+                            [
+                                (
+                                    27000 - offset * 50,
+                                    dec!(100_000_000),
+                                    dec!(100_000_000),
+                                ),
+                                (
+                                    27000 + offset * 50,
+                                    dec!(100_000_000),
+                                    dec!(100_000_000),
+                                ),
+                            ]
+                        })
+                        .chain([(27000, dec!(100_000_000), dec!(100_000_000))])
+                        .rev()
+                        .collect(),
                     &mut env,
                 )?;
 

@@ -117,6 +117,35 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
+    test_runner
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .withdraw_from_account(
+                    account_address,
+                    resources.bitcoin,
+                    dec!(100_000),
+                )
+                .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                .with_bucket("bitcoin", |builder, bucket| {
+                    builder.call_method(
+                        protocol.ignition,
+                        "open_liquidity_position",
+                        (
+                            bucket,
+                            caviarnine.pools.bitcoin,
+                            LockupPeriod::from_months(6),
+                        ),
+                    )
+                })
+                .try_deposit_entire_worktop_or_abort(account_address, None)
+                .build(),
+            EnabledModules::for_test_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
+        )
+        .expect_commit_success();
+
     // Act
     let receipt = test_runner.execute_manifest(
         ManifestBuilder::new()
@@ -179,32 +208,36 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    test_runner
-        .execute_manifest(
-            ManifestBuilder::new()
-                .lock_fee_from_faucet()
-                .withdraw_from_account(
-                    account_address,
-                    resources.bitcoin,
-                    dec!(100_000),
-                )
-                .take_all_from_worktop(resources.bitcoin, "bitcoin")
-                .with_bucket("bitcoin", |builder, bucket| {
-                    builder.call_method(
-                        protocol.ignition,
-                        "open_liquidity_position",
-                        (
-                            bucket,
-                            caviarnine.pools.bitcoin,
-                            LockupPeriod::from_months(6),
-                        ),
+    for _ in 0..2 {
+        test_runner
+            .execute_manifest_with_enabled_modules(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .withdraw_from_account(
+                        account_address,
+                        resources.bitcoin,
+                        dec!(100_000),
                     )
-                })
-                .try_deposit_entire_worktop_or_abort(account_address, None)
-                .build(),
-            vec![NonFungibleGlobalId::from_public_key(&public_key)],
-        )
-        .expect_commit_success();
+                    .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                    .with_bucket("bitcoin", |builder, bucket| {
+                        builder.call_method(
+                            protocol.ignition,
+                            "open_liquidity_position",
+                            (
+                                bucket,
+                                caviarnine.pools.bitcoin,
+                                LockupPeriod::from_months(6),
+                            ),
+                        )
+                    })
+                    .try_deposit_entire_worktop_or_abort(account_address, None)
+                    .build(),
+                EnabledModules::for_test_transaction()
+                    & !EnabledModules::AUTH
+                    & !EnabledModules::COSTING,
+            )
+            .expect_commit_success();
+    }
 
     let current_time = test_runner.get_current_time(TimePrecisionV2::Minute);
     let maturity_instant = current_time
@@ -408,7 +441,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         .unwrap();
     assert_eq!(
         adapter_information
-            .bin_information_when_position_opened
+            .bin_information_after_position_opened
             .len(),
         (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
     );
@@ -566,7 +599,7 @@ pub fn reserves_amount_reported_in_receipt_nft_matches_caviarnine_state(
         .adapter_specific_information
         .as_typed::<CaviarnineAdapterSpecificInformation>()
         .unwrap()
-        .bin_information_when_position_opened
+        .bin_information_after_position_opened
         .into_iter()
         .map(|(bin, information)| {
             (
@@ -581,6 +614,255 @@ pub fn reserves_amount_reported_in_receipt_nft_matches_caviarnine_state(
     assert_eq!(adapter_reported_reserves, caviarnine_reported_reserves);
 
     Ok(())
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_stays_the_same_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_down_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_up_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_stays_the_same_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_down_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_up_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_stays_the_same_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_down_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_up_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+fn non_strict_testing_of_fees(
+    protocol_coefficient: Movement,
+    price_of_user_asset: Movement,
+    result: CloseLiquidityResult,
+) -> Result<(), RuntimeError> {
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool_reported_price = caviarnine
+        .adapter
+        .price(caviarnine.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
+
+    let bitcoin_amount_in = dec!(100);
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(bitcoin_amount_in, env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6),
+        env,
+    )?;
+
+    let pool_units = caviarnine
+        .adapter
+        .open_liquidity_position(
+            caviarnine.pools.bitcoin.try_into().unwrap(),
+            (
+                ResourceManager(resources.bitcoin)
+                    .mint_fungible(dec!(100_000), env)?,
+                ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
+            ),
+            env,
+        )?
+        .pool_units;
+
+    match price_of_user_asset {
+        // User asset price goes down - i.e., we inject it into the pool.
+        Movement::Down => {
+            let bitcoin_bucket = ResourceManager(resources.bitcoin)
+                .mint_fungible(dec!(450_000_000), env)?;
+            let _ = caviarnine.pools.bitcoin.swap(bitcoin_bucket, env)?;
+        }
+        // The user asset price stays the same. We do not do anything.
+        Movement::Same => {}
+        // User asset price goes up - i.e., we reduce it in the pool.
+        Movement::Up => {
+            let xrd_bucket =
+                ResourceManager(XRD).mint_fungible(dec!(450_000_000), env)?;
+            let _ = caviarnine.pools.bitcoin.swap(xrd_bucket, env)?;
+        }
+    }
+
+    match protocol_coefficient {
+        // Somebody claimed some portion of the pool
+        Movement::Down => {
+            let _ =
+                caviarnine.pools.bitcoin.remove_liquidity(pool_units, env)?;
+        }
+        // Nothing
+        Movement::Same => {}
+        // Somebody contributed to the pool some amount
+        Movement::Up => {
+            let _ = caviarnine
+                .adapter
+                .open_liquidity_position(
+                    caviarnine.pools.bitcoin.try_into().unwrap(),
+                    (
+                        ResourceManager(resources.bitcoin)
+                            .mint_fungible(dec!(100_000), env)?,
+                        ResourceManager(XRD)
+                            .mint_fungible(dec!(100_000), env)?,
+                    ),
+                    env,
+                )?
+                .pool_units;
+        }
+    }
+
+    env.set_current_time(Instant::new(
+        *LockupPeriod::from_months(12).seconds() as i64,
+    ));
+    let pool_reported_price = caviarnine
+        .adapter
+        .price(caviarnine.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
+
+    let buckets = IndexedBuckets::from_buckets(
+        protocol.ignition.close_liquidity_position(receipt, env)?,
+        env,
+    )?;
+
+    let bitcoin_amount_out = buckets
+        .get(&resources.bitcoin)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToPositiveInfinity)
+        .unwrap();
+    let xrd_amount_out = buckets
+        .get(&XRD)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToZero)
+        .unwrap();
+
+    match result {
+        CloseLiquidityResult::GetFees => {
+            // Bitcoin we get back must be strictly greater than what we put in.
+            assert!(bitcoin_amount_out > bitcoin_amount_in);
+            // When we get back fees we MUST not get back any XRD
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::SameAmount => {
+            // Bitcoin we get back must be strictly equal to what we put in.
+            assert_eq!(bitcoin_amount_out, bitcoin_amount_in);
+            // If we get back the same amount then we must NOT get back any XRD.
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::Reimbursement => {
+            // Bitcoin we get back must be less than what we put in.
+            assert!(bitcoin_amount_out < bitcoin_amount_in);
+            // We must get back SOME xrd.
+            assert_ne!(xrd_amount_out, Decimal::ZERO);
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Movement {
+    Down,
+    Same,
+    Up,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CloseLiquidityResult {
+    GetFees,
+    SameAmount,
+    Reimbursement,
 }
 
 fn approximately_equals(a: Decimal, b: Decimal) -> bool {

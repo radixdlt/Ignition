@@ -3,7 +3,13 @@ default_to_workspace = false
 
 [tasks.test]
 command = "cargo"
-args = ["nextest", "run", "--features", "package-loader/build-time-blueprints"]
+args = [
+    "nextest",
+    "run",
+    "--features",
+    "package-loader/build-time-blueprints",
+    "--no-fail-fast",
+]
 
 [tasks.check]
 install_crate = "clippy"
