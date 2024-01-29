@@ -33,7 +33,7 @@ impl EnvironmentSpecifier for ScryptoTestEnvironmentSpecifier {
     type CaviarninePool = CaviarNinePoolInterfaceScryptoTestStub;
 
     type OciswapAdapter = OciswapAdapter;
-    type CaviarnineAdapter = CaviarNineAdapter;
+    type CaviarnineAdapter = CaviarnineAdapter;
 
     // Badges
     type Badge = Bucket;
@@ -268,12 +268,14 @@ impl ScryptoTestEnv {
         // Instantiating the components.
         let mut simple_oracle = SimpleOracle::instantiate(
             protocol_manager_rule.clone(),
+            Default::default(),
             OwnerRole::None,
             None,
             simple_oracle_package,
             &mut env,
         )?;
         let mut ignition = Ignition::instantiate(
+            Default::default(),
             OwnerRole::None,
             protocol_owner_rule,
             protocol_manager_rule,
@@ -287,12 +289,14 @@ impl ScryptoTestEnv {
             &mut env,
         )?;
         let ociswap_adapter_v1 = OciswapAdapter::instantiate(
+            Default::default(),
             OwnerRole::None,
             None,
             ociswap_adapter_v1_package,
             &mut env,
         )?;
-        let caviarnine_adapter_v1 = CaviarNineAdapter::instantiate(
+        let caviarnine_adapter_v1 = CaviarnineAdapter::instantiate(
+            Default::default(),
             OwnerRole::None,
             None,
             caviarnine_adapter_v1_package,
@@ -629,6 +633,7 @@ impl ScryptoUnitEnv {
                         "instantiate",
                         (
                             protocol_manager_rule.clone(),
+                            MetadataInit::default(),
                             OwnerRole::None,
                             None::<ManifestAddressReservation>,
                         ),
@@ -668,6 +673,7 @@ impl ScryptoUnitEnv {
                         "Ignition",
                         "instantiate",
                         (
+                            MetadataInit::default(),
                             OwnerRole::None,
                             protocol_owner_rule,
                             protocol_manager_rule,
@@ -692,7 +698,7 @@ impl ScryptoUnitEnv {
 
         let [ociswap_adapter_v1, caviarnine_adapter_v1] = [
             (ociswap_adapter_v1_package, "OciswapAdapter"),
-            (caviarnine_adapter_v1_package, "CaviarNineAdapter"),
+            (caviarnine_adapter_v1_package, "CaviarnineAdapter"),
         ]
         .map(|(package_address, blueprint_name)| {
             test_runner
@@ -704,6 +710,7 @@ impl ScryptoUnitEnv {
                             blueprint_name,
                             "instantiate",
                             (
+                                MetadataInit::default(),
                                 OwnerRole::None,
                                 None::<ManifestAddressReservation>,
                             ),

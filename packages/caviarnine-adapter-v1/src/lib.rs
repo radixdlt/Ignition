@@ -44,13 +44,14 @@ pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 10 * 2;
 
 #[blueprint_with_traits]
 pub mod adapter {
-    struct CaviarNineAdapter;
+    struct CaviarnineAdapter;
 
-    impl CaviarNineAdapter {
+    impl CaviarnineAdapter {
         pub fn instantiate(
+            metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
-        ) -> Global<CaviarNineAdapter> {
+        ) -> Global<CaviarnineAdapter> {
             let address_reservation = address_reservation.unwrap_or(
                 Runtime::allocate_component_address(BlueprintId {
                     package_address: Runtime::package_address(),
@@ -62,6 +63,10 @@ pub mod adapter {
             Self {}
                 .instantiate()
                 .prepare_to_globalize(owner_role)
+                .metadata(ModuleConfig {
+                    init: metadata_init,
+                    roles: Default::default(),
+                })
                 .with_address(address_reservation)
                 .globalize()
         }
@@ -73,7 +78,7 @@ pub mod adapter {
         }
     }
 
-    impl PoolAdapterInterfaceTrait for CaviarNineAdapter {
+    impl PoolAdapterInterfaceTrait for CaviarnineAdapter {
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,

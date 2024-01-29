@@ -26,6 +26,7 @@ mod simple_oracle {
     impl SimpleOracle {
         pub fn instantiate(
             oracle_manager: AccessRule,
+            metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<SimpleOracle> {
@@ -44,6 +45,10 @@ mod simple_oracle {
             .prepare_to_globalize(owner_role)
             .roles(roles! {
                 oracle_manager => oracle_manager;
+            })
+            .metadata(ModuleConfig {
+                init: metadata_init,
+                roles: Default::default(),
             })
             .with_address(address_reservation)
             .globalize()

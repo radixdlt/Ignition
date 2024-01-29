@@ -241,6 +241,7 @@ mod ignition {
         /// Instantiates a new Ignition protocol component based on the provided
         /// protocol parameters.
         pub fn instantiate(
+            metadata_init: MetadataInit,
             /* Rules */
             owner_role: OwnerRole,
             protocol_owner_role: AccessRule,
@@ -347,10 +348,13 @@ mod ignition {
             ignition
                 .instantiate()
                 .prepare_to_globalize(owner_role)
-                // TODO: update metadata
                 .roles(roles! {
                     protocol_owner => protocol_owner_role;
                     protocol_manager => protocol_manager_role;
+                })
+                .metadata(ModuleConfig {
+                    init: metadata_init,
+                    roles: Default::default(),
                 })
                 .with_address(address_reservation)
                 .globalize()

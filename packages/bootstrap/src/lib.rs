@@ -140,7 +140,7 @@ mod bootstrap {
             let caviarnine_adapter = scrypto_decode::<ComponentAddress>(
                 &ScryptoVmV1Api::blueprint_call(
                     caviarnine_adapter_v1_package_address,
-                    "CaviarNineAdapter",
+                    "CaviarnineAdapter",
                     "instantiate",
                     scrypto_args!(
                         OwnerRole::None,
@@ -149,7 +149,7 @@ mod bootstrap {
                 ),
             )
             .map(|address| {
-                Global::<CaviarNineAdapter>(CaviarNineAdapterObjectStub {
+                Global::<CaviarnineAdapter>(CaviarnineAdapterObjectStub {
                     handle: ObjectStubHandle::Global(address.into()),
                 })
             })

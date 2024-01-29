@@ -37,6 +37,7 @@ pub mod adapter {
 
     impl OciswapAdapter {
         pub fn instantiate(
+            metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<OciswapAdapter> {
@@ -51,6 +52,10 @@ pub mod adapter {
             Self {}
                 .instantiate()
                 .prepare_to_globalize(owner_role)
+                .metadata(ModuleConfig {
+                    init: metadata_init,
+                    roles: Default::default(),
+                })
                 .with_address(address_reservation)
                 .globalize()
         }
