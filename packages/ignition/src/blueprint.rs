@@ -1625,6 +1625,23 @@ pub struct PoolBlueprintInformation {
     pub liquidity_receipt: ResourceAddress,
 }
 
+/// Represents the information of pools belonging to a particular blueprint.
+#[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor, ManifestSbor)]
+pub struct PoolBlueprintInformationManifest {
+    /// The adapter to utilize when making calls to pools belonging to this
+    /// blueprint.
+    pub adapter: ComponentAddress,
+
+    /// A vector of the pools that the protocol allows contributions to. A pool
+    /// that is not found in this list for their corresponding blueprint will
+    /// not be allowed to be contributed to.
+    pub allowed_pools: IndexSet<ComponentAddress>,
+
+    /// A reference to the resource manager of the resource used as a receipt
+    /// for providing liquidity to pools of this blueprint
+    pub liquidity_receipt: ResourceAddress,
+}
+
 impl PoolBlueprintInformation {
     pub fn liquidity_receipt(&self) -> ResourceManager {
         ResourceManager::from(self.liquidity_receipt)
@@ -1722,7 +1739,7 @@ pub struct InitializationParameters {
 pub struct InitializationParametersManifest {
     /// The initial set of pool information to add to to Ignition.
     pub initial_pool_information:
-        Option<IndexMap<BlueprintId, PoolBlueprintInformation>>,
+        Option<IndexMap<BlueprintId, PoolBlueprintInformationManifest>>,
 
     /// The initial volatility settings to add to Ignition.
     pub initial_user_resource_volatility:
