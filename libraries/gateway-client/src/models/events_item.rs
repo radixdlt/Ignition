@@ -6,14 +6,14 @@ pub struct EventsItem {
     #[serde(rename = "emitter")]
     pub emitter: serde_json::Value,
     #[serde(rename = "data")]
-    pub data: Box<crate::models::ProgrammaticScryptoSborValue>,
+    pub data: Box<serde_json::Value>,
 }
 
 impl EventsItem {
     pub fn new(
         name: String,
         emitter: serde_json::Value,
-        data: crate::models::ProgrammaticScryptoSborValue,
+        data: serde_json::Value,
     ) -> EventsItem {
         EventsItem {
             name,

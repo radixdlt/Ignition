@@ -365,7 +365,7 @@ pub use self::transaction_preview_response::TransactionPreviewResponse;
 pub mod transaction_preview_response_logs_inner;
 pub use self::transaction_preview_response_logs_inner::TransactionPreviewResponseLogsInner;
 pub mod transaction_receipt;
-pub use self::transaction_receipt::TransactionReceipt;
+pub use self::transaction_receipt::{Entity, StateUpdates, TransactionReceipt};
 pub mod transaction_status;
 pub use self::transaction_status::TransactionStatus;
 pub mod transaction_status_request;

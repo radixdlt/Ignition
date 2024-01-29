@@ -6,7 +6,7 @@ edition.workspace = true
 
 [dependencies]
 serde = { version = "1.0.195", features = ["derive"] }
-serde_with = { version = "3.5.1" }
+serde_with = { version = "3.5.1", features = ["hex"] }
 serde_json = { version = "1.0.111" }
 url = { version = "2.5.0" }
 uuid = { version = "1.7.0", features = ["serde", "v4"] }
