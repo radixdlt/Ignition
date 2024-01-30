@@ -3,26 +3,26 @@
   "resources": {
     "resource_rdx1tkafx32lu72mcxr85gjx0rh3rx9q89zqffg4phmv5rxdqg5fnd0w7s": {
       "divisibility": 6,
-      "name": "Fake USDT",
-      "symbol": "fakeUSDT",
+      "name": "USDT",
+      "symbol": "USDT",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDT.png"
     },
     "resource_rdx1tkscrlztcyn82ej5z3n232f0qqp0qur69arjf279ppmg5usa3xhnsm": {
       "divisibility": 18,
-      "name": "Fake Ethereum",
-      "symbol": "fakeETH",
+      "name": "Ethereum",
+      "symbol": "ETH",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xETH.png"
     },
     "resource_rdx1th7nx2hy0cf6aea6mz7zhkdmy4p45s488xutltnp7296zxj8hwchpf": {
       "divisibility": 6,
-      "name": "Fake USDC",
-      "symbol": "fakeUSDC",
+      "name": "USDC",
+      "symbol": "USDC",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xUSDC.png"
     },
     "resource_rdx1t58dla7ykxzxe5es89wlhgzatqla0gceukg0eeduzvtj4cxd55etn8": {
       "divisibility": 6,
-      "name": "Fake Bitcoin",
-      "symbol": "fakeBTC",
+      "name": "Bitcoin",
+      "symbol": "BTC",
       "icon_url": "https://assets.instabridge.io/tokens/icons/xwBTC.png"
     }
   },
