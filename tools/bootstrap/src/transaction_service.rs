@@ -59,10 +59,14 @@ impl<'a> TransactionService<'a> {
         &self,
         mut manifest: TransactionManifestV1,
         notary_private_key: &PrivateKey,
-        fee_handling: FeeHandling<'_>,
+        fee_handling: &FeeHandling<'_>,
     ) -> std::result::Result<SimplifiedTransactionReceipt, Error> {
         // Generating the nonce that will be used in submitting the transaction.
-        let nonce = rand::random::<i64>();
+        let nonce = rand::random::<u32>();
+
+        // Getting the epoch bounds of this transaction
+        let current_epoch = self.current_epoch()?;
+        let max_epoch = current_epoch.after(10).unwrap();
 
         let additional_signatures = if let FeeHandling::EstimateAndLock {
             fee_payer_private_key,
@@ -101,12 +105,6 @@ impl<'a> TransactionService<'a> {
             fee_payer_private_key,
         } = fee_handling
         {
-            // Determine if the fee payer is different from the notary. If it is
-            // then we require an additional fee payer signature before we can
-            // submit the transaction.
-            let is_additional_fee_payer_signature_required =
-                !additional_signatures.is_empty();
-
             let decompiled_manifest = decompile(
                 &manifest.instructions,
                 self.bech32m_coders.network_definition,
@@ -121,8 +119,8 @@ impl<'a> TransactionService<'a> {
                         blobs_hex: Some(
                             manifest.blobs.values().map(hex::encode).collect(),
                         ),
-                        start_epoch_inclusive: 100,
-                        end_epoch_exclusive: 200,
+                        start_epoch_inclusive: current_epoch.number() as i64,
+                        end_epoch_exclusive: max_epoch.number() as i64,
                         notary_public_key: match notary_private_key.public_key()
                         {
                             NativePublicKey::Secp256k1(pk) => Some(Box::new(
@@ -136,28 +134,23 @@ impl<'a> TransactionService<'a> {
                         },
                         notary_is_signatory: Some(true),
                         tip_percentage: 0,
-                        nonce,
-                        signer_public_keys:
-                            if is_additional_fee_payer_signature_required {
-                                vec![match fee_payer_private_key.public_key() {
-                                    NativePublicKey::Secp256k1(pk) => {
-                                        GatewayPublicKey::EcdsaSecp256k1 {
-                                            key: pk.0,
-                                        }
-                                    }
-                                    NativePublicKey::Ed25519(pk) => {
-                                        GatewayPublicKey::EddsaEd25519 {
-                                            key: pk.0,
-                                        }
-                                    }
-                                }]
-                            } else {
-                                vec![]
-                            },
+                        nonce: nonce as i64,
+                        signer_public_keys: vec![match fee_payer_private_key {
+                            PrivateKey::Secp256k1(pk) => {
+                                GatewayPublicKey::EcdsaSecp256k1 {
+                                    key: pk.public_key().0,
+                                }
+                            }
+                            PrivateKey::Ed25519(pk) => {
+                                GatewayPublicKey::EddsaEd25519 {
+                                    key: pk.public_key().0,
+                                }
+                            }
+                        }],
                         flags: Box::new(TransactionPreviewRequestFlags {
                             use_free_credit: true,
                             assume_all_signature_proofs: true,
-                            skip_epoch_check: true,
+                            skip_epoch_check: false,
                         }),
                     },
                 )?;
@@ -165,10 +158,11 @@ impl<'a> TransactionService<'a> {
                 // Ensure that the transaction succeeded in preview. Getting the
                 // fees of a transaction that failed or was rejected has no
                 // point.
-                let receipt = scrypto_decode::<TransactionReceiptV1>(
+                let receipt = scrypto_decode::<VersionedTransactionReceipt>(
                     &preview_response.encoded_receipt,
                 )
-                .unwrap();
+                .unwrap()
+                .into_latest();
 
                 if !receipt.is_commit_success() {
                     return Err(Error::PreviewFailed {
@@ -184,14 +178,14 @@ impl<'a> TransactionService<'a> {
                     + receipt.fee_summary.total_royalty_cost_in_xrd
             };
 
-            // Adding a 10% padding over the fees that were calculated.
-            let fees_to_lock = fees * dec!(1.1);
+            // Adding a 50% padding over the fees that were calculated.
+            let fees_to_lock = fees * dec!(1.5);
 
             // Adding the instruction to lock fees.
             manifest.instructions.insert(
                 0,
                 InstructionV1::CallMethod {
-                    address: fee_payer_account.into(),
+                    address: (*fee_payer_account).into(),
                     method_name: ACCOUNT_LOCK_FEE_IDENT.to_owned(),
                     args: manifest_args!(fees_to_lock).into(),
                 },
@@ -199,22 +193,19 @@ impl<'a> TransactionService<'a> {
         };
 
         // Constructing the transaction and submitting it.
-        let current_epoch =
-            gateway_status(&self.gateway_config())?.ledger_state.epoch;
-
         let mut builder = TransactionBuilder::new().manifest(manifest).header(
             TransactionHeaderV1 {
                 network_id: self.bech32m_coders.network_definition.id,
-                start_epoch_inclusive: Epoch::of(current_epoch as u64),
-                end_epoch_exclusive: Epoch::of((current_epoch + 10) as u64),
-                nonce: rand::random(),
+                start_epoch_inclusive: current_epoch,
+                end_epoch_exclusive: max_epoch,
+                nonce,
                 notary_public_key: notary_private_key.public_key(),
                 notary_is_signatory: true,
                 tip_percentage: 0,
             },
         );
         for key in additional_signatures {
-            builder = builder.sign(key);
+            builder = builder.sign(*key);
         }
         let notarized_transaction =
             builder.notarize(notary_private_key).build();
@@ -345,6 +336,12 @@ impl<'a> TransactionService<'a> {
             base_path: self.gateway_api_base_url.clone(),
             ..Default::default()
         }
+    }
+
+    fn current_epoch(&self) -> std::result::Result<Epoch, Error> {
+        Ok(Epoch::of(
+            gateway_status(&self.gateway_config())?.ledger_state.epoch as u64,
+        ))
     }
 }
 

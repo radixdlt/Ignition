@@ -31,6 +31,7 @@ pub enum Error {
     TransactionWasNotSuccessful {
         intent_hash: String,
     },
+    FailedToLoadPrivateKey,
 }
 
 impl From<DecompileError> for Error {

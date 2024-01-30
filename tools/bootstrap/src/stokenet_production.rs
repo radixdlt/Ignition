@@ -14,11 +14,35 @@ use radix_engine_interface::blueprints::account::*;
 use radix_engine_interface::prelude::*;
 use transaction::prelude::*;
 
+const PRIVATE_KEY_ENVIRONMENT_VARIABLE: &str = "PRIVATE_KEY";
+
 #[derive(Parser, Debug)]
 pub struct StokenetProduction {}
 
 impl StokenetProduction {
     pub fn run<O: std::io::Write>(self, _: &mut O) -> Result<(), Error> {
+        // Loading the private key that will notarize and pay the fees of the
+        // transaction.
+        let notary_private_key = {
+            std::env::var(PRIVATE_KEY_ENVIRONMENT_VARIABLE)
+                .map_err(|_| Error::FailedToLoadPrivateKey)
+                .and_then(|hex| {
+                    hex::decode(hex).map_err(|_| Error::FailedToLoadPrivateKey)
+                })
+                .and_then(|bytes| {
+                    Ed25519PrivateKey::from_bytes(&bytes)
+                        .map_err(|_| Error::FailedToLoadPrivateKey)
+                })
+                .map(PrivateKey::Ed25519)
+        }?;
+        let notary_account = ComponentAddress::virtual_account_from_public_key(
+            &notary_private_key.public_key(),
+        );
+        let fee_handling = FeeHandling::EstimateAndLock {
+            fee_payer_account: notary_account,
+            fee_payer_private_key: &notary_private_key,
+        };
+
         // Initializing all of the data that this command will use. These are
         // pretty much constants but we can't make them constants because most
         // of the functions are not `const`. There is also not really a point
@@ -72,11 +96,6 @@ impl StokenetProduction {
             LockupPeriod::from_months(12) => dec!(0.20),  // 20.0%
         };
 
-        // TODO: In mainnet this will notarize and always pay the fees. What
-        // should this private key be?
-        let notary_private_key =
-            PrivateKey::Ed25519(Ed25519PrivateKey::from_u64(1).unwrap());
-
         // TODO: MUST determine what those accounts are prior to launch!
         // For now they are MY stokenet accounts!
         let protocol_manager_account = component_address!("account_tdx_2_12xxuglkrdgcphpqk34fv59ewq3gu5uwlzs42hpy0grsrefvgwgxrev");
@@ -109,7 +128,6 @@ impl StokenetProduction {
         // will also change its owner to be the protocol Owner badge.
         let dapp_definition_account = {
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 .call_function(
                     ACCOUNT_PACKAGE,
                     ACCOUNT_BLUEPRINT,
@@ -122,12 +140,9 @@ impl StokenetProduction {
                     },
                 )
                 .build();
+            std::thread::sleep(std::time::Duration::from_secs(5));
             *transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_component_addresses
                 .first()
                 .expect("Must succeed!")
@@ -137,7 +152,6 @@ impl StokenetProduction {
         // sending them off to the accounts specified up above.
         let (protocol_manager_badge, protocol_owner_badge) = {
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 // The protocol manager badge
                 .create_fungible_resource(
                     OwnerRole::None,
@@ -177,12 +191,9 @@ impl StokenetProduction {
                 .try_deposit_entire_worktop_or_abort(protocol_owner_account, None)
                 .build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let resource_addresses = transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_resource_addresses;
             (
                 *resource_addresses.first().unwrap(),
@@ -218,7 +229,6 @@ impl StokenetProduction {
             // caviarnine adapter v1 all in a single transaction since they
             // are below the size limit.
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 .publish_package_advanced(
                     None,
                     simple_oracle_code,
@@ -256,12 +266,9 @@ impl StokenetProduction {
                     owner_role.clone(),
                 ).build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let package_addresses = transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_package_addresses;
 
             let (
@@ -276,7 +283,6 @@ impl StokenetProduction {
 
             // Publishing the Ignition package
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 .publish_package_advanced(
                     None,
                     ignition_code,
@@ -290,12 +296,9 @@ impl StokenetProduction {
                     owner_role.clone(),
                 )
                 .build();
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let ignition_package_address = *transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_package_addresses
                 .first()
                 .unwrap();
@@ -357,7 +360,6 @@ impl StokenetProduction {
             };
 
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 // Ociswap liquidity receipt
                 .create_ruid_non_fungible_resource::<_, LiquidityReceipt>(
                     owner_role.clone(),
@@ -416,12 +418,9 @@ impl StokenetProduction {
                 )
                 .build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let resource_addresses = transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_resource_addresses;
             (
                 *resource_addresses.first().unwrap(),
@@ -437,7 +436,6 @@ impl StokenetProduction {
             caviarnine_adapter_v1_component,
         ) = {
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 // Creating the oracle component
                 .call_function(
                     simple_oracle_package_address,
@@ -487,12 +485,9 @@ impl StokenetProduction {
                 )
                 .build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let component_addresses = transaction_service
-                .submit_manifest(
-                    manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
-                )?
+                .submit_manifest(manifest, &notary_private_key, &fee_handling)?
                 .new_component_addresses;
 
             let (
@@ -507,7 +502,6 @@ impl StokenetProduction {
 
             // Instantiating the Ignition component
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 // Instantiate Ignition.
                 .call_function(
                     ignition_package_address,
@@ -567,11 +561,12 @@ impl StokenetProduction {
                 )
                 .build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             let component_addresses = transaction_service
                 .submit_manifest(
                     manifest,
-                    &notary_private_key,
-                    FeeHandling::AlreadyHandled,
+                    &ephemeral_private_key,
+                    &fee_handling,
                 )?
                 .new_component_addresses;
 
@@ -637,10 +632,11 @@ impl StokenetProduction {
                 )
                 .build();
 
+            std::thread::sleep(std::time::Duration::from_secs(5));
             transaction_service.submit_manifest(
                 manifest,
                 &ephemeral_private_key,
-                FeeHandling::AlreadyHandled,
+                &fee_handling,
             )?;
         }
 
