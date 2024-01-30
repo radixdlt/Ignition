@@ -17,9 +17,9 @@ use transaction::prelude::*;
 const PRIVATE_KEY_ENVIRONMENT_VARIABLE: &str = "PRIVATE_KEY";
 
 #[derive(Parser, Debug)]
-pub struct StokenetProduction {}
+pub struct MainnetTesting {}
 
-impl StokenetProduction {
+impl MainnetTesting {
     pub fn run<O: std::io::Write>(self, _: &mut O) -> Result<(), Error> {
         // Loading the private key that will notarize and pay the fees of the
         // transaction.
@@ -49,57 +49,56 @@ impl StokenetProduction {
         // in making them a lazy static, let's keep things simple.
 
         /* cSpell:disable - Sorry for this, I dislike it too. */
-        const GATEWAY_API_BASE_URL: &str = "https://stokenet.radixdlt.com/";
-        let network_definition = NetworkDefinition::stokenet();
+        const GATEWAY_API_BASE_URL: &str = "https://mainnet.radixdlt.com/";
+        let network_definition = NetworkDefinition::mainnet();
         let bech32m_coders =
             Bech32mCoders::from_network_definition(&network_definition);
 
         // TODO: What do we want these values to be?
         const MAXIMUM_ALLOWED_PRICE_STALENESS_IN_SECONDS: i64 = 60; // 60 seconds
-        const MAXIMUM_ALLOWED_PRICE_DIFFERENCE_PERCENTAGE: Decimal = dec!(0.05); // 5 %
+        const MAXIMUM_ALLOWED_PRICE_DIFFERENCE_PERCENTAGE: Decimal =
+            Decimal::MAX; // TODO: No oracle is deployed on mainnet for testing yet.
 
-        let protocol_resource = resource_address!("resource_tdx_2_1thwmtk9qet08y3wpujd8nddmvjuqyptg5nt0mw0zcdgcrahu5k36qx");
+        let protocol_resource = resource_address!("resource_rdx1t4dekrf58h0r28s3c93z92w3jt5ngx87jzd63mgc597zmf3534rxfv");
         let resources = NameIndexedResourceInformation {
-            bitcoin: resource_address!("resource_tdx_2_1thltk578jr4v7axqpu5ceznhlha6ca2qtzcflqdmytgtf37xncu7l9"),
-            ethereum: resource_address!("resource_tdx_2_1t59gx963vzd6u6fz63h5de2zh9nmgwxc8y832edmr6pxvz98wg6zu3"),
-            usdc: resource_address!("resource_tdx_2_1thfv477eqwlh8x4wt6xsc62myt4z0zxmdpr4ea74fa8jnxh243y60r"),
-            usdt: resource_address!("resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8"),
+            bitcoin: resource_address!("resource_rdx1t58dla7ykxzxe5es89wlhgzatqla0gceukg0eeduzvtj4cxd55etn8"),
+            ethereum: resource_address!("resource_rdx1tkscrlztcyn82ej5z3n232f0qqp0qur69arjf279ppmg5usa3xhnsm"),
+            usdc: resource_address!("resource_rdx1th7nx2hy0cf6aea6mz7zhkdmy4p45s488xutltnp7296zxj8hwchpf"),
+            usdt: resource_address!("resource_rdx1tkafx32lu72mcxr85gjx0rh3rx9q89zqffg4phmv5rxdqg5fnd0w7s"),
         };
         let exchanges = NameIndexedDexInformation {
             caviarnine: DexInformation {
-                package: package_address!("package_tdx_2_1p57g523zj736u370z6g4ynrytn7t6r2hledvzkhl6tzpg3urn0707e"),
+                package: package_address!("package_rdx1p4r9rkp0cq67wmlve544zgy0l45mswn6h798qdqm47x4762h383wa3"),
                 pools: NameIndexedResourceInformation {
-                    bitcoin: component_address!("component_tdx_2_1czt59vxdqg7q4l0gzphmt5ev6lagl2cu6sm2hsaz9y8ypcf0aukf8r"),
-                    ethereum: component_address!("component_tdx_2_1crqpgnpf3smh7kg8d4sz4h3502l65s4tslwhg46ru07ra6l30pcsj4"),
-                    usdc: component_address!("component_tdx_2_1cpwkf9uhel3ut4ydm58g0uyaw7sxckmp2pz7sdv79vzt9y3p7ad4fu"),
-                    usdt: component_address!("component_tdx_2_1czmdhtq0u8f40khky4c6j74msskuz60yq3y0zewu85phrdj0ryz2hl")
+                    bitcoin: component_address!("component_rdx1crzl2c39m83lpe6fv62epgp3phqunxhc264ys23qz8xeemjcu8lln3"),
+                    ethereum: component_address!("component_rdx1cqk2ufmdq6pkcu7ed7r6u9hmdsht9gyd8y8wwtd7w5znefz9k54a7d"),
+                    usdc: component_address!("component_rdx1cq9q8umlpmngff6y4e534htz0n37te4m7vsj50u9zc58ys65zl6jv9"),
+                    usdt: component_address!("component_rdx1cpl0v3lndt9d7g7uuepztxs9m7m24ly0yfhvcum2y7tm0vlzst0l5y")
                 }
             },
             // TODO: Ths following is INCORRECT INFORMATION! There is no Ociswap
-            // package on Stokenet.
+            // package on mainnet.
             ociswap: DexInformation {
-                package: package_address!("package_tdx_2_1p40dekel26tp2a2srma4sc3lj2ukr6y8k4amr7x8yav86lyyeg7ta7"),
+                package: package_address!("package_rdx1p5l6dp3slnh9ycd7gk700czwlck9tujn0zpdnd0efw09n2zdnn0lzx"),
                 pools: NameIndexedResourceInformation {
-                    bitcoin: component_address!("component_tdx_2_1czt59vxdqg7q4l0gzphmt5ev6lagl2cu6sm2hsaz9y8ypcf0aukf8r"),
-                    ethereum: component_address!("component_tdx_2_1crqpgnpf3smh7kg8d4sz4h3502l65s4tslwhg46ru07ra6l30pcsj4"),
-                    usdc: component_address!("component_tdx_2_1cpwkf9uhel3ut4ydm58g0uyaw7sxckmp2pz7sdv79vzt9y3p7ad4fu"),
-                    usdt: component_address!("component_tdx_2_1czmdhtq0u8f40khky4c6j74msskuz60yq3y0zewu85phrdj0ryz2hl")
+                    bitcoin: component_address!("component_rdx1cr5uxxjq4a0r3gfn6yd62lk96fqca34tnmyqdxkwefhckcjea4t3am"),
+                    ethereum: component_address!("component_rdx1cqylpcl8p45l2h5ew0qrkwyz23dky3e6ucs7kkhrtm90k9z3kzeztn"),
+                    usdc: component_address!("component_rdx1cq96chge0q6kkk962heg0mgfl82gjw7x25dp9jv80gkx90mc3hk2ua"),
+                    usdt: component_address!("component_rdx1cz3fa8qtfgfwjt3fzrtm544a89p5laerww7590g2tfcradqwdv3laq")
                 }
             },
         };
         // TODO: Numbers here are not real and I have added from just to get
         // things going. MUST modify before launch.
         let reward_information = indexmap! {
-            LockupPeriod::from_months(9) => dec!(0.125),  // 12.5%
-            LockupPeriod::from_months(10) => dec!(0.15),  // 15.0%
-            LockupPeriod::from_months(11) => dec!(0.175), // 17.5%
-            LockupPeriod::from_months(12) => dec!(0.20),  // 20.0%
+            LockupPeriod::from_minutes(0) => dec!(0.125),  // 12.5%
+            LockupPeriod::from_minutes(1) => dec!(0.15),  // 15.0%
         };
 
         // TODO: MUST determine what those accounts are prior to launch!
-        // For now they are MY stokenet accounts!
-        let protocol_manager_account = component_address!("account_tdx_2_12xxuglkrdgcphpqk34fv59ewq3gu5uwlzs42hpy0grsrefvgwgxrev");
-        let protocol_owner_account = component_address!("account_tdx_2_12xxuglkrdgcphpqk34fv59ewq3gu5uwlzs42hpy0grsrefvgwgxrev");
+        // For now, for the TEST deployments these are accounts that I CONTROL!
+        let protocol_manager_account = component_address!("account_rdx12xvk6x3usuzu7hdc5clc7lpu8e4czze6xa7vrw7vlek0h84j9299na");
+        let protocol_owner_account = component_address!("account_rdx12xvk6x3usuzu7hdc5clc7lpu8e4czze6xa7vrw7vlek0h84j9299na");
 
         /* cSpell:enable */
 

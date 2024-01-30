@@ -4,6 +4,7 @@
 mod macros;
 mod cli;
 mod error;
+mod mainnet_testing;
 mod stokenet_production;
 mod transaction_service;
 mod types;

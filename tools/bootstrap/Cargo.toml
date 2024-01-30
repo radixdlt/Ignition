@@ -15,6 +15,12 @@ gateway-client = { path = "../../libraries/gateway-client" }
 package-loader = { path = "../../libraries/package-loader", features = [
     "build-time-blueprints",
 ] }
+ociswap-adapter-v1 = { path = "../../packages/ociswap-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+caviarnine-adapter-v1 = { path = "../../packages/caviarnine-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
 
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = { version = "1.0.112" }
