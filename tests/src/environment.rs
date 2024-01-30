@@ -228,7 +228,7 @@ impl ScryptoTestEnv {
                         rule!(allow_all),
                         *resource_address,
                         XRD,
-                        50,
+                        300,
                         None,
                         caviarnine_package,
                         &mut env,
@@ -245,12 +245,12 @@ impl ScryptoTestEnv {
                         .flat_map(|offset| {
                             [
                                 (
-                                    27000 - offset * 50,
+                                    27000 - offset * 300,
                                     dec!(100_000_000),
                                     dec!(100_000_000),
                                 ),
                                 (
-                                    27000 + offset * 50,
+                                    27000 + offset * 300,
                                     dec!(100_000_000),
                                     dec!(100_000_000),
                                 ),

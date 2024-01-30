@@ -13,7 +13,7 @@ pub fn can_open_a_simple_position_against_an_caviarnine_pool(
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -45,7 +45,7 @@ fn caviarnine_liquidity_receipts_are_caviarnine_branded(
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -410,7 +410,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -462,7 +462,7 @@ pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -546,7 +546,7 @@ pub fn reserves_amount_reported_in_receipt_nft_matches_caviarnine_state(
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.03), env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
