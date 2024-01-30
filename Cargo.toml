@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     # Packages
     "packages/ignition",
-    "packages/bootstrap",
     "packages/simple-oracle",
     "packages/ociswap-adapter-v1",
     "packages/caviarnine-adapter-v1",
@@ -13,7 +12,7 @@ members = [
     "libraries/scrypto-interface",
     "libraries/adapters-interface",
     # Tools
-    "tools/bootstrapper",
+    "tools/bootstrap",
     # Tests
     "tests"
 ]

@@ -1,0 +1,24 @@
+[package]
+name = "bootstrap"
+description = "A tool used to bootstrap project Ignition on various networks."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sbor = { workspace = true }
+transaction = { workspace = true }
+radix-engine = { workspace = true }
+radix-engine-interface = { workspace = true }
+
+ignition = { path = "../../packages/ignition" }
+gateway-client = { path = "../../libraries/gateway-client" }
+package-loader = { path = "../../libraries/package-loader", features = [
+    "build-time-blueprints",
+] }
+
+serde = { version = "1.0.196", features = ["derive"] }
+serde_json = { version = "1.0.112" }
+
+hex = { version = "0.4.3", features = ["serde"] }
+clap = { version = "4.4.18", features = ["derive"] }
+rand = { version = "0.8.5" }
