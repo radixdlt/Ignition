@@ -5,6 +5,7 @@ import { CloseLiquidityPosition } from "./components/CloseLiquidityPosition";
 import { OpenLiquidityPosition } from "./components/OpenLiquidityPosition";
 import { useConnectedAccounts } from "./hooks/ConnectedAccounts";
 import { useLastTransactionHash } from "./hooks/LastTransactionHash";
+import { MintUtility } from "./components/MintUtility";
 
 declare global {
   namespace JSX {
@@ -53,17 +54,22 @@ function App() {
 
         {/* Main Body */}
         <div style={{ minWidth: 900, width: 900, maxWidth: 900 }}>
+          <hr />
+          <MintUtility title="Mint Utility" />
+          <hr />
           <OpenLiquidityPosition
             style={{ width: "100%" }}
             title="Open Liquidity Position"
             lastTx={lastTx}
             setLastTx={setLastTx}
           />
+          <hr />
           <CloseLiquidityPosition
             title="Close Liquidity Position"
             lastTx={lastTx}
             setLastTx={setLastTx}
           />
+          <hr />
         </div>
       </div>
     </>
