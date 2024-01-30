@@ -315,10 +315,7 @@ impl StokenetProduction {
         // exchanges will use. They will be mintable and burnable through the
         // Ignition package caller badge.
         let ignition_package_global_caller_rule =
-            rule!(require(global_caller(BlueprintId {
-                package_address: ignition_package_address,
-                blueprint_name: "Ignition".to_owned()
-            })));
+            rule!(require(package_of_direct_caller(ignition_package_address)));
         let (
             ociswap_liquidity_receipt_resource,
             caviarnine_liquidity_receipt_resource,
@@ -350,11 +347,11 @@ impl StokenetProduction {
                     freezer_updater => rule!(deny_all);
                 },
                 deposit_roles: deposit_roles! {
-                    depositor => rule!(deny_all);
+                    depositor => rule!(allow_all);
                     depositor_updater => rule!(deny_all);
                 },
                 withdraw_roles: withdraw_roles! {
-                    withdrawer => rule!(deny_all);
+                    withdrawer => rule!(allow_all);
                     withdrawer_updater => rule!(deny_all);
                 },
             };
@@ -523,7 +520,7 @@ impl StokenetProduction {
                         InitializationParametersManifest {
                             initial_pool_information: Some(indexmap! {
                                 BlueprintId {
-                                    package_address: caviarnine_adapter_v1_package_address,
+                                    package_address: exchanges.caviarnine.package,
                                     blueprint_name: "QuantaSwap".to_owned()
                                 } => PoolBlueprintInformationManifest {
                                     adapter: caviarnine_adapter_v1_component,
@@ -531,7 +528,7 @@ impl StokenetProduction {
                                     liquidity_receipt: caviarnine_liquidity_receipt_resource
                                 },
                                 BlueprintId {
-                                    package_address: ociswap_adapter_v1_package_address,
+                                    package_address: exchanges.ociswap.package,
                                     blueprint_name: "BasicPool".to_owned()
                                 } => PoolBlueprintInformationManifest {
                                     adapter: ociswap_adapter_v1_component,

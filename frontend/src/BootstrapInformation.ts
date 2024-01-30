@@ -7,6 +7,7 @@ export interface TestingBootstrapInformation {
   resources: Record<string, ResourceInformation>;
   protocol: ProtocolConfiguration;
   caviarnine: DexEntities;
+  ociswap: DexEntities;
 }
 
 export interface ProtocolConfiguration {
