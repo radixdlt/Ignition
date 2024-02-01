@@ -261,18 +261,6 @@ pub mod adapter {
 
             (resource_address1, resource_address2)
         }
-
-        // TODO: Final check prior to launch.
-        fn exchange_specific_liquidity_receipt_data(
-            &mut self,
-        ) -> LiquidityReceiptExchangeSpecificData {
-            LiquidityReceiptExchangeSpecificData {
-                name: "Ociswap Liquidity Receipt".to_owned(),
-                description: "A receipt of liquidity provided to a Ociswap pool through the Ignition protocol".to_owned(),
-                key_image_url: Url::of("https://ociswap.com/icons/oci.png"),
-                redemption_url: Url::of("https://ociswap.com/"),
-            }
-        }
     }
 }
 

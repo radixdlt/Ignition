@@ -320,18 +320,6 @@ pub mod adapter {
 
             (pool.get_token_x_address(), pool.get_token_y_address())
         }
-
-        // TODO: Final check prior to launch.
-        fn exchange_specific_liquidity_receipt_data(
-            &mut self,
-        ) -> LiquidityReceiptExchangeSpecificData {
-            LiquidityReceiptExchangeSpecificData {
-                name: "Caviarnine Liquidity Receipt".to_owned(),
-                description: "A receipt of liquidity provided to a Caviarnine pool through the Ignition protocol".to_owned(),
-                key_image_url: Url::of("https://assets.caviarnine.com/tokens/resource_rdx1t5pyvlaas0ljxy0wytm5gvyamyv896m69njqdmm2stukr3xexc2up9.png"),
-                redemption_url: Url::of("https://www.caviarnine.com/"),
-            }
-        }
     }
 }
 

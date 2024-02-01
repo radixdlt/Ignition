@@ -53,17 +53,6 @@ define_interface! {
             &mut self,
             pool_address: ComponentAddress
         ) -> (ResourceAddress, ResourceAddress);
-
-        /// Returns information specific to each exchange to be included in the
-        /// non-fungible data of the liquidity receipt.
-        ///
-        /// Each exchange has control over a specific but small set of fields
-        /// in the liquidity receipt that they are allowed to set. This method
-        /// is called by the protocol to get the values that the exchanges want
-        /// to set to these fields when opening a liquidity position.
-        fn exchange_specific_liquidity_receipt_data(
-            &mut self
-        ) -> LiquidityReceiptExchangeSpecificData;
     }
 }
 

@@ -1382,10 +1382,7 @@ mod utils {
     pub fn liquidity_receipt_data() -> LiquidityReceipt {
         LiquidityReceipt {
             name: "Some name".to_owned(),
-            description: "".to_owned(),
-            key_image_url: UncheckedUrl("https://www.google.com".to_owned()),
             lockup_period: "6 months".to_owned(),
-            redemption_url: UncheckedUrl("https://www.google.com".to_owned()),
             pool_address: FAUCET,
             user_resource_address: XRD,
             user_contribution_amount: dec!(100_000_000_000),
