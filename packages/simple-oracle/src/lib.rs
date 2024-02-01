@@ -2,7 +2,25 @@ use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, ScryptoSbor,
+)]
+pub struct Pair {
+    pub base: ResourceAddress,
+    pub quote: ResourceAddress,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ScryptoSbor)]
+pub struct PairPriceEntry {
+    pub price: Decimal,
+    /// This is an instant of when did the component observe the submitted
+    /// prices and not when they were actually observed by the oracle off-ledger
+    /// software.
+    pub observed_by_component_at: Instant,
+}
+
 #[blueprint_with_traits]
+#[types(Pair, PairPriceEntry)]
 mod simple_oracle {
     enable_method_auth! {
         roles {
@@ -17,10 +35,7 @@ mod simple_oracle {
 
     pub struct SimpleOracle {
         /// Maps the (base, quote) to the (price, updated_at).
-        prices: KeyValueStore<
-            (ResourceAddress, ResourceAddress),
-            (Decimal, Instant),
-        >,
+        prices: KeyValueStore<Pair, PairPriceEntry>,
     }
 
     impl SimpleOracle {
@@ -39,7 +54,7 @@ mod simple_oracle {
             );
 
             Self {
-                prices: KeyValueStore::new(),
+                prices: KeyValueStore::new_with_registered_type(),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -61,8 +76,12 @@ mod simple_oracle {
             price: Decimal,
         ) {
             self.prices.insert(
-                (base, quote),
-                (price, Clock::current_time_rounded_to_minutes()),
+                Pair { base, quote },
+                PairPriceEntry {
+                    price,
+                    observed_by_component_at:
+                        Clock::current_time_rounded_to_minutes(),
+                },
             )
         }
 
@@ -71,8 +90,14 @@ mod simple_oracle {
             prices: IndexMap<(ResourceAddress, ResourceAddress), Decimal>,
         ) {
             let time = Clock::current_time_rounded_to_minutes();
-            for (addresses, price) in prices.into_iter() {
-                self.prices.insert(addresses, (price, time))
+            for ((base, quote), price) in prices.into_iter() {
+                self.prices.insert(
+                    Pair { base, quote },
+                    PairPriceEntry {
+                        price,
+                        observed_by_component_at: time,
+                    },
+                )
             }
         }
     }
@@ -83,11 +108,14 @@ mod simple_oracle {
             base: ResourceAddress,
             quote: ResourceAddress,
         ) -> (Price, Instant) {
-            let (price, last_update) = *self
+            let PairPriceEntry {
+                price,
+                observed_by_component_at,
+            } = *self
                 .prices
-                .get(&(base, quote))
+                .get(&Pair { base, quote })
                 .expect("Price not found for this resource");
-            (Price { base, quote, price }, last_update)
+            (Price { base, quote, price }, observed_by_component_at)
         }
     }
 }
