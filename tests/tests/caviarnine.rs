@@ -1,7 +1,7 @@
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_an_caviarnine_pool(
+pub fn can_open_a_simple_position_against_a_caviarnine_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -440,9 +440,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         .as_typed::<CaviarnineAdapterSpecificInformation>()
         .unwrap();
     assert_eq!(
-        adapter_information
-            .bin_information_after_position_opened
-            .len(),
+        adapter_information.bin_contributions.len(),
         (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
     );
 
@@ -529,89 +527,6 @@ pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
         assert!(approximately_equals(x.1, y.1));
         assert!(approximately_equals(x.2, y.2));
     }
-
-    Ok(())
-}
-
-#[test]
-pub fn reserves_amount_reported_in_receipt_nft_matches_caviarnine_state(
-) -> Result<(), RuntimeError> {
-    // Arrange
-    let Environment {
-        environment: ref mut env,
-        mut protocol,
-        caviarnine,
-        resources,
-        ..
-    } = ScryptoTestEnv::new()?;
-    protocol
-        .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
-
-    let bitcoin_bucket =
-        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
-
-    // Act
-    let (ignition_receipt, ..) = protocol.ignition.open_liquidity_position(
-        FungibleBucket(bitcoin_bucket),
-        caviarnine.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
-        env,
-    )?;
-
-    // Assert
-    let ignition_receipt_data = ResourceManager(caviarnine.liquidity_receipt)
-        .get_non_fungible_data::<_, _, LiquidityReceipt>(
-        ignition_receipt
-            .0
-            .non_fungible_local_ids(env)?
-            .first()
-            .unwrap()
-            .clone(),
-        env,
-    )?;
-
-    let caviarnine_reported_reserves = {
-        let x_reserves = caviarnine
-            .pools
-            .bitcoin
-            .get_bins_above(None, None, None, env)?;
-        let y_reserves = caviarnine
-            .pools
-            .bitcoin
-            .get_bins_below(None, None, None, env)?;
-
-        let mut reserves = IndexMap::<u32, (Decimal, Decimal)>::new();
-        for (bin, value) in x_reserves {
-            reserves.entry(bin).or_default().0 += value;
-        }
-        for (bin, value) in y_reserves {
-            reserves.entry(bin).or_default().1 += value;
-        }
-        reserves.sort_by(|k1, _, k2, _| k1.cmp(k2));
-        reserves
-            .into_iter()
-            .map(|item| (item.0, item.1 .0, item.1 .1))
-            .collect::<Vec<_>>()
-    };
-
-    let mut adapter_reported_reserves = ignition_receipt_data
-        .adapter_specific_information
-        .as_typed::<CaviarnineAdapterSpecificInformation>()
-        .unwrap()
-        .bin_information_after_position_opened
-        .into_iter()
-        .map(|(bin, information)| {
-            (
-                bin,
-                information.reserves.resource_x,
-                information.reserves.resource_y,
-            )
-        })
-        .collect::<Vec<_>>();
-    adapter_reported_reserves.sort_by(|a, b| a.0.cmp(&b.0));
-
-    assert_eq!(adapter_reported_reserves, caviarnine_reported_reserves);
 
     Ok(())
 }

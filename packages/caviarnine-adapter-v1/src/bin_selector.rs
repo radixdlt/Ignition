@@ -10,8 +10,6 @@ pub struct SelectedBins {
     pub active_bin: u32,
     pub lower_bins: Vec<u32>,
     pub higher_bins: Vec<u32>,
-    pub highest_bin: u32,
-    pub lowest_bin: u32,
 }
 
 impl SelectedBins {
@@ -145,8 +143,6 @@ impl SelectedBins {
             active_bin,
             higher_bins: vec![],
             lower_bins: vec![],
-            highest_bin: active_bin,
-            lowest_bin: active_bin,
         };
 
         let mut remaining = preferred_total_number_of_higher_and_lower_bins;
@@ -177,9 +173,6 @@ impl SelectedBins {
                 break;
             }
         }
-
-        selected_bins.highest_bin = forward_counter.0;
-        selected_bins.lowest_bin = backward_counter.0;
 
         selected_bins
     }

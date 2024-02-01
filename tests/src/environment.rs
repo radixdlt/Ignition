@@ -30,7 +30,7 @@ impl EnvironmentSpecifier for ScryptoTestEnvironmentSpecifier {
     type Ignition = Ignition;
     type SimpleOracle = SimpleOracle;
     type OciswapPool = OciswapPoolInterfaceScryptoTestStub;
-    type CaviarninePool = CaviarNinePoolInterfaceScryptoTestStub;
+    type CaviarninePool = CaviarninePoolInterfaceScryptoTestStub;
 
     type OciswapAdapter = OciswapAdapter;
     type CaviarnineAdapter = CaviarnineAdapter;
@@ -223,7 +223,7 @@ impl ScryptoTestEnv {
         let caviarnine_pools =
             resource_addresses.try_map(|resource_address| {
                 let mut caviarnine_pool =
-                    CaviarNinePoolInterfaceScryptoTestStub::new(
+                    CaviarninePoolInterfaceScryptoTestStub::new(
                         rule!(allow_all),
                         rule!(allow_all),
                         *resource_address,
@@ -385,7 +385,7 @@ impl ScryptoTestEnv {
             )?;
 
             ignition.insert_pool_information(
-                CaviarNinePoolInterfaceScryptoTestStub::blueprint_id(
+                CaviarninePoolInterfaceScryptoTestStub::blueprint_id(
                     caviarnine_package,
                 ),
                 PoolBlueprintInformation {
@@ -597,7 +597,7 @@ impl ScryptoUnitEnv {
                     let other_bucket = builder.bucket("other_bucket");
 
                     builder
-                        .caviar_nine_pool_new(
+                        .caviarnine_pool_new(
                             caviarnine_package,
                             rule!(allow_all),
                             rule!(allow_all),
@@ -606,7 +606,7 @@ impl ScryptoUnitEnv {
                             50,
                             Some(reservation),
                         )
-                        .caviar_nine_pool_add_liquidity(
+                        .caviarnine_pool_add_liquidity(
                             address,
                             other_bucket,
                             xrd_bucket,

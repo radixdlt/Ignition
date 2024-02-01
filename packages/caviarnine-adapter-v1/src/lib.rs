@@ -22,7 +22,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            const $name: &'static str = concat!("[CaviarNine Adapter]", " ", $item);
+            const $name: &'static str = concat!("[Caviarnine Adapter]", " ", $item);
         )*
     };
 }
@@ -33,9 +33,7 @@ define_error! {
     NO_ACTIVE_BIN_ERROR => "Pool has no active bin.";
     NO_ACTIVE_AMOUNTS_ERROR => "Pool has no active amounts.";
     NO_PRICE_ERROR => "Pool has no price.";
-    TICK_ARITHMETIC_ERROR => "An error has happened in the tick arithmetic.";
     OVERFLOW_ERROR => "Overflow error.";
-    UNEXPECTED_ERROR => "Unexpected error.";
 }
 
 /// The total number of bins that we will be using on the left and the right
@@ -73,8 +71,8 @@ pub mod adapter {
 
         fn pool(
             component_address: ComponentAddress,
-        ) -> CaviarNinePoolInterfaceScryptoStub {
-            CaviarNinePoolInterfaceScryptoStub::from(component_address)
+        ) -> CaviarninePoolInterfaceScryptoStub {
+            CaviarninePoolInterfaceScryptoStub::from(component_address)
         }
     }
 
@@ -115,8 +113,6 @@ pub mod adapter {
             let SelectedBins {
                 higher_bins,
                 lower_bins,
-                highest_bin,
-                lowest_bin,
                 ..
             } = SelectedBins::select(
                 active_bin,
@@ -181,119 +177,33 @@ pub mod adapter {
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(bucket_x, bucket_y, positions.clone());
 
-            // Creating the adapter-specific information of this position.
-            let adapter_specific_information = {
-                // The adapter-specific information of the Caviarnine adapter
-                // contains two main data points that are needed to estimate the
-                // fees when closing the liquidity position: a) the reserves of
-                // the assets in the various bins _we've contributed to_, and
-                // b) the amount that was contributed to each bin. Therefore,
-                // it also implicitly contains the share of the user in these
-                // particular bins as it's the ratio if how much they added to
-                // the bin to the total amount of resources in the bin.
-                //
-                // For the first data point, the reserves of the assets in the
-                // pool, we have no way other than querying the Caviarnine pool
-                // for this information as there is pretty much no other way we
-                // can go about finding this. The methods that we can use to do
-                // that are: `get_bins_above` and `get_bins_below`. These two
-                // methods return the amount of x and y assets in the pool.
-                // Recall that the active bin is the only bin that contains both
-                // x and y assets and that the bins _above_ the current active
-                // bin contain only x and those below contain only y. Therefore,
-                // what `get_bins_above` is actually the amount of x resources
-                // in the active bin and all higher bins and `get_bins_below` is
-                // the amount of y resources in the active bin and all the lower
-                // bins. We aggregate those per bin to determine the reserves of
-                // the bins we've contributed to. We have no interest in other
-                // bins.
-                //
-                // For the amount of resources that were contributed to each bin
-                // there are two ways we can go about finding that. Either by
-                // using the `positions` defined above or by contributing and
-                // then getting the worth of the liquidity position by invoking
-                // caviarnine. The latter approach has proved too expensive and
-                // pushes us over the fee limit therefore we're pretty much
-                // locked into approach 1. With the first approach the change
-                // must be handled as its an amount that was not contributed and
-                // therefore should not be added to our contribution. We can use
-                // a property of the Caviarnine blueprints where they _never_
-                // return any change for any bins that are not the active bin.
-                // Therefore, it is guaranteed that all of the change received
-                // back from the contribution originated from the active bin.
-
-                let mut adapter_specific_information =
-                    CaviarnineAdapterSpecificInformation::new(pool_price);
-
-                // Reserves calculations
-                let reserves_x =
-                    pool.get_bins_above(None, Some(highest_bin), None);
-                let reserves_y =
-                    pool.get_bins_below(None, Some(lowest_bin), None);
-
-                for (bin, reserves) in reserves_x
-                    .into_iter()
-                    .map(|(bin, x)| {
-                        (
-                            bin,
-                            ResourceIndexedData {
-                                resource_x: x,
-                                resource_y: Decimal::ZERO,
-                            },
-                        )
-                    })
-                    .chain(reserves_y.into_iter().map(|(bin, y)| {
-                        (
-                            bin,
-                            ResourceIndexedData {
-                                resource_y: y,
-                                resource_x: Decimal::ZERO,
-                            },
-                        )
-                    }))
-                {
-                    adapter_specific_information
-                        .bin_information_after_position_opened
-                        .entry(bin)
-                        .or_default()
-                        .reserves += reserves
-                }
-
-                // Contributions calculations
-                for (bin, position) in
-                    positions.into_iter().map(|(bin, x, y)| {
-                        (
-                            bin,
-                            ResourceIndexedData {
-                                resource_x: x,
-                                resource_y: y,
-                            },
-                        )
-                    })
-                {
-                    adapter_specific_information
-                        .bin_information_after_position_opened
-                        .entry(bin)
-                        .or_default()
-                        .contribution += position
-                }
-
-                // Final step, account for the change. As mentioned above, there
-                // is only one bin that the change could've come from and it's
-                // the active bin.
-                let active_amounts =
-                    pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
-                adapter_specific_information
-                    .bin_information_after_position_opened
-                    .get_mut(&active_bin)
-                    .unwrap()
-                    .contribution = ResourceIndexedData {
-                    resource_x: active_amounts.0 - amount_in_active_bin_x,
-                    resource_y: active_amounts.1 - amount_in_active_bin_y,
-                };
-
-                adapter_specific_information
+            let receipt_global_id = {
+                let resource_address = receipt.resource_address();
+                let local_id =
+                    receipt.as_non_fungible().non_fungible_local_id();
+                NonFungibleGlobalId::new(resource_address, local_id)
             };
+
+            let adapter_specific_information =
+                CaviarnineAdapterSpecificInformation {
+                    bin_contributions: pool
+                        .get_redemption_bin_values(
+                            receipt_global_id.local_id().clone(),
+                        )
+                        .into_iter()
+                        .map(|(tick, amount_x, amount_y)| {
+                            (
+                                tick,
+                                ResourceIndexedData {
+                                    resource_x: amount_x,
+                                    resource_y: amount_y,
+                                },
+                            )
+                        })
+                        .collect(),
+                    liquidity_receipt_non_fungible_global_id: receipt_global_id,
+                    price_when_position_was_opened: price,
+                };
 
             OpenLiquidityPositionOutput {
                 pool_units: receipt,
@@ -315,311 +225,70 @@ pub mod adapter {
         ) -> CloseLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
             let bin_span = pool.get_bin_span();
-            let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
             let resource_x = pool.get_token_x_address();
             let resource_y = pool.get_token_y_address();
+            let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
 
-            let redemption_value = pool.get_redemption_bin_values(
-                pool_units.as_non_fungible().non_fungible_local_id(),
-            );
+            // Decoding the adapter specific information as the type we
+            // expect it to be.
+            let CaviarnineAdapterSpecificInformation {
+                bin_contributions,
+                price_when_position_was_opened,
+                ..
+            } = adapter_specific_information.as_typed().unwrap();
 
             let (bucket1, bucket2) = pool.remove_liquidity(pool_units);
-
-            // Calculating the fees on the position. The way we go about this is
-            // by calculating how much we expect to close our position for based
-            // on information we know about it such as the contribution we made
-            // and the reserves in that particular bin. Once we have calculated
-            // this theoretical amount we say that the fees is the difference
-            // between this theoretical amount and the actual amount.
-            let amount_expected_in_bins = {
-                let mut amount_expected_in_bins =
-                    IndexMap::<u32, ResourceIndexedData<Decimal>>::new();
-
-                // Decoding the adapter specific information as the type we
-                // expect it to be.
-                let CaviarnineAdapterSpecificInformation {
-                    bin_information_after_position_opened,
-                    price_after_position_opened,
-                } = adapter_specific_information.as_typed().unwrap();
-
-                // Iterating over each bin we contributed to and doing the math
-                // needed to populate `amount_expected_in_bins`
-                for (tick, bin_information) in
-                    bin_information_after_position_opened.into_iter()
-                {
-                    // Computing some information based on the bin's tick such
-                    // that is is available throughout this block.
-                    let bin_start = tick;
-                    let bin_end = tick + bin_span;
-
-                    let lower_price =
-                        tick_to_spot(bin_start).expect(TICK_ARITHMETIC_ERROR);
-                    let upper_price =
-                        tick_to_spot(bin_end).expect(TICK_ARITHMETIC_ERROR);
-
-                    let average_bin_price = PreciseDecimal::from(lower_price)
-                        .checked_add(upper_price)
-                        .and_then(|value| value.checked_div(2))
-                        .and_then(|value| Decimal::try_from(value).ok())
-                        .map(|price| Price {
-                            price,
-                            base: resource_x,
-                            quote: resource_y,
-                        })
-                        .expect(OVERFLOW_ERROR);
-
-                    // Determine the composition of the bin when the pool was
-                    // first opened.
-                    let ResourceIndexedData {
-                        resource_x: reserves_x,
-                        resource_y: reserves_y,
-                    } = bin_information.reserves;
-                    let contribution @ ResourceIndexedData {
-                        resource_x: contribution_x,
-                        resource_y: contribution_y,
-                    } = bin_information.contribution;
-
-                    let bin_composition_when_position_opened = match (
-                        reserves_x == Decimal::ZERO,
-                        reserves_y == Decimal::ZERO,
-                    ) {
-                        // TODO: I think that this is impossible? I believe that
-                        // it is impossible since we only capture the bins that
-                        // we have contributed to and THEN store the reserves in
-                        // the bin. If we contributed to it, how come its empty
-                        // of both resources?
-                        //
-                        // If this is somehow possible, what do we want to do
-                        // in this case?
-                        (true, true) => panic!("What?"),
-                        (true, false) => Composition::EntirelyY,
-                        (false, true) => Composition::EntirelyX,
-                        (false, false) => Composition::Composite,
-                    };
-
-                    // Determine what we expect the composition of this bin to
-                    // be based on the current price.
-                    let expected_bin_composition_now =
-                        match tick.cmp(&active_bin) {
-                            // Case A: The current price is inside this bin.
-                            // Since we are the current active bin then it's
-                            // expected that this bin has both X and Y assets.
-                            Ordering::Equal => Composition::Composite,
-                            //  // Case B: The current price of the pool is
-                            // greater than the upper bound of the bin. We're
-                            // outside of that range and there should only be Y
-                            // assets in the bin.
-                            Ordering::Less => Composition::EntirelyY,
-                            // Case C: The current price of the pool is smaller
-                            // than the lower bound of the bin. We're outside of
-                            // that range and there should only be X assets in
-                            // the bin.
-                            Ordering::Greater => Composition::EntirelyX,
-                        };
-
-                    // Matching over what the bin composition was and what it is
-                    // expected to be now to determine what calculation to do.
-                    match (
-                        bin_composition_when_position_opened,
-                        expected_bin_composition_now,
-                    ) {
-                        // Case A: The bin was composed of some asset and is
-                        // still composed of the same asset. In this case, we
-                        // do not need to do any calculations. We expect to get
-                        // back the same amount we put in.
-                        (Composition::EntirelyX, Composition::EntirelyX)
-                        | (Composition::EntirelyY, Composition::EntirelyY) => {
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += contribution;
-                        }
-                        // Case B: The bin was composed of one asset and is now
-                        // composed entirely of the other asset. In this case,
-                        // we need to "swap" the entire amount that was in the
-                        // bin for the other asset.
-                        //
-                        // TODO: The way that we currently do this conversion
-                        // is that we assume that the resources were swapped to
-                        // the other asset at the average price of the bin which
-                        // is the (lower_bound + upper_bound) / 2. This is due
-                        // to us not having any way to find this out accurately.
-                        // If a more accurate thing exists then we must get some
-                        // support from the C9 team on it.
-                        (Composition::EntirelyX, Composition::EntirelyY) => {
-                            let (_, output_amount) = average_bin_price
-                                .exchange(resource_x, contribution_x)
-                                .expect(UNEXPECTED_ERROR);
-
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += ResourceIndexedData {
-                                resource_x: Decimal::ZERO,
-                                resource_y: output_amount,
-                            };
-                        }
-                        (Composition::EntirelyY, Composition::EntirelyX) => {
-                            let (_, output_amount) = average_bin_price
-                                .exchange(resource_y, contribution_y)
-                                .expect(UNEXPECTED_ERROR);
-
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += ResourceIndexedData {
-                                resource_x: output_amount,
-                                resource_y: Decimal::ZERO,
-                            };
-                        }
-                        // Case C: The bin was entirely composed of one asset
-                        // and is now composed of both assets meaning that it
-                        // is now the active bin.
-                        //
-                        // TODO: Inaccurate, we just get the amount from the
-                        // pool itself which means that we ignore any fees
-                        // earned on such bins. Must change this.
-                        (Composition::EntirelyX, Composition::Composite) => {
-                            *amount_expected_in_bins.entry(tick).or_default() =
-                                redemption_value
-                                    .iter()
-                                    .find(|(t, ..)| *t == tick)
-                                    .map(|value| ResourceIndexedData {
-                                        resource_x: value.1,
-                                        resource_y: value.2,
-                                    })
-                                    .unwrap_or_default();
-                        }
-                        (Composition::EntirelyY, Composition::Composite) => {
-                            let (_, _output_amount) = average_bin_price
-                                .exchange(resource_y, contribution_y / 2)
-                                .expect(UNEXPECTED_ERROR);
-
-                            *amount_expected_in_bins.entry(tick).or_default() =
-                                redemption_value
-                                    .iter()
-                                    .find(|(t, ..)| *t == tick)
-                                    .map(|value| ResourceIndexedData {
-                                        resource_x: value.1,
-                                        resource_y: value.2,
-                                    })
-                                    .unwrap_or_default();
-                        }
-                        // Case D: There was a composite amount of resources in
-                        // the bin when the position was opened and this amount
-                        // has been converted to be entirely of the other asset.
-                        //
-                        // TODO: The logic we currently use to compute what
-                        // should be in the bin at this point is not very
-                        // accurate but it is as accurate as we can get without
-                        // a mathematical model developed with aid from the C9
-                        // team.
-                        //
-                        // If the bin is currently composed of entirely X then
-                        // we say that the Y amount was swapped into X at a
-                        // price of avg(p, p_a). If the bin is currently
-                        // composed of entirely Y then we say that the X amount
-                        // was swapped into Y at a price of avg(p, p_b). Where
-                        // p is the price we observed when the position was
-                        // opened, p_a is the bin's price lower bound and p_b is
-                        // the bin's price upper bound.
-                        (Composition::Composite, Composition::EntirelyX) => {
-                            let average_bin_price = PreciseDecimal::from(
-                                price_after_position_opened.price,
-                            )
-                            .checked_add(lower_price)
-                            .and_then(|value| value.checked_div(2))
-                            .and_then(|value| Decimal::try_from(value).ok())
-                            .map(|price| Price {
-                                price,
-                                base: resource_x,
-                                quote: resource_y,
-                            })
-                            .expect(OVERFLOW_ERROR);
-
-                            let (_, output_amount) = average_bin_price
-                                .exchange(resource_y, contribution_y)
-                                .expect(UNEXPECTED_ERROR);
-
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += ResourceIndexedData {
-                                resource_x: contribution_x + output_amount,
-                                resource_y: Decimal::ZERO,
-                            };
-                        }
-                        (Composition::Composite, Composition::EntirelyY) => {
-                            let average_bin_price = PreciseDecimal::from(
-                                price_after_position_opened.price,
-                            )
-                            .checked_add(upper_price)
-                            .and_then(|value| value.checked_div(2))
-                            .and_then(|value| Decimal::try_from(value).ok())
-                            .map(|price| Price {
-                                price,
-                                base: resource_x,
-                                quote: resource_y,
-                            })
-                            .expect(OVERFLOW_ERROR);
-
-                            let (_, output_amount) = average_bin_price
-                                .exchange(resource_x, contribution_x)
-                                .expect(UNEXPECTED_ERROR);
-
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += ResourceIndexedData {
-                                resource_x: Decimal::ZERO,
-                                resource_y: contribution_y + output_amount,
-                            };
-                        }
-                        // Case E: The bin was composite and is still composite.
-                        // This means that the position was opened and closed
-                        // in the same bin; As in, we never left the price range
-                        // of the bin.
-                        //
-                        // TODO: We do not currently have any way of doing this
-                        // in an accurate manner. We assume that the composition
-                        // is the same between the time the position was opened
-                        // and closed which is quite inaccurate but is as
-                        // accurate as we can get. Must get input from the C9
-                        // team on this.
-                        (Composition::Composite, Composition::Composite) => {
-                            *amount_expected_in_bins
-                                .entry(tick)
-                                .or_default() += contribution;
-                        }
-                    };
-                }
-
-                amount_expected_in_bins
-            };
-
-            // Calculating the fees earned on each one of the bins and then
-            // summing it up to get the total x and y fees.
-            let total_amount_expected_back = amount_expected_in_bins
-                .into_values()
-                .fold(ResourceIndexedData::default(), |acc, item| acc + item);
-
             let resources = indexmap! {
                 bucket1.resource_address() => bucket1,
                 bucket2.resource_address() => bucket2,
             };
 
-            let fees = indexmap! {
-                resource_x => max(
-                    resources
-                        .get(&resource_x)
-                        .map(|bucket| bucket.amount())
-                        .unwrap_or_default()
-                        - total_amount_expected_back.resource_x,
-                    Decimal::ZERO
-                ),
-                resource_y => max(
-                    resources
-                        .get(&resource_y)
-                        .map(|bucket| bucket.amount())
-                        .unwrap_or_default()
-                        - total_amount_expected_back.resource_y,
-                    Decimal::ZERO
-                )
+            let fees = {
+                // Calculate how much we expect to find in the bins at this
+                // price.
+                let expected_bin_amounts =
+                    calculate_bin_amounts_due_to_price_action(
+                        &bin_contributions
+                            .into_iter()
+                            .map(|value| (value.0, value.1))
+                            .collect::<Vec<_>>(),
+                        pool.get_price().expect(NO_PRICE_ERROR),
+                        price_when_position_was_opened,
+                        active_bin,
+                        bin_span,
+                    )
+                    .expect(OVERFLOW_ERROR);
+
+                // Based on the calculated bin amounts calculate how much we
+                // should expect to get back if we close the liquidity position
+                // by just summing them all up.
+                let expected_amount_back = expected_bin_amounts
+                    .into_iter()
+                    .map(|(_, amount_in_bin)| amount_in_bin)
+                    .fold(ResourceIndexedData::default(), |acc, item| {
+                        acc + item
+                    });
+
+                // The difference between the amount we got back and the amount
+                // calculated up above is the fees.
+                indexmap! {
+                    resource_x => max(
+                        resources
+                            .get(&resource_x)
+                            .map(|bucket| bucket.amount())
+                            .unwrap_or_default()
+                            - expected_amount_back.resource_x,
+                        Decimal::ZERO
+                    ),
+                    resource_y => max(
+                        resources
+                            .get(&resource_y)
+                            .map(|bucket| bucket.amount())
+                            .unwrap_or_default()
+                            - expected_amount_back.resource_y,
+                        Decimal::ZERO
+                    )
+                }
             };
 
             CloseLiquidityPositionOutput {
@@ -668,34 +337,34 @@ pub mod adapter {
 
 #[derive(ScryptoSbor, Debug, Clone)]
 pub struct CaviarnineAdapterSpecificInformation {
-    /// Stores the state of the bins that liquidity was contributed to when
-    /// the position was first opened. Both the reserves and the amount that
-    /// was contributed is stored. This information is later used to estimate
-    /// how much fees was earned on the position.
-    pub bin_information_after_position_opened: IndexMap<u32, BinInformation>,
+    /// Stores how much was contributed to the bin.
+    pub bin_contributions: IndexMap<u32, ResourceIndexedData<Decimal>>,
 
-    /// The price of the pool after the position was opened.
-    pub price_after_position_opened: Price,
+    /// The price in the pool when the position was opened.
+    pub price_when_position_was_opened: Decimal,
+
+    /// Stores the non-fungible global id of the liquidity receipt.
+    pub liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
 }
 
 impl CaviarnineAdapterSpecificInformation {
-    pub fn new(price: Price) -> Self {
+    pub fn new(
+        liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
+        price_when_position_was_opened: Decimal,
+    ) -> Self {
         CaviarnineAdapterSpecificInformation {
-            bin_information_after_position_opened: Default::default(),
-            price_after_position_opened: price,
+            bin_contributions: Default::default(),
+            liquidity_receipt_non_fungible_global_id,
+            price_when_position_was_opened,
         }
     }
 
     pub fn contributions(&self) -> Vec<(u32, Decimal, Decimal)> {
         let mut contributions = self
-            .bin_information_after_position_opened
+            .bin_contributions
             .iter()
-            .map(|(bin, bin_information)| {
-                (
-                    *bin,
-                    bin_information.contribution.resource_x,
-                    bin_information.contribution.resource_y,
-                )
+            .map(|(bin, contribution)| {
+                (*bin, contribution.resource_x, contribution.resource_y)
             })
             .collect::<Vec<_>>();
         contributions.sort_by(|a, b| a.0.cmp(&b.0));
@@ -781,6 +450,177 @@ pub enum Composition {
     EntirelyX,
     EntirelyY,
     Composite,
+}
+
+/// This method calculates the liquidity or the `l` of each bin based on the
+/// reserves in the bin and the lower and upper ticks of the bin.
+pub fn calculate_liquidity(
+    bin_reserves: ResourceIndexedData<Decimal>,
+    lower_price: Decimal,
+    upper_price: Decimal,
+) -> Option<Decimal> {
+    let ResourceIndexedData {
+        resource_x: reserves_x,
+        resource_y: reserves_y,
+    } = bin_reserves;
+
+    let reserves_x = PreciseDecimal::from(reserves_x);
+    let reserves_y = PreciseDecimal::from(reserves_y);
+    let lower_price_sqrt = PreciseDecimal::from(lower_price).checked_sqrt()?;
+    let upper_price_sqrt = PreciseDecimal::from(upper_price).checked_sqrt()?;
+
+    // Solve quadratic for liquidity
+    let a = lower_price_sqrt
+        .checked_div(upper_price_sqrt)?
+        .checked_sub(PreciseDecimal::ONE)?;
+    let b = reserves_x
+        .checked_mul(lower_price_sqrt)?
+        .checked_add(reserves_y.checked_div(upper_price_sqrt)?)?;
+    let c = reserves_x.checked_mul(reserves_y)?;
+
+    let nominator = b.checked_neg()?.checked_sub(
+        b.checked_powi(2)?
+            .checked_sub(pdec!(4).checked_mul(a)?.checked_mul(c)?)?
+            .checked_sqrt()?,
+    )?;
+    let denominator = pdec!(2).checked_mul(a)?;
+
+    nominator
+        .checked_div(denominator)
+        .and_then(|value| Decimal::try_from(value).ok())
+}
+
+/// Given the amount of assets that used to be in the bin and a certain change
+/// in price, this function calculates the new composition of the bins based on
+/// price action alone.
+// TODO: Write unit tests for this function in isolation of everything else.
+fn calculate_bin_amounts_due_to_price_action(
+    bin_amounts: &[(u32, ResourceIndexedData<Decimal>)],
+    current_price: Decimal,
+    price_when_position_was_opened: Decimal,
+    active_bin: u32,
+    bin_span: u32,
+) -> Option<Vec<(u32, ResourceIndexedData<Decimal>)>> {
+    bin_amounts.iter().copied().map(
+        |(tick, bin_amount)| -> Option<(u32, ResourceIndexedData<Decimal>)> {
+            // Calculating the lower and upper prices of the bin based on the
+            // the starting tick and the bin span.
+            let lower_tick = tick;
+            let upper_tick = tick.checked_add(bin_span)?;
+
+            let bin_lower_price = tick_to_spot(lower_tick)?;
+            let bin_upper_price = tick_to_spot(upper_tick)?;
+
+            // Determine the starting and ending prices to use in the math.
+
+            let (starting_price, ending_price) = {
+                let bin_composition_when_position_opened = match (
+                    bin_amount.resource_x == Decimal::ZERO,
+                    bin_amount.resource_y == Decimal::ZERO,
+                ) {
+                    // TODO: I think that this is impossible? I believe that
+                    // it is impossible since we only capture the bins that
+                    // we have contributed to and THEN store the reserves in
+                    // the bin. If we contributed to it, how come its empty
+                    // of both resources?
+                    //
+                    // If this is somehow possible, what do we want to do
+                    // in this case?
+                    (true, true) => return None,
+                    (true, false) => Composition::EntirelyY,
+                    (false, true) => Composition::EntirelyX,
+                    (false, false) => Composition::Composite,
+                };
+
+                // Determine what we expect the composition of this bin to
+                // be based on the current price.
+                let expected_bin_composition_now =
+                    match tick.cmp(&active_bin) {
+                        // Case A: The current price is inside this bin.
+                        // Since we are the current active bin then it's
+                        // expected that this bin has both X and Y assets.
+                        Ordering::Equal => Composition::Composite,
+                        //  // Case B: The current price of the pool is
+                        // greater than the upper bound of the bin. We're
+                        // outside of that range and there should only be Y
+                        // assets in the bin.
+                        Ordering::Less => Composition::EntirelyY,
+                        // Case C: The current price of the pool is smaller
+                        // than the lower bound of the bin. We're outside of
+                        // that range and there should only be X assets in
+                        // the bin.
+                        Ordering::Greater => Composition::EntirelyX,
+                    };
+
+                match (
+                    bin_composition_when_position_opened,
+                    expected_bin_composition_now,
+                ) {
+                    // The bin was entirely made of X and is still the same. We
+                    // have not touched it. The starting and ending price of the
+                    // "swap" is the same, we didn't go through this bin.
+                    (Composition::EntirelyX, Composition::EntirelyX)
+                        => (bin_lower_price, bin_lower_price),
+                    (Composition::EntirelyY, Composition::EntirelyY)
+                        => (bin_upper_price, bin_upper_price),
+                    // The bin was entirely made up of one asset and is now made
+                    // up of another. 
+                    (Composition::EntirelyX, Composition::EntirelyY)
+                        => (bin_lower_price, bin_upper_price),
+                    (Composition::EntirelyY, Composition::EntirelyX)
+                        => (bin_upper_price, bin_lower_price),
+                    // The bin was entirely made up of one of the assets and 
+                    // is now made up of both of them. 
+                    (Composition::EntirelyX, Composition::Composite)
+                        => (bin_lower_price, current_price),
+                    (Composition::EntirelyY, Composition::Composite)
+                        => (bin_upper_price, current_price),
+                    // The bin was made up of both assets and is now just made 
+                    // up of one of them.
+                    (Composition::Composite, Composition::EntirelyX)
+                        => (price_when_position_was_opened, bin_lower_price),
+                    (Composition::Composite, Composition::EntirelyY)
+                        => (price_when_position_was_opened, bin_upper_price),
+                    // The bin was made up of both assets and is still made up
+                    // of both assets.
+                    (Composition::Composite, Composition::Composite)
+                        => (price_when_position_was_opened, current_price),
+                }
+            };
+
+            let liquidity = calculate_liquidity(
+                bin_amount,
+                bin_lower_price,
+                bin_upper_price,
+            )?;
+
+            let change_x = liquidity.checked_mul(
+                Decimal::ONE
+                    .checked_div(ending_price.checked_sqrt()?)?
+                    .checked_sub(
+                        Decimal::ONE
+                            .checked_div(starting_price.checked_sqrt()?)?,
+                    )?,
+            )?;
+            let change_y = liquidity.checked_mul(
+                ending_price
+                    .checked_sqrt()?
+                    .checked_sub(starting_price.checked_sqrt()?)?,
+            )?;
+
+            let new_x = max(bin_amount.resource_x.checked_add(change_x)?, Decimal::ZERO);
+            let new_y = max(bin_amount.resource_y.checked_add(change_y)?, Decimal::ZERO);
+
+            Some((
+                tick,
+                ResourceIndexedData {
+                    resource_x: new_x,
+                    resource_y: new_y,
+                },
+            ))
+        },
+    )
+    .collect()
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@
 name = "caviarnine-adapter-v1"
 version.workspace = true
 edition.workspace = true
-description = "Defines the adapter for CaviarNine"
+description = "Defines the adapter for Caviarnine"
 
 [dependencies]
 sbor = { workspace = true }
