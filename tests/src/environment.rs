@@ -220,6 +220,7 @@ impl ScryptoTestEnv {
         })?;
 
         // Creating the Caviarnine pools of the resources.
+        let bin_span = 100;
         let caviarnine_pools =
             resource_addresses.try_map(|resource_address| {
                 let mut caviarnine_pool =
@@ -228,7 +229,7 @@ impl ScryptoTestEnv {
                         rule!(allow_all),
                         *resource_address,
                         XRD,
-                        300,
+                        bin_span,
                         None,
                         caviarnine_package,
                         &mut env,
@@ -245,12 +246,12 @@ impl ScryptoTestEnv {
                         .flat_map(|offset| {
                             [
                                 (
-                                    27000 - offset * 300,
+                                    27000 - offset * bin_span,
                                     dec!(100_000_000),
                                     dec!(100_000_000),
                                 ),
                                 (
-                                    27000 + offset * 300,
+                                    27000 + offset * bin_span,
                                     dec!(100_000_000),
                                     dec!(100_000_000),
                                 ),
@@ -486,7 +487,6 @@ impl ScryptoUnitEnv {
             });
             TestRunnerBuilder::new()
                 .with_custom_database(in_memory_substate_database)
-                .without_trace()
                 .build()
         };
 

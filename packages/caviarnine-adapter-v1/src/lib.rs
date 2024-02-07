@@ -38,7 +38,7 @@ define_error! {
 
 /// The total number of bins that we will be using on the left and the right
 /// excluding the one in the middle.
-pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 10 * 2;
+pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 30 * 2;
 
 #[blueprint_with_traits]
 pub mod adapter {
@@ -121,9 +121,9 @@ pub mod adapter {
             );
 
             // Determine the amount of resources that we will add to each of the
-            // bins. We have 62 on the left and 62 on the right. But, we also
+            // bins. We have 30 on the left and 30 on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
-            // be like contributing to 62.x and 62.y bins where x = 1-y. X here
+            // be like contributing to 30.x and 30.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
@@ -148,7 +148,6 @@ pub mod adapter {
                 / (Decimal::from(lower_bins.len() as u32)
                     + ratio_in_active_bin_y);
 
-            // TODO: What?
             let amount_bin_x_in_y = position_amount_x * price;
             let (position_amount_x, position_amount_y) =
                 if amount_bin_x_in_y > position_amount_y {
