@@ -1,4 +1,5 @@
 #![allow(clippy::too_many_arguments)]
+#![deny(clippy::arithmetic_side_effects)]
 
 mod blueprint;
 mod errors;

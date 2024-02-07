@@ -114,6 +114,7 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     );
 
     // Assert
+    println!("{receipt:?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
@@ -249,6 +250,7 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     );
 
     // Assert
+    println!("{receipt:#?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,

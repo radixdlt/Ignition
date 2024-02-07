@@ -1,3 +1,4 @@
+#![deny(clippy::arithmetic_side_effects)]
 #![allow(clippy::new_without_default)]
 
 mod bin_selector;
@@ -41,8 +42,16 @@ define_error! {
 pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 30 * 2;
 
 #[blueprint_with_traits]
+#[types(ComponentAddress, PoolInformation)]
 pub mod adapter {
-    struct CaviarnineAdapter;
+    struct CaviarnineAdapter {
+        /// A cache of the information of the pool, this is done so that we do
+        /// not need to query the pool's information each time. Note: I would've
+        /// proffered to keep the adapter completely stateless but it seems like
+        /// we're pretty much forced to cache this data to get some fee gains.
+        pool_information_cache:
+            KeyValueStore<ComponentAddress, PoolInformation>,
+    }
 
     impl CaviarnineAdapter {
         pub fn instantiate(
@@ -58,21 +67,53 @@ pub mod adapter {
                 .0,
             );
 
-            Self {}
-                .instantiate()
-                .prepare_to_globalize(owner_role)
-                .metadata(ModuleConfig {
-                    init: metadata_init,
-                    roles: Default::default(),
-                })
-                .with_address(address_reservation)
-                .globalize()
+            Self {
+                pool_information_cache: KeyValueStore::new_with_registered_type(
+                ),
+            }
+            .instantiate()
+            .prepare_to_globalize(owner_role)
+            .metadata(ModuleConfig {
+                init: metadata_init,
+                roles: Default::default(),
+            })
+            .with_address(address_reservation)
+            .globalize()
         }
 
         fn pool(
             component_address: ComponentAddress,
         ) -> CaviarninePoolInterfaceScryptoStub {
             CaviarninePoolInterfaceScryptoStub::from(component_address)
+        }
+
+        fn get_pool_information(
+            &mut self,
+            pool_address: ComponentAddress,
+        ) -> PoolInformation {
+            let entry = self.pool_information_cache.get(&pool_address);
+            if let Some(entry) = entry {
+                *entry
+            } else {
+                drop(entry);
+
+                let pool = Self::pool(pool_address);
+                let resource_address_x = pool.get_token_x_address();
+                let resource_address_y = pool.get_token_y_address();
+                let bin_span = pool.get_bin_span();
+
+                let pool_information = PoolInformation {
+                    bin_span,
+                    resources: ResourceIndexedData {
+                        resource_x: resource_address_x,
+                        resource_y: resource_address_y,
+                    },
+                };
+                self.pool_information_cache
+                    .insert(pool_address, pool_information);
+
+                pool_information
+            }
         }
     }
 
@@ -86,8 +127,14 @@ pub mod adapter {
 
             // Split the two buckets into bucket_x and bucket_y in the same way
             // that they're defined in the pool itself.
-            let resource_address_x = pool.get_token_x_address();
-            let resource_address_y = pool.get_token_y_address();
+            let PoolInformation {
+                bin_span,
+                resources:
+                    ResourceIndexedData {
+                        resource_x: resource_address_x,
+                        resource_y: resource_address_y,
+                    },
+            } = self.get_pool_information(pool_address);
 
             let bucket_0_resource_address = buckets.0.resource_address();
             let bucket_1_resource_address = buckets.1.resource_address();
@@ -108,7 +155,6 @@ pub mod adapter {
             let amount_y = bucket_y.amount();
 
             // Select the bins that we will contribute to.
-            let bin_span = pool.get_bin_span();
             let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
             let SelectedBins {
                 higher_bins,
@@ -121,9 +167,9 @@ pub mod adapter {
             );
 
             // Determine the amount of resources that we will add to each of the
-            // bins. We have 30 on the left and 30 on the right. But, we also
+            // bins. We have 20 on the left and 20 on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
-            // be like contributing to 30.x and 30.y bins where x = 1-y. X here
+            // be like contributing to 20.x and 20.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
@@ -223,9 +269,14 @@ pub mod adapter {
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
-            let bin_span = pool.get_bin_span();
-            let resource_x = pool.get_token_x_address();
-            let resource_y = pool.get_token_y_address();
+            let PoolInformation {
+                bin_span,
+                resources:
+                    ResourceIndexedData {
+                        resource_x,
+                        resource_y,
+                    },
+            } = self.get_pool_information(pool_address);
             let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
 
             // Decoding the adapter specific information as the type we
@@ -320,6 +371,12 @@ pub mod adapter {
             (pool.get_token_x_address(), pool.get_token_y_address())
         }
     }
+}
+
+#[derive(ScryptoSbor, Debug, Clone, Copy)]
+pub struct PoolInformation {
+    pub bin_span: u32,
+    pub resources: ResourceIndexedData<ResourceAddress>,
 }
 
 #[derive(ScryptoSbor, Debug, Clone)]
@@ -575,28 +632,37 @@ fn calculate_bin_amounts_due_to_price_action(
                 }
             };
 
-            let liquidity = calculate_liquidity(
-                bin_amount,
-                bin_lower_price,
-                bin_upper_price,
-            )?;
+            // Small fee optimization - if the starting and ending price are the
+            // same then do not calculate the L. In this case the change is 0 
+            // and the amount is the same.
+            let (new_x, new_y) = if starting_price == ending_price {
+                (bin_amount.resource_x, bin_amount.resource_y)
+            } else {
+                let liquidity = calculate_liquidity(
+                    bin_amount,
+                    bin_lower_price,
+                    bin_upper_price,
+                )?;
+    
+                let change_x = liquidity.checked_mul(
+                    Decimal::ONE
+                        .checked_div(ending_price.checked_sqrt()?)?
+                        .checked_sub(
+                            Decimal::ONE
+                                .checked_div(starting_price.checked_sqrt()?)?,
+                        )?,
+                )?;
+                let change_y = liquidity.checked_mul(
+                    ending_price
+                        .checked_sqrt()?
+                        .checked_sub(starting_price.checked_sqrt()?)?,
+                )?;
 
-            let change_x = liquidity.checked_mul(
-                Decimal::ONE
-                    .checked_div(ending_price.checked_sqrt()?)?
-                    .checked_sub(
-                        Decimal::ONE
-                            .checked_div(starting_price.checked_sqrt()?)?,
-                    )?,
-            )?;
-            let change_y = liquidity.checked_mul(
-                ending_price
-                    .checked_sqrt()?
-                    .checked_sub(starting_price.checked_sqrt()?)?,
-            )?;
+                let new_x = max(bin_amount.resource_x.checked_add(change_x)?, Decimal::ZERO);
+                let new_y = max(bin_amount.resource_y.checked_add(change_y)?, Decimal::ZERO);
 
-            let new_x = max(bin_amount.resource_x.checked_add(change_x)?, Decimal::ZERO);
-            let new_y = max(bin_amount.resource_y.checked_add(change_y)?, Decimal::ZERO);
+                (new_x, new_y)
+            };
 
             Some((
                 tick,

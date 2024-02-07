@@ -1,3 +1,5 @@
+#![deny(clippy::arithmetic_side_effects)]
+
 use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;

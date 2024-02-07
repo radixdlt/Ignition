@@ -1,3 +1,5 @@
+#![deny(clippy::arithmetic_side_effects)]
+
 mod blueprint_interface;
 pub use blueprint_interface::*;
 
