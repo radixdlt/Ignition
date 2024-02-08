@@ -76,7 +76,7 @@ mod ignition {
     enable_method_auth! {
         roles {
             protocol_owner => updatable_by: [protocol_owner];
-            protocol_manager => updatable_by: [protocol_manager];
+            protocol_manager => updatable_by: [protocol_manager, protocol_owner];
         },
         methods {
             set_oracle_adapter => restrict_to: [
