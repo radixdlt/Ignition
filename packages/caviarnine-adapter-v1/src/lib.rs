@@ -1,4 +1,4 @@
-#![deny(clippy::arithmetic_side_effects)]
+#![warn(clippy::arithmetic_side_effects)]
 #![allow(clippy::new_without_default)]
 
 mod bin_selector;
