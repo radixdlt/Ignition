@@ -118,18 +118,27 @@ impl Price {
 mod test {
     use super::*;
 
+    const BITCOIN: ResourceAddress = ResourceAddress::new_or_panic([
+        93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 1,
+    ]);
+    const USD: ResourceAddress = ResourceAddress::new_or_panic([
+        93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 2,
+    ]);
+
     #[test]
     fn percentage_difference_with_opposite_base_and_quote_is_calculated_correctly(
     ) {
         // Arrange
         let p1 = Price {
-            base: ACCOUNT_OWNER_BADGE,
-            quote: VALIDATOR_OWNER_BADGE,
+            base: BITCOIN,
+            quote: USD,
             price: dec!(100),
         };
         let p2 = Price {
-            base: VALIDATOR_OWNER_BADGE,
-            quote: ACCOUNT_OWNER_BADGE,
+            base: USD,
+            quote: BITCOIN,
             price: dec!(1) / dec!(100),
         };
 
@@ -144,13 +153,13 @@ mod test {
     fn simple_percentage_difference_is_calculated_correctly() {
         // Arrange
         let p1 = Price {
-            base: ACCOUNT_OWNER_BADGE,
-            quote: VALIDATOR_OWNER_BADGE,
+            base: BITCOIN,
+            quote: USD,
             price: dec!(100),
         };
         let p2 = Price {
-            base: ACCOUNT_OWNER_BADGE,
-            quote: VALIDATOR_OWNER_BADGE,
+            base: BITCOIN,
+            quote: USD,
             price: dec!(50),
         };
 
@@ -164,8 +173,8 @@ mod test {
     #[test]
     fn exchange_method_calculates_as_expected1() {
         // Arrange
-        let btc = ACCOUNT_OWNER_BADGE;
-        let usd = VALIDATOR_OWNER_BADGE;
+        let btc = BITCOIN;
+        let usd = USD;
 
         let price = Price {
             base: btc,
@@ -184,8 +193,8 @@ mod test {
     #[test]
     fn exchange_method_calculates_as_expected2() {
         // Arrange
-        let btc = ACCOUNT_OWNER_BADGE;
-        let usd = VALIDATOR_OWNER_BADGE;
+        let btc = BITCOIN;
+        let usd = USD;
 
         let price = Price {
             base: btc,
@@ -200,5 +209,26 @@ mod test {
         // Assert
         assert_eq!(out_address, btc);
         assert_eq!(out_amount, dec!(1));
+    }
+
+    #[test]
+    fn price_reciprocal_is_what_we_expect_it_to_be() {
+        // Arrange
+        let btc = BITCOIN;
+        let usd = USD;
+
+        let price = Price {
+            base: btc,
+            quote: usd,
+            price: dec!(2),
+        };
+
+        // Act
+        let reciprocal = price.reciprocal();
+
+        // Assert
+        assert_eq!(reciprocal.base, price.quote);
+        assert_eq!(reciprocal.quote, price.base);
+        assert_eq!(reciprocal.price, dec!(1) / price.price);
     }
 }
