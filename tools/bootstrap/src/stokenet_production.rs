@@ -358,60 +358,74 @@ impl StokenetProduction {
 
             let manifest = ManifestBuilder::new()
                 // Ociswap liquidity receipt
-                .create_ruid_non_fungible_resource::<_, LiquidityReceipt>(
-                    owner_role.clone(),
-                    true,
-                    metadata! {
-                        roles {
-                            metadata_setter => protocol_owner_rule.clone();
-                            metadata_setter_updater => protocol_owner_rule.clone();
-                            metadata_locker => protocol_owner_rule.clone();
-                            metadata_locker_updater => protocol_owner_rule.clone();
+                .call_function(
+                    RESOURCE_PACKAGE,
+                    NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
+                    NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
+                    NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
+                        owner_role: owner_role.clone(),
+                        track_total_supply: true,
+                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                        entries: Vec::new(),
+                        resource_roles: roles.clone(),
+                        metadata: metadata! {
+                            roles {
+                                metadata_setter => protocol_owner_rule.clone();
+                                metadata_setter_updater => protocol_owner_rule.clone();
+                                metadata_locker => protocol_owner_rule.clone();
+                                metadata_locker_updater => protocol_owner_rule.clone();
+                            },
+                            init {
+                                // TODO: Confirm with the exchanges what they want
+                                // their name to be.
+                                "name" => "Ignition LP: Ociswap", updatable;
+                                "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
+                                "tags" => vec!["lp token"], updatable;
+                                "dapp_definitions" => vec![dapp_definition_account], updatable;
+                                // TODO: Must get this from our design team
+                                "icon_url" => UncheckedUrl::of("https://www.google.com"), updatable;
+                                "DEX" => "Ociswap", updatable;
+                                // TODO: Must get this from Ociswap!
+                                "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
+                            }
                         },
-                        init {
-                            // TODO: Confirm with the exchanges what they want
-                            // their name to be.
-                            "name" => "Ignition LP: Ociswap", updatable;
-                            "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
-                            "tags" => vec!["lp token"], updatable;
-                            "dapp_definitions" => vec![dapp_definition_account], updatable;
-                            // TODO: Must get this from our design team
-                            "icon_url" => UncheckedUrl::of("https://www.google.com"), updatable;
-                            "DEX" => "Ociswap", updatable;
-                            // TODO: Must get this from Ociswap!
-                            "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
-                        }
-                    },
-                    roles.clone(),
-                    Some(vec![]),
+                        address_reservation: None
+                    }
                 )
                 // Caviarnine liquidity receipt
-                .create_ruid_non_fungible_resource::<_, LiquidityReceipt>(
-                    owner_role.clone(),
-                    true,
-                    metadata! {
-                        roles {
-                            metadata_setter => protocol_owner_rule.clone();
-                            metadata_setter_updater => protocol_owner_rule.clone();
-                            metadata_locker => protocol_owner_rule.clone();
-                            metadata_locker_updater => protocol_owner_rule.clone();
+                .call_function(
+                    RESOURCE_PACKAGE,
+                    NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
+                    NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
+                    NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
+                        owner_role: owner_role.clone(),
+                        track_total_supply: true,
+                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                        entries: Vec::new(),
+                        resource_roles: roles.clone(),
+                        metadata: metadata! {
+                            roles {
+                                metadata_setter => protocol_owner_rule.clone();
+                                metadata_setter_updater => protocol_owner_rule.clone();
+                                metadata_locker => protocol_owner_rule.clone();
+                                metadata_locker_updater => protocol_owner_rule.clone();
+                            },
+                            init {
+                                // TODO: Confirm with the exchanges what they want
+                                // their name to be.
+                                "name" => "Ignition LP: Caviarnine", updatable;
+                                "description" => "Represents a particular contribution of liquidity to Caviarnine through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
+                                "tags" => vec!["lp token"], updatable;
+                                "dapp_definitions" => vec![dapp_definition_account], updatable;
+                                // TODO: Must get this from our design team
+                                "icon_url" => UncheckedUrl::of("https://www.google.com"), updatable;
+                                "DEX" => "Caviarnine", updatable;
+                                // TODO: Must get this from Caviarnine!
+                                "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
+                            }
                         },
-                        init {
-                            // TODO: Confirm with the exchanges what they want
-                            // their name to be.
-                            "name" => "Ignition LP: Caviarnine", updatable;
-                            "description" => "Represents a particular contribution of liquidity to Caviarnine through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
-                            "tags" => vec!["lp token"], updatable;
-                            "dapp_definitions" => vec![dapp_definition_account], updatable;
-                            // TODO: Must get this from our design team
-                            "icon_url" => UncheckedUrl::of("https://www.google.com"), updatable;
-                            "DEX" => "Caviarnine", updatable;
-                            // TODO: Must get this from Caviarnine!
-                            "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
-                        }
-                    },
-                    roles,
-                    Some(vec![]),
+                        address_reservation: None
+                    }
                 )
                 .build();
 

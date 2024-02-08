@@ -1,22 +1,27 @@
 use radix_engine_interface::prelude::*;
 
-#[derive(Clone, Debug, Sbor, PartialEq, Eq)]
+#[derive(Clone, Debug, ScryptoSbor, PartialEq, Eq)]
 #[sbor(transparent)]
-pub struct AnyValue(Vec<u8>);
+pub struct AnyValue((ScryptoValue,));
 
 impl AnyValue {
     pub fn from_typed<T>(typed: &T) -> Result<Self, AnyValueError>
     where
         T: ScryptoEncode,
     {
-        scrypto_encode(typed).map(Self).map_err(Into::into)
+        scrypto_encode(typed)
+            .map_err(Into::into)
+            .and_then(|value| scrypto_decode(&value).map_err(Into::into))
+            .map(|value| Self((value,)))
     }
 
     pub fn as_typed<T>(&self) -> Result<T, AnyValueError>
     where
         T: ScryptoDecode,
     {
-        scrypto_decode(&self.0).map_err(Into::into)
+        scrypto_encode(&self.0 .0)
+            .map_err(Into::into)
+            .and_then(|value| scrypto_decode(&value).map_err(Into::into))
     }
 }
 

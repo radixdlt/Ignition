@@ -12,8 +12,6 @@ define_interface! {
         ScryptoStub,
         #[cfg(feature = "scrypto-test-stubs")]
         ScryptoTestStub,
-        #[cfg(feature = "manifest-builder-stubs")]
-        ManifestBuilderStub
     ] {
         /// Opens a liquidity position in the pool.
         ///

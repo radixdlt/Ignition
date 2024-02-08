@@ -3,9 +3,7 @@ use adapters_interface::prelude::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Ignition.
-#[derive(
-    ScryptoSbor, ManifestSbor, Clone, Debug, PartialEq, Eq, NonFungibleData,
-)]
+#[derive(ScryptoSbor, Clone, Debug, PartialEq, Eq, NonFungibleData)]
 pub struct LiquidityReceipt {
     /* Metadata/NonFungibleData standard */
     pub name: String,

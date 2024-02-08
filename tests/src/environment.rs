@@ -522,16 +522,44 @@ impl ScryptoUnitEnv {
                 )
             });
 
-        let [ociswap_liquidity_receipt_resource, caviarnine_liquidity_receipt_resource] =
-            [(), ()].map(|_| {
-                test_runner
-                    .create_freely_mintable_and_burnable_non_fungible_resource(
-                        OwnerRole::None,
-                        NonFungibleIdType::RUID,
-                        None::<Vec<(NonFungibleLocalId, LiquidityReceipt)>>,
-                        account,
-                    )
-            });
+        let [ociswap_liquidity_receipt_resource, caviarnine_liquidity_receipt_resource] = [(), ()].map(|_| {
+            test_runner
+                .execute_manifest(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .call_function(
+                            RESOURCE_PACKAGE,
+                            NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
+                            NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
+                            NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
+                                owner_role: OwnerRole::None,
+                                track_total_supply: true,
+                                non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                                entries: vec![],
+                                resource_roles: NonFungibleResourceRoles {
+                                    mint_roles: mint_roles! {
+                                        minter => rule!(allow_all);
+                                        minter_updater => rule!(allow_all);
+                                    },
+                                    burn_roles: burn_roles! {
+                                        burner => rule!(allow_all);
+                                        burner_updater => rule!(allow_all);
+                                    },
+                                    ..Default::default()
+                                },
+                                metadata: Default::default(),
+                                address_reservation: Default::default(),
+                            },
+                        )
+                        .build(),
+                    vec![],
+                )
+                .expect_commit_success()
+                .new_resource_addresses()
+                .first()
+                .copied()
+                .unwrap()
+        });
 
         let ociswap_pools = resource_addresses.map(|resource_address| {
             let manifest = ManifestBuilder::new()
