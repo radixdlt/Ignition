@@ -725,6 +725,24 @@ impl ScryptoUnitEnv {
                 .unwrap()
         });
 
+        // Cache the addresses of the various Caviarnine pools.
+        test_runner
+            .execute_manifest_ignoring_fee(
+                TransactionManifestV1 {
+                    instructions: caviarnine_pools
+                        .iter()
+                        .map(|address| InstructionV1::CallMethod {
+                            address: caviarnine_adapter_v1.into(),
+                            method_name: "cache_pool_information".to_owned(),
+                            args: manifest_args!(address).into(),
+                        })
+                        .collect(),
+                    blobs: Default::default(),
+                },
+                vec![],
+            )
+            .expect_commit_success();
+
         {
             let manifest = ManifestBuilder::new()
                 .lock_fee_from_faucet()

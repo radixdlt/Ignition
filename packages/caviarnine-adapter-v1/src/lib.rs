@@ -39,7 +39,7 @@ define_error! {
 
 /// The total number of bins that we will be using on the left and the right
 /// excluding the one in the middle.
-pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 30 * 2;
+pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
 
 #[blueprint_with_traits]
 #[types(ComponentAddress, PoolInformation)]
@@ -81,6 +81,27 @@ pub mod adapter {
             .globalize()
         }
 
+        pub fn cache_pool_information(
+            &mut self,
+            pool_address: ComponentAddress,
+        ) -> PoolInformation {
+            let pool = Self::pool(pool_address);
+            let resource_address_x = pool.get_token_x_address();
+            let resource_address_y = pool.get_token_y_address();
+            let bin_span = pool.get_bin_span();
+
+            let pool_information = PoolInformation {
+                bin_span,
+                resources: ResourceIndexedData {
+                    resource_x: resource_address_x,
+                    resource_y: resource_address_y,
+                },
+            };
+            self.pool_information_cache
+                .insert(pool_address, pool_information);
+            pool_information
+        }
+
         fn pool(
             component_address: ComponentAddress,
         ) -> CaviarninePoolInterfaceScryptoStub {
@@ -96,23 +117,7 @@ pub mod adapter {
                 *entry
             } else {
                 drop(entry);
-
-                let pool = Self::pool(pool_address);
-                let resource_address_x = pool.get_token_x_address();
-                let resource_address_y = pool.get_token_y_address();
-                let bin_span = pool.get_bin_span();
-
-                let pool_information = PoolInformation {
-                    bin_span,
-                    resources: ResourceIndexedData {
-                        resource_x: resource_address_x,
-                        resource_y: resource_address_y,
-                    },
-                };
-                self.pool_information_cache
-                    .insert(pool_address, pool_information);
-
-                pool_information
+                self.cache_pool_information(pool_address)
             }
         }
     }
@@ -279,8 +284,8 @@ pub mod adapter {
             } = self.get_pool_information(pool_address);
             let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
 
-            // Decoding the adapter specific information as the type we
-            // expect it to be.
+            // Decoding the adapter specific information as the type we expect
+            // it to be.
             let CaviarnineAdapterSpecificInformation {
                 bin_contributions,
                 price_when_position_was_opened,
@@ -351,8 +356,14 @@ pub mod adapter {
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
             let pool = Self::pool(pool_address);
 
-            let (resource_address_x, resource_address_y) =
-                self.resource_addresses(pool_address);
+            let PoolInformation {
+                resources:
+                    ResourceIndexedData {
+                        resource_x: resource_address_x,
+                        resource_y: resource_address_y,
+                    },
+                ..
+            } = self.get_pool_information(pool_address);
             let price = pool.get_price().expect(NO_PRICE_ERROR);
 
             Price {
@@ -643,7 +654,7 @@ fn calculate_bin_amounts_due_to_price_action(
                     bin_lower_price,
                     bin_upper_price,
                 )?;
-    
+
                 let change_x = liquidity.checked_mul(
                     Decimal::ONE
                         .checked_div(ending_price.checked_sqrt()?)?
