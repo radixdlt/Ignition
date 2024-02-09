@@ -14,25 +14,45 @@ impl LockupPeriod {
         Self(seconds)
     }
 
-    pub const fn from_minutes(minutes: u64) -> Self {
-        Self::from_seconds(minutes * 60)
+    pub const fn from_minutes(minutes: u64) -> Option<Self> {
+        let value = minutes.checked_mul(60);
+        match value {
+            Some(value) => Some(Self::from_seconds(value)),
+            None => None,
+        }
     }
 
-    pub const fn from_hours(hours: u64) -> Self {
-        Self::from_minutes(hours * 60)
+    pub const fn from_hours(hours: u64) -> Option<Self> {
+        let value = hours.checked_mul(60);
+        match value {
+            Some(value) => Self::from_minutes(value),
+            None => None,
+        }
     }
 
-    pub const fn from_days(days: u64) -> Self {
-        Self::from_hours(days * 24)
+    pub const fn from_days(days: u64) -> Option<Self> {
+        let value = days.checked_mul(24);
+        match value {
+            Some(value) => Self::from_hours(value),
+            None => None,
+        }
     }
 
-    pub const fn from_weeks(weeks: u64) -> Self {
-        Self::from_days(weeks * 7)
+    pub const fn from_weeks(weeks: u64) -> Option<Self> {
+        let value = weeks.checked_mul(7);
+        match value {
+            Some(value) => Self::from_days(value),
+            None => None,
+        }
     }
 
     // One month approx 30.44 days
-    pub const fn from_months(months: u64) -> Self {
-        Self::from_seconds(months * 2_630_016)
+    pub const fn from_months(months: u64) -> Option<Self> {
+        let value = months.checked_mul(2_630_016);
+        match value {
+            Some(value) => Some(Self::from_seconds(value)),
+            None => None,
+        }
     }
 
     pub const fn seconds(&self) -> &u64 {

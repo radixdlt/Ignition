@@ -26,7 +26,7 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -54,7 +54,7 @@ fn cant_open_a_liquidity_position_on_a_pool_that_has_no_adapter(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         FAUCET,
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -91,7 +91,7 @@ fn cant_open_liquidity_position_against_a_pool_outside_of_the_allow_list(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         new_pool.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -123,7 +123,7 @@ fn cant_open_a_liquidity_position_in_a_pool_after_it_has_been_removed_from_allow
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -151,7 +151,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(random_resource),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -184,7 +184,7 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(protocol_resource),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -217,7 +217,7 @@ pub fn can_open_a_liquidity_position_before_the_price_is_stale(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -253,7 +253,7 @@ pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -289,7 +289,7 @@ pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -325,7 +325,7 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -397,7 +397,7 @@ fn test_open_position_oracle_price_cutoffs(
     protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )
 }
@@ -582,7 +582,7 @@ fn cant_open_a_liquidity_position_with_volatile_user_resource_when_volatile_vaul
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -622,7 +622,7 @@ fn cant_open_a_liquidity_position_with_non_volatile_user_resource_when_non_volat
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(usdc_bucket),
         ociswap.pools.usdc.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -658,7 +658,7 @@ fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_va
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -702,7 +702,7 @@ fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_
     let _ = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -739,8 +739,8 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     const POOL_PRICE: Decimal = dec!(1);
     const BITCOIN_CONTRIBUTION: Decimal = dec!(100);
 
-    const LOCKUP_PERIOD: LockupPeriod = LockupPeriod::from_months(6);
     const LOCKUP_REWARD: Decimal = dec!(0.2);
+    let lockup_period: LockupPeriod = LockupPeriod::from_months(6).unwrap();
 
     let Environment {
         environment: ref mut env,
@@ -774,7 +774,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
         protocol.ignition.open_liquidity_position(
             FungibleBucket(bitcoin_bucket),
             ociswap.pools.bitcoin.try_into().unwrap(),
-            LOCKUP_PERIOD,
+            lockup_period,
             env,
         )?;
 
@@ -818,7 +818,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
 
     assert_eq!(
         liquidity_receipt_data.lockup_period,
-        LOCKUP_PERIOD.to_string()
+        lockup_period.to_string()
     );
     assert_eq!(
         liquidity_receipt_data.pool_address,
@@ -843,7 +843,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     assert_eq!(
         liquidity_receipt_data.maturity_date,
         env.get_current_time()
-            .add_seconds(*LOCKUP_PERIOD.seconds() as i64)
+            .add_seconds(*lockup_period.seconds() as i64)
             .unwrap()
     );
 
@@ -1033,7 +1033,7 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
     let (liquidity_receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1109,7 +1109,7 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1120,7 +1120,7 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
     let current_time = env.get_current_time();
     env.set_current_time(
         current_time
-            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
             .unwrap(),
     );
 
@@ -1180,7 +1180,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1191,7 +1191,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let current_time = env.get_current_time();
     env.set_current_time(
         current_time
-            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
             .unwrap(),
     );
 
@@ -1251,7 +1251,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1262,7 +1262,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let current_time = env.get_current_time();
     env.set_current_time(
         current_time
-            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
             .unwrap(),
     );
 
@@ -1322,7 +1322,7 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1333,7 +1333,7 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
     let current_time = env.get_current_time();
     env.set_current_time(
         current_time
-            .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+            .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
             .unwrap(),
     );
 

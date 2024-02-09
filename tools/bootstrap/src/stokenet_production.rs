@@ -90,10 +90,10 @@ impl StokenetProduction {
         // TODO: Numbers here are not real and I have added from just to get
         // things going. MUST modify before launch.
         let reward_information = indexmap! {
-            LockupPeriod::from_months(9) => dec!(0.125),  // 12.5%
-            LockupPeriod::from_months(10) => dec!(0.15),  // 15.0%
-            LockupPeriod::from_months(11) => dec!(0.175), // 17.5%
-            LockupPeriod::from_months(12) => dec!(0.20),  // 20.0%
+            LockupPeriod::from_months(9).unwrap() => dec!(0.125),  // 12.5%
+            LockupPeriod::from_months(10).unwrap() => dec!(0.15),  // 15.0%
+            LockupPeriod::from_months(11).unwrap() => dec!(0.175), // 17.5%
+            LockupPeriod::from_months(12).unwrap() => dec!(0.20),  // 20.0%
         };
 
         // TODO: MUST determine what those accounts are prior to launch!

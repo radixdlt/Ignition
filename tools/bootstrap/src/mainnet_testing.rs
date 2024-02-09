@@ -91,8 +91,8 @@ impl MainnetTesting {
         // TODO: Numbers here are not real and I have added from just to get
         // things going. MUST modify before launch.
         let reward_information = indexmap! {
-            LockupPeriod::from_minutes(0) => dec!(0.125),  // 12.5%
-            LockupPeriod::from_minutes(1) => dec!(0.15),  // 15.0%
+            LockupPeriod::from_minutes(0).unwrap() => dec!(0.125),  // 12.5%
+            LockupPeriod::from_minutes(1).unwrap() => dec!(0.15),  // 15.0%
         };
 
         // TODO: MUST determine what those accounts are prior to launch!

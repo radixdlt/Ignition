@@ -19,7 +19,7 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     );
 
@@ -108,7 +108,7 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                     (
                         bucket,
                         ociswap.pools.bitcoin,
-                        LockupPeriod::from_months(6),
+                        LockupPeriod::from_months(6).unwrap(),
                     ),
                 )
             })
@@ -183,7 +183,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                         (
                             bucket,
                             ociswap.pools.bitcoin,
-                            LockupPeriod::from_months(6),
+                            LockupPeriod::from_months(6).unwrap(),
                         ),
                     )
                 })
@@ -195,7 +195,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
 
     let current_time = test_runner.get_current_time(TimePrecisionV2::Minute);
     let maturity_instant = current_time
-        .add_seconds(*LockupPeriod::from_months(6).seconds() as i64)
+        .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
         .unwrap();
     {
         let db = test_runner.substate_db_mut();
@@ -471,7 +471,7 @@ fn non_strict_testing_of_fees(
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
         ociswap.pools.bitcoin.try_into().unwrap(),
-        LockupPeriod::from_months(6),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -538,7 +538,7 @@ fn non_strict_testing_of_fees(
     }
 
     env.set_current_time(Instant::new(
-        *LockupPeriod::from_months(12).seconds() as i64,
+        *LockupPeriod::from_months(12).unwrap().seconds() as i64,
     ));
     let pool_reported_price = ociswap
         .adapter

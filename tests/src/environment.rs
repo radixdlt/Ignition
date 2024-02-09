@@ -315,12 +315,12 @@ impl ScryptoTestEnv {
             ignition.set_is_close_position_enabled(true, &mut env)?;
 
             ignition.add_reward_rate(
-                LockupPeriod::from_months(6),
+                LockupPeriod::from_months(6).unwrap(),
                 dec!(0.2),
                 &mut env,
             )?;
             ignition.add_reward_rate(
-                LockupPeriod::from_months(12),
+                LockupPeriod::from_months(12).unwrap(),
                 dec!(0.4),
                 &mut env,
             )?;
@@ -779,12 +779,12 @@ impl ScryptoUnitEnv {
                 .call_method(
                     ignition,
                     "add_reward_rate",
-                    (LockupPeriod::from_months(6), dec!(0.2)),
+                    (LockupPeriod::from_months(6).unwrap(), dec!(0.2)),
                 )
                 .call_method(
                     ignition,
                     "add_reward_rate",
-                    (LockupPeriod::from_months(12), dec!(0.4)),
+                    (LockupPeriod::from_months(12).unwrap(), dec!(0.4)),
                 )
                 .mint_fungible(XRD, dec!(200_000_000_000_000))
                 .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
