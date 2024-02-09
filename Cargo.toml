@@ -5,6 +5,7 @@ members = [
     "packages/ignition",
     "packages/simple-oracle",
     "packages/ociswap-v1-adapter-v1",
+    "packages/ociswap-v2-adapter-v1",
     "packages/caviarnine-v1-adapter-v1",
     # Libraries
     "libraries/package-loader",
