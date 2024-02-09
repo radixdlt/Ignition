@@ -452,8 +452,9 @@ mod ignition {
                     USER_ASSET_DOES_NOT_BELONG_TO_POOL_ERROR
                 );
 
-                assert!(
-                    user_resource_address != self.protocol_resource.address(),
+                assert_ne!(
+                    user_resource_address,
+                    self.protocol_resource.address(),
                     "{}",
                     USER_MUST_NOT_PROVIDE_PROTOCOL_ASSET_ERROR
                 )
@@ -1595,8 +1596,16 @@ mod ignition {
             } else if resources.1 == protocol_resource_address {
                 resources.0
             } else {
-                panic!("{}", NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR)
+                unreachable!("{}", NEITHER_POOL_RESOURCE_IS_USER_RESOURCE_ERROR)
             };
+
+            // Ensure that the user's resource is not the protocol resource.
+            // A pool whose two assets is the same is an issue.
+            assert_ne!(
+                user_resource, protocol_resource_address,
+                "{}",
+                BOTH_POOL_ASSETS_ARE_THE_PROTOCOL_RESOURCE
+            );
 
             user_resource_volatility
                 .get(&user_resource)

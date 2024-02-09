@@ -15,6 +15,8 @@ define_error! {
         => "No adapter found for liquidity pool.";
     NEITHER_POOL_RESOURCE_IS_PROTOCOL_RESOURCE_ERROR
         => "Neither pool resource is the protocol resource.";
+    NEITHER_POOL_RESOURCE_IS_USER_RESOURCE_ERROR
+        => "Neither pool resource is the user resource.";
     NO_ASSOCIATED_VAULT_ERROR
         => "The resource has no associated vault in the protocol.";
     NO_ASSOCIATED_LIQUIDITY_RECEIPT_VAULT_ERROR
@@ -49,4 +51,6 @@ define_error! {
         => "The user has provided the protocol asset, which is not allowed";
     USER_RESOURCES_VOLATILITY_UNKNOWN_ERROR
         => "A user resource with no registered volatility status was interacted with.";
+    BOTH_POOL_ASSETS_ARE_THE_PROTOCOL_RESOURCE
+        => "The user resource can not be the protocol resource.";
 }
