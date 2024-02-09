@@ -80,14 +80,20 @@ pub mod adapter {
             // TODO: Is this actually pool units and change?
             let (pool_units, change) = pool.add_liquidity(buckets.0, buckets.1);
 
-            let user_share = pool_units.amount()
-                / pool_units.resource_manager().total_supply().unwrap();
+            let user_share = pool_units
+                .amount()
+                .checked_div(
+                    pool_units.resource_manager().total_supply().unwrap(),
+                )
+                .expect(OVERFLOW_ERROR);
 
             let pool_k = Global::<TwoResourcePool>::from(pool.liquidity_pool())
                 .get_vault_amounts()
                 .values()
                 .map(|item| PreciseDecimal::from(*item))
-                .reduce(|acc, item| acc * item)
+                .reduce(|acc, item| {
+                    acc.checked_mul(item).expect(OVERFLOW_ERROR)
+                })
                 .expect(FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR);
 
             OpenLiquidityPositionOutput {
@@ -190,7 +196,9 @@ pub mod adapter {
                     .checked_mul(user_share_in_pool_when_position_opened)
                     .and_then(|value| Decimal::try_from(value).ok())
                     .expect(OVERFLOW_ERROR);
-                let predicted_amount_y = predicted_amount_x * price.price;
+                let predicted_amount_y = predicted_amount_x
+                    .checked_mul(price.price)
+                    .expect(OVERFLOW_ERROR);
 
                 let fees_x = max(
                     indexed_buckets

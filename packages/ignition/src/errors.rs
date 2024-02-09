@@ -53,4 +53,5 @@ define_error! {
         => "A user resource with no registered volatility status was interacted with.";
     BOTH_POOL_ASSETS_ARE_THE_PROTOCOL_RESOURCE
         => "The user resource can not be the protocol resource.";
+    OVERFLOW_ERROR => "Overflow error";
 }

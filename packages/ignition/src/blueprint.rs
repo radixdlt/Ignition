@@ -509,16 +509,30 @@ mod ignition {
             // Calculate the amount of resources that was actually contributed
             // based on the amount of change that we got back.
             let amount_of_user_tokens_contributed = user_resource_amount
-                - change
-                    .get(&user_resource_address)
-                    .map(Bucket::amount)
-                    .unwrap_or(Decimal::ZERO);
+                .checked_sub(
+                    change
+                        .get(&user_resource_address)
+                        .map(Bucket::amount)
+                        .unwrap_or(Decimal::ZERO),
+                )
+                // Impossible to get here. This is saying that not only did we
+                // get change back that exceeded the amount that was put in, but
+                // that the change we got back was so large that it lead us to
+                // underflow.
+                .expect(OVERFLOW_ERROR);
             let amount_of_protocol_tokens_contributed =
                 oracle_reported_value_of_user_resource_in_protocol_resource
-                    - change
-                        .get(&self.protocol_resource.address())
-                        .map(Bucket::amount)
-                        .unwrap_or(Decimal::ZERO);
+                    .checked_sub(
+                        change
+                            .get(&self.protocol_resource.address())
+                            .map(Bucket::amount)
+                            .unwrap_or(Decimal::ZERO),
+                    )
+                    // Impossible to get here. This is saying that not only did
+                    // we get change back that exceeded the amount that was put
+                    // in, but that the change we got back was so large that it
+                    // lead us to underflow.
+                    .expect(OVERFLOW_ERROR);
 
             // Determine the amount of upfront tokens to provide to the user
             // based on the lockup period specified.
@@ -538,7 +552,8 @@ mod ignition {
                     .expect(LOCKUP_PERIOD_HAS_NO_ASSOCIATED_REWARDS_RATE_ERROR);
 
                 oracle_reported_value_of_user_resource_actually_contributed_in_protocol_resource
-                    * *associated_rewards_rate
+                    .checked_mul(*associated_rewards_rate)
+                    .expect(OVERFLOW_ERROR)
             };
 
             let upfront_reward = self.withdraw_protocol_resources(
@@ -787,8 +802,10 @@ mod ignition {
                 let amount_of_protocol_resource_to_give_user = dec!(0);
                 let amount_of_user_resource_to_give_user = min(
                     user_resource_bucket_amount,
-                    liquidity_receipt_data.user_contribution_amount
-                        + user_resource_fees,
+                    liquidity_receipt_data
+                        .user_contribution_amount
+                        .checked_add(user_resource_fees)
+                        .expect(OVERFLOW_ERROR),
                 );
 
                 (
@@ -802,7 +819,8 @@ mod ignition {
                 let amount_of_protocol_resource_to_give_user = {
                     let user_amount_missing = liquidity_receipt_data
                         .user_contribution_amount
-                        - user_resource_bucket_amount;
+                        .checked_sub(user_resource_bucket_amount)
+                        .expect(OVERFLOW_ERROR);
                     let (_, protocol_resources_required_for_buy_back) =
                         oracle_reported_price
                             .exchange(

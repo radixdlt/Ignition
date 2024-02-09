@@ -2,6 +2,8 @@
 //! liquidity to based on the current active bin, the bin span, and the maximum
 //! number of allowed bins.
 
+#![allow(clippy::arithmetic_side_effects)]
+
 /// Ticks are in the range [0, 54000].
 const MAXIMUM_TICK_VALUE: usize = 54000;
 

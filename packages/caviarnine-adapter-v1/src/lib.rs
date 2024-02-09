@@ -181,9 +181,19 @@ pub mod adapter {
             let pool_price = self.price(pool_address);
             let price = pool_price.price;
 
-            let ratio_in_active_bin_x = amount_in_active_bin_x * price
-                / (amount_in_active_bin_x * price + amount_in_active_bin_y);
-            let ratio_in_active_bin_y = Decimal::one() - ratio_in_active_bin_x;
+            let ratio_in_active_bin_x = amount_in_active_bin_x
+                .checked_mul(price)
+                .and_then(|value| {
+                    value.checked_div(
+                        amount_in_active_bin_x
+                            .checked_mul(price)?
+                            .checked_add(amount_in_active_bin_y)?,
+                    )
+                })
+                .expect(OVERFLOW_ERROR);
+            let ratio_in_active_bin_y = Decimal::one()
+                .checked_sub(ratio_in_active_bin_x)
+                .expect(OVERFLOW_ERROR);
 
             // In here, we decide the amount x by the number of higher bins plus
             // the ratio of the x in the currently active bin since the pool
@@ -192,26 +202,35 @@ pub mod adapter {
             // positions plus the ratio of y in the active bin since the pool
             // starting from the current price and downward is composed just of
             // y.
-            let position_amount_x = amount_x
-                / (Decimal::from(higher_bins.len() as u32)
-                    + ratio_in_active_bin_x);
-            let position_amount_y = amount_y
-                / (Decimal::from(lower_bins.len() as u32)
-                    + ratio_in_active_bin_y);
+            let position_amount_x = Decimal::from(higher_bins.len() as u32)
+                .checked_add(ratio_in_active_bin_x)
+                .and_then(|value| amount_x.checked_div(value))
+                .expect(OVERFLOW_ERROR);
+            let position_amount_y = Decimal::from(lower_bins.len() as u32)
+                .checked_add(ratio_in_active_bin_y)
+                .and_then(|value| amount_y.checked_div(value))
+                .expect(OVERFLOW_ERROR);
 
-            let amount_bin_x_in_y = position_amount_x * price;
-            let (position_amount_x, position_amount_y) =
-                if amount_bin_x_in_y > position_amount_y {
-                    let position_amount_y_in_x = position_amount_y / price;
-                    (position_amount_y_in_x, position_amount_y)
-                } else {
-                    (position_amount_x, amount_bin_x_in_y)
-                };
+            let amount_bin_x_in_y =
+                position_amount_x.checked_mul(price).expect(OVERFLOW_ERROR);
+            let (position_amount_x, position_amount_y) = if amount_bin_x_in_y
+                > position_amount_y
+            {
+                let position_amount_y_in_x =
+                    position_amount_y.checked_div(price).expect(OVERFLOW_ERROR);
+                (position_amount_y_in_x, position_amount_y)
+            } else {
+                (position_amount_x, amount_bin_x_in_y)
+            };
 
             let mut positions = vec![(
                 active_bin,
-                position_amount_x * ratio_in_active_bin_x,
-                position_amount_y * ratio_in_active_bin_y,
+                position_amount_x
+                    .checked_mul(ratio_in_active_bin_x)
+                    .expect(OVERFLOW_ERROR),
+                position_amount_y
+                    .checked_mul(ratio_in_active_bin_y)
+                    .expect(OVERFLOW_ERROR),
             )];
             positions.extend(
                 lower_bins
@@ -321,7 +340,7 @@ pub mod adapter {
                     .into_iter()
                     .map(|(_, amount_in_bin)| amount_in_bin)
                     .fold(ResourceIndexedData::default(), |acc, item| {
-                        acc + item
+                        acc.checked_add(item).expect(OVERFLOW_ERROR)
                     });
 
                 // The difference between the amount we got back and the amount
@@ -332,7 +351,8 @@ pub mod adapter {
                             .get(&resource_x)
                             .map(|bucket| bucket.amount())
                             .unwrap_or_default()
-                            - expected_amount_back.resource_x,
+                            .checked_sub(expected_amount_back.resource_x)
+                            .expect(OVERFLOW_ERROR),
                         Decimal::ZERO
                     ),
                     resource_y => max(
@@ -340,7 +360,8 @@ pub mod adapter {
                             .get(&resource_y)
                             .map(|bucket| bucket.amount())
                             .unwrap_or_default()
-                            - expected_amount_back.resource_y,
+                            .checked_sub(expected_amount_back.resource_y)
+                            .expect(OVERFLOW_ERROR),
                         Decimal::ZERO
                     )
                 }
@@ -456,47 +477,57 @@ pub struct ResourceIndexedData<T> {
 
 impl<T> Add<Self> for ResourceIndexedData<T>
 where
-    T: Add<T, Output = T>,
+    Self: CheckedAdd<Self, Output = Self>,
 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Self {
-            resource_x: self.resource_x + rhs.resource_x,
-            resource_y: self.resource_y + rhs.resource_y,
-        }
+        self.checked_add(rhs).unwrap()
     }
 }
 
 impl<T> Sub<Self> for ResourceIndexedData<T>
 where
-    T: Sub<T, Output = T>,
+    Self: CheckedSub<Self, Output = Self>,
 {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        Self {
-            resource_x: self.resource_x - rhs.resource_x,
-            resource_y: self.resource_y - rhs.resource_y,
-        }
+        self.checked_sub(rhs).unwrap()
     }
 }
 
-impl<T> AddAssign for ResourceIndexedData<T>
+impl<T> CheckedAdd<Self> for ResourceIndexedData<T>
 where
-    T: Add<T, Output = T> + Copy,
+    T: CheckedAdd<T, Output = T>,
 {
-    fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
+    type Output = Self;
+
+    fn checked_add(self, rhs: Self) -> Option<Self::Output>
+    where
+        Self: Sized,
+    {
+        Some(Self {
+            resource_x: self.resource_x.checked_add(rhs.resource_x)?,
+            resource_y: self.resource_y.checked_add(rhs.resource_y)?,
+        })
     }
 }
 
-impl<T> SubAssign for ResourceIndexedData<T>
+impl<T> CheckedSub<Self> for ResourceIndexedData<T>
 where
-    T: Sub<T, Output = T> + Copy,
+    T: CheckedSub<T, Output = T>,
 {
-    fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
+    type Output = Self;
+
+    fn checked_sub(self, rhs: Self) -> Option<Self::Output>
+    where
+        Self: Sized,
+    {
+        Some(Self {
+            resource_x: self.resource_x.checked_sub(rhs.resource_x)?,
+            resource_y: self.resource_y.checked_sub(rhs.resource_y)?,
+        })
     }
 }
 
@@ -712,26 +743,6 @@ mod test {
     }
 
     #[test]
-    fn simple_resource_indexed_data_add_assign_produces_expected_output() {
-        // Arrange
-        let mut a = ResourceIndexedData {
-            resource_x: Decimal::ZERO,
-            resource_y: dec!(200),
-        };
-        let b = ResourceIndexedData {
-            resource_x: dec!(500),
-            resource_y: dec!(12),
-        };
-
-        // Act
-        a += b;
-
-        // Assert
-        assert_eq!(a.resource_x, dec!(500));
-        assert_eq!(a.resource_y, dec!(212));
-    }
-
-    #[test]
     fn simple_resource_indexed_data_subtraction_produces_expected_output() {
         // Arrange
         let a = ResourceIndexedData {
@@ -749,25 +760,5 @@ mod test {
         // Assert
         assert_eq!(c.resource_x, dec!(-500));
         assert_eq!(c.resource_y, dec!(188));
-    }
-
-    #[test]
-    fn simple_resource_indexed_data_sub_assign_produces_expected_output() {
-        // Arrange
-        let mut a = ResourceIndexedData {
-            resource_x: Decimal::ZERO,
-            resource_y: dec!(200),
-        };
-        let b = ResourceIndexedData {
-            resource_x: dec!(500),
-            resource_y: dec!(12),
-        };
-
-        // Act
-        a -= b;
-
-        // Assert
-        assert_eq!(a.resource_x, dec!(-500));
-        assert_eq!(a.resource_y, dec!(188));
     }
 }
