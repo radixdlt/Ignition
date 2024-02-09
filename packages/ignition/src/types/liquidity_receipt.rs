@@ -1,5 +1,5 @@
 use crate::*;
-use adapters_interface::prelude::*;
+use ports_interface::prelude::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Ignition.

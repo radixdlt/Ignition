@@ -65,7 +65,7 @@
 use std::cmp::*;
 
 use crate::*;
-use adapters_interface::prelude::*;
+use ports_interface::prelude::*;
 use scrypto::prelude::*;
 
 type PoolAdapter = PoolAdapterInterfaceScryptoStub;

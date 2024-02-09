@@ -5,7 +5,7 @@ pub use blueprint_interface::*;
 
 use std::cmp::*;
 
-use adapters_interface::prelude::*;
+use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 

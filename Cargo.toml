@@ -10,7 +10,7 @@ members = [
     "libraries/package-loader",
     "libraries/gateway-client",
     "libraries/scrypto-interface",
-    "libraries/adapters-interface",
+    "libraries/ports-interface",
     # Tools
     "tools/bootstrap",
     # Tests

@@ -9,7 +9,7 @@ pub use crate::bin_selector::*;
 pub use crate::blueprint_interface::*;
 pub use crate::tick_math::*;
 
-use adapters_interface::prelude::*;
+use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
