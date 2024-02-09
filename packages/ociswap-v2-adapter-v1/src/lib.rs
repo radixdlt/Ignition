@@ -19,17 +19,7 @@ macro_rules! define_error {
     };
 }
 
-define_error! {
-    FAILED_TO_GET_RESOURCE_ADDRESSES_ERROR
-        => "Failed to get resource addresses - unexpected error.";
-    FAILED_TO_GET_VAULT_ERROR
-        => "Failed to get vault - unexpected error.";
-    PRICE_IS_UNDEFINED
-        => "Price is undefined.";
-    FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR
-        => "Failed to calculate the K value of the pool.";
-    OVERFLOW_ERROR => "Calculation overflowed.";
-}
+define_error! {}
 
 #[blueprint_with_traits]
 pub mod adapter {

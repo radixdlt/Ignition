@@ -19,6 +19,10 @@ ociswap-v1-adapter-v1 = { path = "../packages/ociswap-v1-adapter-v1", features =
     "test",
     "manifest-builder-stubs"
 ] }
+ociswap-v2-adapter-v1 = { path = "../packages/ociswap-v2-adapter-v1", features = [
+    "test",
+    "manifest-builder-stubs"
+] }
 caviarnine-v1-adapter-v1 = { path = "../packages/caviarnine-v1-adapter-v1", features = [
     "test",
     "manifest-builder-stubs"
