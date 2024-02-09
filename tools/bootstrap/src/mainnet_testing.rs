@@ -67,7 +67,7 @@ impl MainnetTesting {
             usdt: resource_address!("resource_rdx1tkafx32lu72mcxr85gjx0rh3rx9q89zqffg4phmv5rxdqg5fnd0w7s"),
         };
         let exchanges = NameIndexedDexInformation {
-            caviarnine: DexInformation {
+            caviarnine_v1: DexInformation {
                 package: package_address!("package_rdx1p4r9rkp0cq67wmlve544zgy0l45mswn6h798qdqm47x4762h383wa3"),
                 pools: NameIndexedResourceInformation {
                     bitcoin: component_address!("component_rdx1crzl2c39m83lpe6fv62epgp3phqunxhc264ys23qz8xeemjcu8lln3"),
@@ -78,7 +78,7 @@ impl MainnetTesting {
             },
             // TODO: Ths following is INCORRECT INFORMATION! There is no Ociswap
             // package on mainnet.
-            ociswap: DexInformation {
+            ociswap_v1: DexInformation {
                 package: package_address!("package_rdx1p5l6dp3slnh9ycd7gk700czwlck9tujn0zpdnd0efw09n2zdnn0lzx"),
                 pools: NameIndexedResourceInformation {
                     bitcoin: component_address!("component_rdx1cr5uxxjq4a0r3gfn6yd62lk96fqca34tnmyqdxkwefhckcjea4t3am"),
@@ -208,21 +208,21 @@ impl MainnetTesting {
         let (
             ignition_package_address,
             simple_oracle_package_address,
-            ociswap_adapter_v1_package_address,
-            caviarnine_adapter_v1_package_address,
+            ociswap_v1_adapter_v1_package_address,
+            caviarnine_v1_adapter_v1_package_address,
         ) = {
             let (ignition_code, ignition_package_definition) =
                 PackageLoader::get("ignition");
             let (simple_oracle_code, simple_oracle_package_definition) =
                 PackageLoader::get("simple-oracle");
             let (
-                ociswap_adapter_v1_code,
-                ociswap_adapter_v1_package_definition,
-            ) = PackageLoader::get("ociswap-adapter-v1");
+                ociswap_v1_adapter_v1_code,
+                ociswap_v1_adapter_v1_package_definition,
+            ) = PackageLoader::get("ociswap-v1-adapter-v1");
             let (
-                caviarnine_adapter_v1_code,
-                caviarnine_adapter_v1_package_definition,
-            ) = PackageLoader::get("caviarnine-adapter-v1");
+                caviarnine_v1_adapter_v1_code,
+                caviarnine_v1_adapter_v1_package_definition,
+            ) = PackageLoader::get("caviarnine-v1-adapter-v1");
 
             // We can publish the simple oracle, ociswap adapter v1, and
             // caviarnine adapter v1 all in a single transaction since they
@@ -242,8 +242,8 @@ impl MainnetTesting {
                 )
                 .publish_package_advanced(
                     None,
-                    ociswap_adapter_v1_code,
-                    ociswap_adapter_v1_package_definition,
+                    ociswap_v1_adapter_v1_code,
+                    ociswap_v1_adapter_v1_package_definition,
                     metadata_init! {
                         "name" => "Ociswap Adapter v1 Package", updatable;
                         "description" => "The implementation of an adapter for Ociswap for the Ignition protocol.", updatable;
@@ -254,8 +254,8 @@ impl MainnetTesting {
                 )
                 .publish_package_advanced(
                     None,
-                    caviarnine_adapter_v1_code,
-                    caviarnine_adapter_v1_package_definition,
+                    caviarnine_v1_adapter_v1_code,
+                    caviarnine_v1_adapter_v1_package_definition,
                     metadata_init! {
                         "name" => "Caviarnine Adapter v1 Package", updatable;
                         "description" => "The implementation of an adapter for Caviarnine for the Ignition protocol.", updatable;
@@ -272,8 +272,8 @@ impl MainnetTesting {
 
             let (
                 simple_oracle_package_address,
-                ociswap_adapter_v1_package_address,
-                caviarnine_adapter_v1_package_address,
+                ociswap_v1_adapter_v1_package_address,
+                caviarnine_v1_adapter_v1_package_address,
             ) = (
                 *package_addresses.first().unwrap(),
                 *package_addresses.get(1).unwrap(),
@@ -305,8 +305,8 @@ impl MainnetTesting {
             (
                 ignition_package_address,
                 simple_oracle_package_address,
-                ociswap_adapter_v1_package_address,
-                caviarnine_adapter_v1_package_address,
+                ociswap_v1_adapter_v1_package_address,
+                caviarnine_v1_adapter_v1_package_address,
             )
         };
 
@@ -316,8 +316,8 @@ impl MainnetTesting {
         let ignition_package_global_caller_rule =
             rule!(require(package_of_direct_caller(ignition_package_address)));
         let (
-            ociswap_liquidity_receipt_resource,
-            caviarnine_liquidity_receipt_resource,
+            ociswap_v1_liquidity_receipt_resource,
+            caviarnine_v1_liquidity_receipt_resource,
         ) = {
             let roles = NonFungibleResourceRoles {
                 // Mintable and burnable by the Ignition package and
@@ -442,8 +442,8 @@ impl MainnetTesting {
         let (
             ignition_component,
             simple_oracle_component,
-            ociswap_adapter_v1_component,
-            caviarnine_adapter_v1_component,
+            ociswap_v1_adapter_v1_component,
+            caviarnine_v1_adapter_v1_component,
         ) = {
             let manifest = ManifestBuilder::new()
                 // Creating the oracle component
@@ -465,8 +465,8 @@ impl MainnetTesting {
                 )
                 // Creating the ociswap adapter v1 component
                 .call_function(
-                    ociswap_adapter_v1_package_address,
-                    "OciswapAdapter",
+                    ociswap_v1_adapter_v1_package_address,
+                    "OciswapV1Adapter",
                     "instantiate",
                     (
                         metadata_init! {
@@ -480,8 +480,8 @@ impl MainnetTesting {
                 )
                 // Creating the ociswap adapter v1 component
                 .call_function(
-                    caviarnine_adapter_v1_package_address,
-                    "CaviarnineAdapter",
+                    caviarnine_v1_adapter_v1_package_address,
+                    "CaviarnineV1Adapter",
                     "instantiate",
                     (
                         metadata_init! {
@@ -502,8 +502,8 @@ impl MainnetTesting {
 
             let (
                 simple_oracle_component,
-                ociswap_adapter_v1_component,
-                caviarnine_adapter_v1_component,
+                ociswap_v1_adapter_v1_component,
+                caviarnine_v1_adapter_v1_component,
             ) = (
                 *component_addresses.first().unwrap(),
                 *component_addresses.get(1).unwrap(),
@@ -533,20 +533,20 @@ impl MainnetTesting {
                         InitializationParametersManifest {
                             initial_pool_information: Some(indexmap! {
                                 BlueprintId {
-                                    package_address: exchanges.caviarnine.package,
+                                    package_address: exchanges.caviarnine_v1.package,
                                     blueprint_name: "QuantaSwap".to_owned()
                                 } => PoolBlueprintInformationManifest {
-                                    adapter: caviarnine_adapter_v1_component,
-                                    allowed_pools: exchanges.caviarnine.pools.into_iter().collect(),
-                                    liquidity_receipt: caviarnine_liquidity_receipt_resource
+                                    adapter: caviarnine_v1_adapter_v1_component,
+                                    allowed_pools: exchanges.caviarnine_v1.pools.into_iter().collect(),
+                                    liquidity_receipt: caviarnine_v1_liquidity_receipt_resource
                                 },
                                 BlueprintId {
-                                    package_address: exchanges.ociswap.package,
+                                    package_address: exchanges.ociswap_v1.package,
                                     blueprint_name: "BasicPool".to_owned()
                                 } => PoolBlueprintInformationManifest {
-                                    adapter: ociswap_adapter_v1_component,
-                                    allowed_pools: exchanges.ociswap.pools.into_iter().collect(),
-                                    liquidity_receipt: ociswap_liquidity_receipt_resource
+                                    adapter: ociswap_v1_adapter_v1_component,
+                                    allowed_pools: exchanges.ociswap_v1.pools.into_iter().collect(),
+                                    liquidity_receipt: ociswap_v1_liquidity_receipt_resource
                                 }
                             }),
                             initial_user_resource_volatility: Some(
@@ -583,8 +583,8 @@ impl MainnetTesting {
             (
                 ignition_component_address,
                 simple_oracle_component,
-                ociswap_adapter_v1_component,
-                caviarnine_adapter_v1_component,
+                ociswap_v1_adapter_v1_component,
+                caviarnine_v1_adapter_v1_component,
             )
         };
 
@@ -616,18 +616,22 @@ impl MainnetTesting {
                         GlobalAddress::from(protocol_owner_badge),
                         GlobalAddress::from(ignition_package_address),
                         GlobalAddress::from(simple_oracle_package_address),
-                        GlobalAddress::from(ociswap_adapter_v1_package_address),
                         GlobalAddress::from(
-                            caviarnine_adapter_v1_package_address,
+                            ociswap_v1_adapter_v1_package_address,
                         ),
-                        GlobalAddress::from(ociswap_liquidity_receipt_resource),
                         GlobalAddress::from(
-                            caviarnine_liquidity_receipt_resource,
+                            caviarnine_v1_adapter_v1_package_address,
+                        ),
+                        GlobalAddress::from(
+                            ociswap_v1_liquidity_receipt_resource,
+                        ),
+                        GlobalAddress::from(
+                            caviarnine_v1_liquidity_receipt_resource,
                         ),
                         GlobalAddress::from(ignition_component),
                         GlobalAddress::from(simple_oracle_component),
-                        GlobalAddress::from(ociswap_adapter_v1_component),
-                        GlobalAddress::from(caviarnine_adapter_v1_component),
+                        GlobalAddress::from(ociswap_v1_adapter_v1_component),
+                        GlobalAddress::from(caviarnine_v1_adapter_v1_component),
                     ],
                 )
                 .call_role_assignment_method(

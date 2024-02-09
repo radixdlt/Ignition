@@ -1,16 +1,19 @@
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_an_ociswap_pool(
+pub fn can_open_a_simple_position_against_a_caviarnine_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        caviarnine_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -18,7 +21,7 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -30,49 +33,13 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
 }
 
 #[test]
-pub fn price_reported_by_pool_is_equal_to_price_reported_by_adapter(
-) -> Result<(), RuntimeError> {
-    // Arrange
-    let Environment {
-        environment: ref mut env,
-        mut ociswap,
-        resources,
-        ..
-    } = ScryptoTestEnv::new()?;
-
-    let bitcoin_bucket = ResourceManager(resources.bitcoin)
-        .mint_fungible(dec!(10_000_000), env)?;
-    let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
-
-    // Act
-    let pool_reported_price = ociswap
-        .pools
-        .bitcoin
-        .price_sqrt(env)?
-        .unwrap()
-        .checked_powi(2)
-        .unwrap()
-        .checked_truncate(RoundingMode::ToZero)
-        .unwrap();
-    let adapter_reported_price = ociswap
-        .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?
-        .price;
-
-    // Assert
-    assert_eq!(pool_reported_price, adapter_reported_price);
-
-    Ok(())
-}
-
-#[test]
-fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
+fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
         environment: mut test_runner,
         resources,
         protocol,
-        ociswap,
+        caviarnine_v1,
         ..
     } = ScryptoUnitEnv::new_with_configuration(Configuration {
         maximum_allowed_relative_price_difference: dec!(0.03),
@@ -88,6 +55,35 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                 .try_deposit_entire_worktop_or_abort(account_address, None)
                 .build(),
             vec![],
+        )
+        .expect_commit_success();
+
+    test_runner
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .withdraw_from_account(
+                    account_address,
+                    resources.bitcoin,
+                    dec!(100_000),
+                )
+                .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                .with_bucket("bitcoin", |builder, bucket| {
+                    builder.call_method(
+                        protocol.ignition,
+                        "open_liquidity_position",
+                        (
+                            bucket,
+                            caviarnine_v1.pools.bitcoin,
+                            LockupPeriod::from_months(6).unwrap(),
+                        ),
+                    )
+                })
+                .try_deposit_entire_worktop_or_abort(account_address, None)
+                .build(),
+            EnabledModules::for_test_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
         )
         .expect_commit_success();
 
@@ -107,7 +103,7 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                     "open_liquidity_position",
                     (
                         bucket,
-                        ociswap.pools.bitcoin,
+                        caviarnine_v1.pools.bitcoin,
                         LockupPeriod::from_months(6).unwrap(),
                     ),
                 )
@@ -118,36 +114,24 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     );
 
     // Assert
+    println!("{receipt:?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
-        total_finalization_cost_in_xrd,
-        total_tipping_cost_in_xrd,
-        total_storage_cost_in_xrd,
-        total_royalty_cost_in_xrd,
         ..
     } = receipt.fee_summary;
 
-    assert!(
-        dbg!(
-            total_execution_cost_in_xrd
-                + total_finalization_cost_in_xrd
-                + total_tipping_cost_in_xrd
-                + total_storage_cost_in_xrd
-                + total_royalty_cost_in_xrd
-        ) <= dec!(7)
-    );
-    assert!(total_execution_cost_in_xrd <= dec!(4.5))
+    assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
 
 #[test]
-fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
+fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
         environment: mut test_runner,
         resources,
         protocol,
-        ociswap,
+        caviarnine_v1,
         ..
     } = ScryptoUnitEnv::new_with_configuration(Configuration {
         maximum_allowed_relative_price_difference: dec!(0.03),
@@ -166,32 +150,36 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    test_runner
-        .execute_manifest(
-            ManifestBuilder::new()
-                .lock_fee_from_faucet()
-                .withdraw_from_account(
-                    account_address,
-                    resources.bitcoin,
-                    dec!(100_000),
-                )
-                .take_all_from_worktop(resources.bitcoin, "bitcoin")
-                .with_bucket("bitcoin", |builder, bucket| {
-                    builder.call_method(
-                        protocol.ignition,
-                        "open_liquidity_position",
-                        (
-                            bucket,
-                            ociswap.pools.bitcoin,
-                            LockupPeriod::from_months(6).unwrap(),
-                        ),
+    for _ in 0..2 {
+        test_runner
+            .execute_manifest_with_enabled_modules(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .withdraw_from_account(
+                        account_address,
+                        resources.bitcoin,
+                        dec!(100_000),
                     )
-                })
-                .try_deposit_entire_worktop_or_abort(account_address, None)
-                .build(),
-            vec![NonFungibleGlobalId::from_public_key(&public_key)],
-        )
-        .expect_commit_success();
+                    .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                    .with_bucket("bitcoin", |builder, bucket| {
+                        builder.call_method(
+                            protocol.ignition,
+                            "open_liquidity_position",
+                            (
+                                bucket,
+                                caviarnine_v1.pools.bitcoin,
+                                LockupPeriod::from_months(6).unwrap(),
+                            ),
+                        )
+                    })
+                    .try_deposit_entire_worktop_or_abort(account_address, None)
+                    .build(),
+                EnabledModules::for_test_transaction()
+                    & !EnabledModules::AUTH
+                    & !EnabledModules::COSTING,
+            )
+            .expect_commit_success();
+    }
 
     let current_time = test_runner.get_current_time(TimePrecisionV2::Minute);
     let maturity_instant = current_time
@@ -245,10 +233,10 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
             .lock_fee_from_faucet()
             .withdraw_from_account(
                 account_address,
-                ociswap.liquidity_receipt,
+                caviarnine_v1.liquidity_receipt,
                 dec!(1),
             )
-            .take_all_from_worktop(ociswap.liquidity_receipt, "receipt")
+            .take_all_from_worktop(caviarnine_v1.liquidity_receipt, "receipt")
             .with_bucket("receipt", |builder, bucket| {
                 builder.call_method(
                     protocol.ignition,
@@ -262,30 +250,18 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     );
 
     // Assert
+    println!("{receipt:#?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
-        total_finalization_cost_in_xrd,
-        total_tipping_cost_in_xrd,
-        total_storage_cost_in_xrd,
-        total_royalty_cost_in_xrd,
         ..
     } = receipt.fee_summary;
 
-    assert!(
-        dbg!(
-            total_execution_cost_in_xrd
-                + total_finalization_cost_in_xrd
-                + total_tipping_cost_in_xrd
-                + total_storage_cost_in_xrd
-                + total_royalty_cost_in_xrd
-        ) <= dec!(7)
-    );
-    assert!(total_execution_cost_in_xrd <= dec!(4.5))
+    assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
 
 #[test]
-fn contributions_directly_to_ociswap_dont_fail_due_to_bucket_order(
+fn contributions_directly_to_caviarnine_could_fail_due_to_bucket_order(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let mut results = Vec::<bool>::new();
@@ -294,7 +270,7 @@ fn contributions_directly_to_ociswap_dont_fail_due_to_bucket_order(
         let Environment {
             environment: ref mut env,
             resources,
-            mut ociswap,
+            mut caviarnine_v1,
             ..
         } = ScryptoTestEnv::new()?;
 
@@ -308,10 +284,52 @@ fn contributions_directly_to_ociswap_dont_fail_due_to_bucket_order(
         };
 
         // Act
-        let result = ociswap
-            .pools
-            .bitcoin
-            .add_liquidity(buckets.0, buckets.1, env);
+        let result = caviarnine_v1.pools.bitcoin.add_liquidity(
+            buckets.0,
+            buckets.1,
+            vec![(27000, dec!(1), dec!(1))],
+            env,
+        );
+        results.push(result.is_ok());
+    }
+
+    // Assert
+    assert_eq!(results.len(), 2);
+    assert_eq!(results.iter().filter(|item| **item).count(), 1);
+    assert_eq!(results.iter().filter(|item| !**item).count(), 1);
+
+    Ok(())
+}
+
+#[test]
+fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let mut results = Vec::<bool>::new();
+    for order in [true, false] {
+        // Arrange
+        let Environment {
+            environment: ref mut env,
+            resources,
+            mut caviarnine_v1,
+            ..
+        } = ScryptoTestEnv::new()?;
+
+        let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
+        let bitcoin_bucket =
+            ResourceManager(resources.bitcoin).mint_fungible(dec!(1), env)?;
+        let buckets = if order {
+            (xrd_bucket, bitcoin_bucket)
+        } else {
+            (bitcoin_bucket, xrd_bucket)
+        };
+
+        // Act
+        let result = caviarnine_v1.adapter.open_liquidity_position(
+            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+            buckets,
+            env,
+        );
         results.push(result.is_ok());
     }
 
@@ -323,40 +341,137 @@ fn contributions_directly_to_ociswap_dont_fail_due_to_bucket_order(
 }
 
 #[test]
-fn contributions_to_ociswap_through_adapter_dont_fail_due_to_bucket_ordering(
+fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see(
 ) -> Result<(), RuntimeError> {
     // Arrange
-    let mut results = Vec::<bool>::new();
-    for order in [true, false] {
-        // Arrange
-        let Environment {
-            environment: ref mut env,
-            resources,
-            mut ociswap,
-            ..
-        } = ScryptoTestEnv::new()?;
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        resources,
+        caviarnine_v1,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
 
-        let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
-        let bitcoin_bucket =
-            ResourceManager(resources.bitcoin).mint_fungible(dec!(1), env)?;
-        let buckets = if order {
-            (xrd_bucket, bitcoin_bucket)
-        } else {
-            (bitcoin_bucket, xrd_bucket)
-        };
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
 
-        // Act
-        let result = ociswap.adapter.open_liquidity_position(
-            ociswap.pools.bitcoin.try_into().unwrap(),
-            buckets,
-            env,
-        );
-        results.push(result.is_ok());
-    }
+    let (liquidity_receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Act
+    let liquidity_receipt_data =
+        ResourceManager(caviarnine_v1.liquidity_receipt)
+            .get_non_fungible_data::<_, _, LiquidityReceipt>(
+                liquidity_receipt
+                    .0
+                    .non_fungible_local_ids(env)?
+                    .first()
+                    .unwrap()
+                    .clone(),
+                env,
+            )?;
 
     // Assert
-    assert_eq!(results.len(), 2);
-    assert_eq!(results.iter().filter(|item| **item).count(), 2);
+    let adapter_information = liquidity_receipt_data
+        .adapter_specific_information
+        .as_typed::<CaviarnineV1AdapterSpecificInformation>()
+        .unwrap();
+    assert_eq!(
+        adapter_information.bin_contributions.len(),
+        (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
+    );
+
+    Ok(())
+}
+
+#[test]
+pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (ignition_receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    let ignition_receipt_global_id = {
+        let local_id = ignition_receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone();
+        NonFungibleGlobalId::new(caviarnine_v1.liquidity_receipt, local_id)
+    };
+    let ignition_receipt_data =
+        ResourceManager(caviarnine_v1.liquidity_receipt)
+            .get_non_fungible_data::<_, _, LiquidityReceipt>(
+                ignition_receipt
+                    .0
+                    .non_fungible_local_ids(env)?
+                    .first()
+                    .unwrap()
+                    .clone(),
+                env,
+            )?;
+
+    let caviarnine_receipt = protocol
+        .ignition
+        .withdraw_pool_units(ignition_receipt_global_id, env)?;
+
+    let mut caviarnine_reported_contributions =
+        caviarnine_v1.pools.bitcoin.get_redemption_bin_values(
+            caviarnine_receipt
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
+    caviarnine_reported_contributions.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let adapter_reported_contributions = ignition_receipt_data
+        .adapter_specific_information
+        .as_typed::<CaviarnineV1AdapterSpecificInformation>()
+        .unwrap()
+        .contributions();
+
+    assert_eq!(
+        adapter_reported_contributions.len(),
+        caviarnine_reported_contributions.len()
+    );
+    for (x, y) in adapter_reported_contributions
+        .into_iter()
+        .zip(caviarnine_reported_contributions)
+    {
+        assert_eq!(x.0, y.0);
+        assert!(approximately_equals(x.1, y.1));
+        assert!(approximately_equals(x.2, y.2));
+    }
 
     Ok(())
 }
@@ -459,10 +574,20 @@ fn non_strict_testing_of_fees(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        mut ociswap,
+        mut caviarnine_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
+
+    let pool_reported_price = caviarnine_v1
+        .adapter
+        .price(caviarnine_v1.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
 
     let bitcoin_amount_in = dec!(100);
 
@@ -470,79 +595,75 @@ fn non_strict_testing_of_fees(
         .mint_fungible(bitcoin_amount_in, env)?;
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
+
+    let pool_units = caviarnine_v1
+        .adapter
+        .open_liquidity_position(
+            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+            (
+                ResourceManager(resources.bitcoin)
+                    .mint_fungible(dec!(100_000), env)?,
+                ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
+            ),
+            env,
+        )?
+        .pool_units;
 
     match price_of_user_asset {
         // User asset price goes down - i.e., we inject it into the pool.
         Movement::Down => {
             let bitcoin_bucket = ResourceManager(resources.bitcoin)
-                .mint_fungible(dec!(100_000_000), env)?;
-            let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
+                .mint_fungible(dec!(450_000_000), env)?;
+            let _ = caviarnine_v1.pools.bitcoin.swap(bitcoin_bucket, env)?;
         }
         // The user asset price stays the same. We do not do anything.
         Movement::Same => {}
         // User asset price goes up - i.e., we reduce it in the pool.
         Movement::Up => {
             let xrd_bucket =
-                ResourceManager(XRD).mint_fungible(dec!(100_000_000), env)?;
-            let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+                ResourceManager(XRD).mint_fungible(dec!(450_000_000), env)?;
+            let _ = caviarnine_v1.pools.bitcoin.swap(xrd_bucket, env)?;
         }
     }
 
-    let pool_unit = {
-        let pool = ociswap.pools.bitcoin.liquidity_pool(env)?;
-        let output = env
-            .call_module_method_typed::<_, _, MetadataGetOutput>(
-                pool,
-                AttachedModuleId::Metadata,
-                METADATA_GET_IDENT,
-                &MetadataGetInput {
-                    key: "pool_unit".to_owned(),
-                },
-            )?
-            .unwrap();
-
-        let GenericMetadataValue::GlobalAddress(pool_unit) = output else {
-            panic!()
-        };
-        ResourceAddress::try_from(pool_unit).unwrap()
-    };
-
     match protocol_coefficient {
-        // Somebody claims some portion of the pool
+        // Somebody claimed some portion of the pool
         Movement::Down => {
-            // Claim 10% of the pool.
-            let total_supply =
-                ResourceManager(pool_unit).total_supply(env)?.unwrap();
-            let ten_percent_of_total_supply = total_supply * dec!(0.1);
-            let pool_units = BucketFactory::create_fungible_bucket(
-                pool_unit,
-                ten_percent_of_total_supply,
-                CreationStrategy::Mock,
-                env,
-            )?;
-            let _ = ociswap.pools.bitcoin.remove_liquidity(pool_units, env)?;
+            let _ = caviarnine_v1
+                .pools
+                .bitcoin
+                .remove_liquidity(pool_units, env)?;
         }
         // Nothing
         Movement::Same => {}
         // Somebody contributed to the pool some amount
         Movement::Up => {
-            let xrd = ResourceManager(XRD).mint_fungible(dec!(10_000), env)?;
-            let bitcoin = ResourceManager(resources.bitcoin)
-                .mint_fungible(dec!(10_000), env)?;
-            let _ = ociswap.pools.bitcoin.add_liquidity(xrd, bitcoin, env)?;
+            let _ = caviarnine_v1
+                .adapter
+                .open_liquidity_position(
+                    caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                    (
+                        ResourceManager(resources.bitcoin)
+                            .mint_fungible(dec!(100_000), env)?,
+                        ResourceManager(XRD)
+                            .mint_fungible(dec!(100_000), env)?,
+                    ),
+                    env,
+                )?
+                .pool_units;
         }
     }
 
     env.set_current_time(Instant::new(
         *LockupPeriod::from_months(12).unwrap().seconds() as i64,
     ));
-    let pool_reported_price = ociswap
+    let pool_reported_price = caviarnine_v1
         .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+        .price(caviarnine_v1.pools.bitcoin.try_into().unwrap(), env)?;
     protocol.oracle.set_price(
         pool_reported_price.base,
         pool_reported_price.quote,
@@ -604,4 +725,14 @@ pub enum CloseLiquidityResult {
     GetFees,
     SameAmount,
     Reimbursement,
+}
+
+fn approximately_equals(a: Decimal, b: Decimal) -> bool {
+    let difference = match (a == Decimal::ZERO, b == Decimal::ZERO) {
+        (true, true) => dec!(0),
+        (true, false) => (b - a).checked_abs().unwrap() / b,
+        (false, true) => (b - a).checked_abs().unwrap() / a,
+        (false, false) => (b - a).checked_abs().unwrap() / b,
+    };
+    difference <= dec!(0.000001)
 }

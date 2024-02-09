@@ -1,5 +1,5 @@
 [package]
-name = "caviarnine-adapter-v1"
+name = "caviarnine-v1-adapter-v1"
 version.workspace = true
 edition.workspace = true
 description = "Defines the adapter for Caviarnine"

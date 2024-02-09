@@ -10,11 +10,11 @@ pub trait EnvironmentSpecifier {
     // Components
     type Ignition;
     type SimpleOracle;
-    type OciswapPool;
-    type CaviarninePool;
+    type OciswapV1Pool;
+    type CaviarnineV1Pool;
 
-    type OciswapAdapter;
-    type CaviarnineAdapter;
+    type OciswapV1Adapter;
+    type CaviarnineV1Adapter;
 
     // Badges
     type Badge;
@@ -29,11 +29,11 @@ impl EnvironmentSpecifier for ScryptoTestEnvironmentSpecifier {
     // Components
     type Ignition = Ignition;
     type SimpleOracle = SimpleOracle;
-    type OciswapPool = OciswapPoolInterfaceScryptoTestStub;
-    type CaviarninePool = CaviarninePoolInterfaceScryptoTestStub;
+    type OciswapV1Pool = OciswapV1PoolInterfaceScryptoTestStub;
+    type CaviarnineV1Pool = CaviarnineV1PoolInterfaceScryptoTestStub;
 
-    type OciswapAdapter = OciswapAdapter;
-    type CaviarnineAdapter = CaviarnineAdapter;
+    type OciswapV1Adapter = OciswapV1Adapter;
+    type CaviarnineV1Adapter = CaviarnineV1Adapter;
 
     // Badges
     type Badge = Bucket;
@@ -48,11 +48,11 @@ impl EnvironmentSpecifier for ScryptoUnitEnvironmentSpecifier {
     // Components
     type Ignition = ComponentAddress;
     type SimpleOracle = ComponentAddress;
-    type OciswapPool = ComponentAddress;
-    type CaviarninePool = ComponentAddress;
+    type OciswapV1Pool = ComponentAddress;
+    type CaviarnineV1Pool = ComponentAddress;
 
-    type OciswapAdapter = ComponentAddress;
-    type CaviarnineAdapter = ComponentAddress;
+    type OciswapV1Adapter = ComponentAddress;
+    type CaviarnineV1Adapter = ComponentAddress;
 
     // Badges
     type Badge = (PublicKey, ComponentAddress, ResourceAddress);
@@ -82,8 +82,8 @@ where
     pub resources: ResourceInformation<ResourceAddress>,
     pub protocol: ProtocolEntities<S>,
     /* Supported Dexes */
-    pub ociswap: DexEntities<S::OciswapPool, S::OciswapAdapter>,
-    pub caviarnine: DexEntities<S::CaviarninePool, S::CaviarnineAdapter>,
+    pub ociswap_v1: DexEntities<S::OciswapV1Pool, S::OciswapV1Adapter>,
+    pub caviarnine_v1: DexEntities<S::CaviarnineV1Pool, S::CaviarnineV1Adapter>,
 }
 
 impl<S> Environment<S>
@@ -96,8 +96,8 @@ where
     const PACKAGE_NAMES: [&'static str; 4] = [
         "ignition",
         "simple-oracle",
-        "ociswap-adapter-v1",
-        "caviarnine-adapter-v1",
+        "ociswap-v1-adapter-v1",
+        "caviarnine-v1-adapter-v1",
     ];
 
     const RESOURCE_DIVISIBILITIES: ResourceInformation<u8> =
@@ -122,9 +122,10 @@ impl ScryptoTestEnv {
             scrypto_decode::<(Vec<NodeId>, DbFlash)>(Self::PACKAGES_BINARY)
                 .expect("Can't fail!");
 
-        let caviarnine_package =
+        let caviarnine_v1_package =
             PackageAddress::try_from(addresses[0]).unwrap();
-        let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
+        let ociswap_v1_package =
+            PackageAddress::try_from(addresses[1]).unwrap();
 
         let mut env = TestEnvironmentBuilder::new().flash(db_flash).build();
 
@@ -153,7 +154,7 @@ impl ScryptoTestEnv {
             .map(|address| rule!(require(address)))?;
 
         // Publishing the various packages to the testing environment
-        let [ignition_package, simple_oracle_package, ociswap_adapter_v1_package, caviarnine_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
             Self::PACKAGE_NAMES
                 .map(|name| Self::publish_package(name, &mut env).unwrap());
 
@@ -178,7 +179,7 @@ impl ScryptoTestEnv {
 
         // Creating the liquidity receipt resource that each of the exchanges
         // will use.
-        let [ociswap_liquidity_receipt_resource, caviarnine_liquidity_receipt_resource] =
+        let [ociswap_v1_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             [(), ()].map(|_| {
                 ResourceBuilder::new_ruid_non_fungible::<LiquidityReceipt>(
                     OwnerRole::None,
@@ -198,40 +199,41 @@ impl ScryptoTestEnv {
             });
 
         // Creating the Ociswap pools of the resources.
-        let ociswap_pools = resource_addresses.try_map(|resource_address| {
-            let mut ociswap_pool =
-                OciswapPoolInterfaceScryptoTestStub::instantiate(
-                    *resource_address,
-                    XRD,
-                    configuration.fees,
-                    FAUCET,
-                    ociswap_package,
-                    &mut env,
-                )?;
+        let ociswap_v1_pools =
+            resource_addresses.try_map(|resource_address| {
+                let mut ociswap_pool =
+                    OciswapV1PoolInterfaceScryptoTestStub::instantiate(
+                        *resource_address,
+                        XRD,
+                        configuration.fees,
+                        FAUCET,
+                        ociswap_v1_package,
+                        &mut env,
+                    )?;
 
-            let resource_x = ResourceManager(*resource_address)
-                .mint_fungible(dec!(100_000_000), &mut env)?;
-            let resource_y = ResourceManager(XRD)
-                .mint_fungible(dec!(100_000_000), &mut env)?;
-            let _ =
-                ociswap_pool.add_liquidity(resource_x, resource_y, &mut env)?;
+                let resource_x = ResourceManager(*resource_address)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_y = ResourceManager(XRD)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let _ = ociswap_pool
+                    .add_liquidity(resource_x, resource_y, &mut env)?;
 
-            Ok::<_, RuntimeError>(ociswap_pool)
-        })?;
+                Ok::<_, RuntimeError>(ociswap_pool)
+            })?;
 
         // Creating the Caviarnine pools of the resources.
         let bin_span = 100;
-        let caviarnine_pools =
+        let caviarnine_v1_pools =
             resource_addresses.try_map(|resource_address| {
                 let mut caviarnine_pool =
-                    CaviarninePoolInterfaceScryptoTestStub::new(
+                    CaviarnineV1PoolInterfaceScryptoTestStub::new(
                         rule!(allow_all),
                         rule!(allow_all),
                         *resource_address,
                         XRD,
                         bin_span,
                         None,
-                        caviarnine_package,
+                        caviarnine_v1_package,
                         &mut env,
                     )?;
 
@@ -289,18 +291,18 @@ impl ScryptoTestEnv {
             ignition_package,
             &mut env,
         )?;
-        let ociswap_adapter_v1 = OciswapAdapter::instantiate(
+        let ociswap_v1_adapter_v1 = OciswapV1Adapter::instantiate(
             Default::default(),
             OwnerRole::None,
             None,
-            ociswap_adapter_v1_package,
+            ociswap_v1_adapter_v1_package,
             &mut env,
         )?;
-        let caviarnine_adapter_v1 = CaviarnineAdapter::instantiate(
+        let caviarnine_v1_adapter_v1 = CaviarnineV1Adapter::instantiate(
             Default::default(),
             OwnerRole::None,
             None,
-            caviarnine_adapter_v1_package,
+            caviarnine_v1_adapter_v1_package,
             &mut env,
         )?;
 
@@ -371,31 +373,31 @@ impl ScryptoTestEnv {
             }
 
             ignition.insert_pool_information(
-                OciswapPoolInterfaceScryptoTestStub::blueprint_id(
-                    ociswap_package,
+                OciswapV1PoolInterfaceScryptoTestStub::blueprint_id(
+                    ociswap_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: ociswap_adapter_v1.into(),
-                    allowed_pools: ociswap_pools
+                    adapter: ociswap_v1_adapter_v1.into(),
+                    allowed_pools: ociswap_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
-                    liquidity_receipt: ociswap_liquidity_receipt_resource,
+                    liquidity_receipt: ociswap_v1_liquidity_receipt_resource,
                 },
                 &mut env,
             )?;
 
             ignition.insert_pool_information(
-                CaviarninePoolInterfaceScryptoTestStub::blueprint_id(
-                    caviarnine_package,
+                CaviarnineV1PoolInterfaceScryptoTestStub::blueprint_id(
+                    caviarnine_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: caviarnine_adapter_v1.into(),
-                    allowed_pools: caviarnine_pools
+                    adapter: caviarnine_v1_adapter_v1.into(),
+                    allowed_pools: caviarnine_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
                         .collect(),
-                    liquidity_receipt: caviarnine_liquidity_receipt_resource,
+                    liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
                 },
                 &mut env,
             )?;
@@ -412,19 +414,19 @@ impl ScryptoTestEnv {
                 protocol_owner_badge,
                 protocol_manager_badge,
             },
-            ociswap: DexEntities {
-                package: ociswap_package,
-                pools: ociswap_pools,
-                adapter_package: ociswap_adapter_v1_package,
-                adapter: ociswap_adapter_v1,
-                liquidity_receipt: ociswap_liquidity_receipt_resource,
+            ociswap_v1: DexEntities {
+                package: ociswap_v1_package,
+                pools: ociswap_v1_pools,
+                adapter_package: ociswap_v1_adapter_v1_package,
+                adapter: ociswap_v1_adapter_v1,
+                liquidity_receipt: ociswap_v1_liquidity_receipt_resource,
             },
-            caviarnine: DexEntities {
-                package: caviarnine_package,
-                pools: caviarnine_pools,
-                adapter_package: caviarnine_adapter_v1_package,
-                adapter: caviarnine_adapter_v1,
-                liquidity_receipt: caviarnine_liquidity_receipt_resource,
+            caviarnine_v1: DexEntities {
+                package: caviarnine_v1_package,
+                pools: caviarnine_v1_pools,
+                adapter_package: caviarnine_v1_adapter_v1_package,
+                adapter: caviarnine_v1_adapter_v1,
+                liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         })
     }
@@ -450,9 +452,10 @@ impl ScryptoUnitEnv {
             scrypto_decode::<(Vec<NodeId>, DbFlash)>(Self::PACKAGES_BINARY)
                 .expect("Can't fail!");
 
-        let caviarnine_package =
+        let caviarnine_v1_package =
             PackageAddress::try_from(addresses[0]).unwrap();
-        let ociswap_package = PackageAddress::try_from(addresses[1]).unwrap();
+        let ociswap_v1_package =
+            PackageAddress::try_from(addresses[1]).unwrap();
 
         let mut test_runner = {
             let mut in_memory_substate_database =
@@ -501,7 +504,7 @@ impl ScryptoUnitEnv {
         let protocol_manager_rule = rule!(require(protocol_manager_badge));
         let protocol_owner_rule = rule!(require(protocol_owner_badge));
 
-        let [ignition_package, simple_oracle_package, ociswap_adapter_v1_package, caviarnine_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
             Self::PACKAGE_NAMES.map(|package_name| {
                 let (code, definition) =
                     package_loader::PackageLoader::get(package_name);
@@ -522,7 +525,7 @@ impl ScryptoUnitEnv {
                 )
             });
 
-        let [ociswap_liquidity_receipt_resource, caviarnine_liquidity_receipt_resource] = [(), ()].map(|_| {
+        let [ociswap_v1_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] = [(), ()].map(|_| {
             test_runner
                 .execute_manifest(
                     ManifestBuilder::new()
@@ -561,11 +564,11 @@ impl ScryptoUnitEnv {
                 .unwrap()
         });
 
-        let ociswap_pools = resource_addresses.map(|resource_address| {
+        let ociswap_v1_pools = resource_addresses.map(|resource_address| {
             let manifest = ManifestBuilder::new()
                 .lock_fee_from_faucet()
-                .ociswap_pool_instantiate(
-                    ociswap_package,
+                .ociswap_v1_pool_instantiate(
+                    ociswap_v1_package,
                     *resource_address,
                     XRD,
                     configuration.fees,
@@ -588,7 +591,7 @@ impl ScryptoUnitEnv {
                 .with_name_lookup(|builder, _| {
                     let xrd_bucket = builder.bucket("xrd_bucket");
                     let other_bucket = builder.bucket("other_bucket");
-                    builder.ociswap_pool_add_liquidity(
+                    builder.ociswap_v1_pool_add_liquidity(
                         component_address,
                         xrd_bucket,
                         other_bucket,
@@ -603,11 +606,11 @@ impl ScryptoUnitEnv {
             component_address
         });
 
-        let caviarnine_pools = resource_addresses.map(|resource_address| {
+        let caviarnine_v1_pools = resource_addresses.map(|resource_address| {
             let manifest = ManifestBuilder::new()
                 .lock_fee_from_faucet()
                 .allocate_global_address(
-                    caviarnine_package,
+                    caviarnine_v1_package,
                     "QuantaSwap",
                     "reservation",
                     "address",
@@ -625,8 +628,8 @@ impl ScryptoUnitEnv {
                     let other_bucket = builder.bucket("other_bucket");
 
                     builder
-                        .caviarnine_pool_new(
-                            caviarnine_package,
+                        .caviarnine_v1_pool_new(
+                            caviarnine_v1_package,
                             rule!(allow_all),
                             rule!(allow_all),
                             *resource_address,
@@ -634,7 +637,7 @@ impl ScryptoUnitEnv {
                             50,
                             Some(reservation),
                         )
-                        .caviarnine_pool_add_liquidity(
+                        .caviarnine_v1_pool_add_liquidity(
                             address,
                             other_bucket,
                             xrd_bucket,
@@ -724,9 +727,9 @@ impl ScryptoUnitEnv {
             .copied()
             .unwrap();
 
-        let [ociswap_adapter_v1, caviarnine_adapter_v1] = [
-            (ociswap_adapter_v1_package, "OciswapAdapter"),
-            (caviarnine_adapter_v1_package, "CaviarnineAdapter"),
+        let [ociswap_v1_adapter_v1, caviarnine_v1_adapter_v1] = [
+            (ociswap_v1_adapter_v1_package, "OciswapV1Adapter"),
+            (caviarnine_v1_adapter_v1_package, "CaviarnineV1Adapter"),
         ]
         .map(|(package_address, blueprint_name)| {
             test_runner
@@ -757,10 +760,10 @@ impl ScryptoUnitEnv {
         test_runner
             .execute_manifest_ignoring_fee(
                 TransactionManifestV1 {
-                    instructions: caviarnine_pools
+                    instructions: caviarnine_v1_pools
                         .iter()
                         .map(|address| InstructionV1::CallMethod {
-                            address: caviarnine_adapter_v1.into(),
+                            address: caviarnine_v1_adapter_v1.into(),
                             method_name: "cache_pool_information".to_owned(),
                             args: manifest_args!(address).into(),
                         })
@@ -841,17 +844,17 @@ impl ScryptoUnitEnv {
                         blueprint_name,
                     ) in [
                         (
-                            ociswap_adapter_v1,
-                            ociswap_pools,
-                            ociswap_liquidity_receipt_resource,
-                            ociswap_package,
+                            ociswap_v1_adapter_v1,
+                            ociswap_v1_pools,
+                            ociswap_v1_liquidity_receipt_resource,
+                            ociswap_v1_package,
                             "BasicPool",
                         ),
                         (
-                            caviarnine_adapter_v1,
-                            caviarnine_pools,
-                            caviarnine_liquidity_receipt_resource,
-                            caviarnine_package,
+                            caviarnine_v1_adapter_v1,
+                            caviarnine_v1_pools,
+                            caviarnine_v1_liquidity_receipt_resource,
+                            caviarnine_v1_package,
                             "QuantaSwap",
                         ),
                     ] {
@@ -904,19 +907,19 @@ impl ScryptoUnitEnv {
                     protocol_manager_badge,
                 ),
             },
-            ociswap: DexEntities {
-                package: ociswap_package,
-                pools: ociswap_pools,
-                adapter_package: ociswap_adapter_v1_package,
-                adapter: ociswap_adapter_v1,
-                liquidity_receipt: ociswap_liquidity_receipt_resource,
+            ociswap_v1: DexEntities {
+                package: ociswap_v1_package,
+                pools: ociswap_v1_pools,
+                adapter_package: ociswap_v1_adapter_v1_package,
+                adapter: ociswap_v1_adapter_v1,
+                liquidity_receipt: ociswap_v1_liquidity_receipt_resource,
             },
-            caviarnine: DexEntities {
-                package: caviarnine_package,
-                pools: caviarnine_pools,
-                adapter_package: caviarnine_adapter_v1_package,
-                adapter: caviarnine_adapter_v1,
-                liquidity_receipt: caviarnine_liquidity_receipt_resource,
+            caviarnine_v1: DexEntities {
+                package: caviarnine_v1_package,
+                pools: caviarnine_v1_pools,
+                adapter_package: caviarnine_v1_adapter_v1_package,
+                adapter: caviarnine_v1_adapter_v1,
+                liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         }
     }

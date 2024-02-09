@@ -66,7 +66,7 @@ impl StokenetProduction {
             usdt: resource_address!("resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8"),
         };
         let exchanges = NameIndexedDexInformation {
-            caviarnine: DexInformation {
+            caviarnine_v1: DexInformation {
                 package: package_address!("package_tdx_2_1p57g523zj736u370z6g4ynrytn7t6r2hledvzkhl6tzpg3urn0707e"),
                 pools: NameIndexedResourceInformation {
                     bitcoin: component_address!("component_tdx_2_1czt59vxdqg7q4l0gzphmt5ev6lagl2cu6sm2hsaz9y8ypcf0aukf8r"),
@@ -77,7 +77,7 @@ impl StokenetProduction {
             },
             // TODO: Ths following is INCORRECT INFORMATION! There is no Ociswap
             // package on Stokenet.
-            ociswap: DexInformation {
+            ociswap_v1: DexInformation {
                 package: package_address!("package_tdx_2_1p40dekel26tp2a2srma4sc3lj2ukr6y8k4amr7x8yav86lyyeg7ta7"),
                 pools: NameIndexedResourceInformation {
                     bitcoin: component_address!("component_tdx_2_1czt59vxdqg7q4l0gzphmt5ev6lagl2cu6sm2hsaz9y8ypcf0aukf8r"),
@@ -209,21 +209,21 @@ impl StokenetProduction {
         let (
             ignition_package_address,
             simple_oracle_package_address,
-            ociswap_adapter_v1_package_address,
-            caviarnine_adapter_v1_package_address,
+            ociswap_v1_adapter_v1_package_address,
+            caviarnine_v1_adapter_v1_package_address,
         ) = {
             let (ignition_code, ignition_package_definition) =
                 PackageLoader::get("ignition");
             let (simple_oracle_code, simple_oracle_package_definition) =
                 PackageLoader::get("simple-oracle");
             let (
-                ociswap_adapter_v1_code,
-                ociswap_adapter_v1_package_definition,
-            ) = PackageLoader::get("ociswap-adapter-v1");
+                ociswap_v1_adapter_v1_code,
+                ociswap_v1_adapter_v1_package_definition,
+            ) = PackageLoader::get("ociswap-v1-adapter-v1");
             let (
-                caviarnine_adapter_v1_code,
-                caviarnine_adapter_v1_package_definition,
-            ) = PackageLoader::get("caviarnine-adapter-v1");
+                caviarnine_v1_adapter_v1_code,
+                caviarnine_v1_adapter_v1_package_definition,
+            ) = PackageLoader::get("caviarnine-v1-adapter-v1");
 
             // We can publish the simple oracle, ociswap adapter v1, and
             // caviarnine adapter v1 all in a single transaction since they
@@ -243,8 +243,8 @@ impl StokenetProduction {
                 )
                 .publish_package_advanced(
                     None,
-                    ociswap_adapter_v1_code,
-                    ociswap_adapter_v1_package_definition,
+                    ociswap_v1_adapter_v1_code,
+                    ociswap_v1_adapter_v1_package_definition,
                     metadata_init! {
                         "name" => "Ociswap Adapter v1 Package", updatable;
                         "description" => "The implementation of an adapter for Ociswap for the Ignition protocol.", updatable;
@@ -255,8 +255,8 @@ impl StokenetProduction {
                 )
                 .publish_package_advanced(
                     None,
-                    caviarnine_adapter_v1_code,
-                    caviarnine_adapter_v1_package_definition,
+                    caviarnine_v1_adapter_v1_code,
+                    caviarnine_v1_adapter_v1_package_definition,
                     metadata_init! {
                         "name" => "Caviarnine Adapter v1 Package", updatable;
                         "description" => "The implementation of an adapter for Caviarnine for the Ignition protocol.", updatable;
@@ -273,8 +273,8 @@ impl StokenetProduction {
 
             let (
                 simple_oracle_package_address,
-                ociswap_adapter_v1_package_address,
-                caviarnine_adapter_v1_package_address,
+                ociswap_v1_adapter_v1_package_address,
+                caviarnine_v1_adapter_v1_package_address,
             ) = (
                 *package_addresses.first().unwrap(),
                 *package_addresses.get(1).unwrap(),
@@ -306,8 +306,8 @@ impl StokenetProduction {
             (
                 ignition_package_address,
                 simple_oracle_package_address,
-                ociswap_adapter_v1_package_address,
-                caviarnine_adapter_v1_package_address,
+                ociswap_v1_adapter_v1_package_address,
+                caviarnine_v1_adapter_v1_package_address,
             )
         };
 
@@ -317,8 +317,8 @@ impl StokenetProduction {
         let ignition_package_global_caller_rule =
             rule!(require(package_of_direct_caller(ignition_package_address)));
         let (
-            ociswap_liquidity_receipt_resource,
-            caviarnine_liquidity_receipt_resource,
+            ociswap_v1_liquidity_receipt_resource,
+            caviarnine_v1_liquidity_receipt_resource,
         ) = {
             let roles = NonFungibleResourceRoles {
                 // Mintable and burnable by the Ignition package and
@@ -443,8 +443,8 @@ impl StokenetProduction {
         let (
             ignition_component,
             simple_oracle_component,
-            ociswap_adapter_v1_component,
-            caviarnine_adapter_v1_component,
+            ociswap_v1_adapter_v1_component,
+            caviarnine_v1_adapter_v1_component,
         ) = {
             let manifest = ManifestBuilder::new()
                 // Creating the oracle component
@@ -466,8 +466,8 @@ impl StokenetProduction {
                 )
                 // Creating the ociswap adapter v1 component
                 .call_function(
-                    ociswap_adapter_v1_package_address,
-                    "OciswapAdapter",
+                    ociswap_v1_adapter_v1_package_address,
+                    "OciswapV1Adapter",
                     "instantiate",
                     (
                         metadata_init! {
@@ -481,8 +481,8 @@ impl StokenetProduction {
                 )
                 // Creating the ociswap adapter v1 component
                 .call_function(
-                    caviarnine_adapter_v1_package_address,
-                    "CaviarnineAdapter",
+                    caviarnine_v1_adapter_v1_package_address,
+                    "CaviarnineV1Adapter",
                     "instantiate",
                     (
                         metadata_init! {
@@ -503,8 +503,8 @@ impl StokenetProduction {
 
             let (
                 simple_oracle_component,
-                ociswap_adapter_v1_component,
-                caviarnine_adapter_v1_component,
+                ociswap_v1_adapter_v1_component,
+                caviarnine_v1_adapter_v1_component,
             ) = (
                 *component_addresses.first().unwrap(),
                 *component_addresses.get(1).unwrap(),
@@ -534,23 +534,23 @@ impl StokenetProduction {
                         InitializationParametersManifest {
                             initial_pool_information: Some(indexmap! {
                                 BlueprintId {
-                                    package_address: exchanges.caviarnine.package,
+                                    package_address: exchanges.caviarnine_v1.package,
                                     blueprint_name: "QuantaSwap".to_owned()
                                 } => PoolBlueprintInformationManifest {
-                                    adapter: caviarnine_adapter_v1_component,
-                                    allowed_pools: exchanges.caviarnine.pools.into_iter().collect(),
-                                    liquidity_receipt: caviarnine_liquidity_receipt_resource
+                                    adapter: caviarnine_v1_adapter_v1_component,
+                                    allowed_pools: exchanges.caviarnine_v1.pools.into_iter().collect(),
+                                    liquidity_receipt: caviarnine_v1_liquidity_receipt_resource
                                 },
                                 BlueprintId {
-                                    package_address: exchanges.ociswap.package,
+                                    package_address: exchanges.ociswap_v1.package,
                                     blueprint_name: "BasicPool".to_owned()
                                 } => PoolBlueprintInformationManifest {
-                                    adapter: ociswap_adapter_v1_component,
+                                    adapter: ociswap_v1_adapter_v1_component,
                                     // TODO: Fix this when we have actual 
                                     // ociswap pools.
                                     allowed_pools: Default::default(),
                                     // allowed_pools: exchanges.ociswap.pools.into_iter().collect(),
-                                    liquidity_receipt: ociswap_liquidity_receipt_resource
+                                    liquidity_receipt: ociswap_v1_liquidity_receipt_resource
                                 }
                             }),
                             initial_user_resource_volatility: Some(
@@ -587,8 +587,8 @@ impl StokenetProduction {
             (
                 ignition_component_address,
                 simple_oracle_component,
-                ociswap_adapter_v1_component,
-                caviarnine_adapter_v1_component,
+                ociswap_v1_adapter_v1_component,
+                caviarnine_v1_adapter_v1_component,
             )
         };
 
@@ -619,18 +619,22 @@ impl StokenetProduction {
                         GlobalAddress::from(protocol_owner_badge),
                         GlobalAddress::from(ignition_package_address),
                         GlobalAddress::from(simple_oracle_package_address),
-                        GlobalAddress::from(ociswap_adapter_v1_package_address),
                         GlobalAddress::from(
-                            caviarnine_adapter_v1_package_address,
+                            ociswap_v1_adapter_v1_package_address,
                         ),
-                        GlobalAddress::from(ociswap_liquidity_receipt_resource),
                         GlobalAddress::from(
-                            caviarnine_liquidity_receipt_resource,
+                            caviarnine_v1_adapter_v1_package_address,
+                        ),
+                        GlobalAddress::from(
+                            ociswap_v1_liquidity_receipt_resource,
+                        ),
+                        GlobalAddress::from(
+                            caviarnine_v1_liquidity_receipt_resource,
                         ),
                         GlobalAddress::from(ignition_component),
                         GlobalAddress::from(simple_oracle_component),
-                        GlobalAddress::from(ociswap_adapter_v1_component),
-                        GlobalAddress::from(caviarnine_adapter_v1_component),
+                        GlobalAddress::from(ociswap_v1_adapter_v1_component),
+                        GlobalAddress::from(caviarnine_v1_adapter_v1_component),
                     ],
                 )
                 .call_role_assignment_method(

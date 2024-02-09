@@ -1,5 +1,5 @@
 [package]
-name = "ociswap-adapter-v1"
+name = "ociswap-v1-adapter-v1"
 version.workspace = true
 edition.workspace = true
 description = "Defines the adapter for Ociswap"

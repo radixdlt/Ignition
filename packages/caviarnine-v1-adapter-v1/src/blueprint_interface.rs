@@ -2,7 +2,7 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 define_interface! {
-    QuantaSwap as CaviarninePool impl [
+    QuantaSwap as CaviarnineV1Pool impl [
         ScryptoStub,
         ScryptoTestStub,
         #[cfg(feature = "manifest-builder-stubs")]

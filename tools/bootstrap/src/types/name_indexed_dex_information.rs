@@ -1,7 +1,7 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NameIndexedDexInformation<T> {
-    pub ociswap: T,
-    pub caviarnine: T,
+    pub ociswap_v1: T,
+    pub caviarnine_v1: T,
 }
 
 impl<T> NameIndexedDexInformation<T> {
@@ -10,8 +10,8 @@ impl<T> NameIndexedDexInformation<T> {
         F: FnMut(&T) -> O,
     {
         NameIndexedDexInformation::<O> {
-            ociswap: map(&self.ociswap),
-            caviarnine: map(&self.caviarnine),
+            ociswap_v1: map(&self.ociswap_v1),
+            caviarnine_v1: map(&self.caviarnine_v1),
         }
     }
 
@@ -23,8 +23,8 @@ impl<T> NameIndexedDexInformation<T> {
         F: FnMut(&T) -> Result<O, E>,
     {
         Ok(NameIndexedDexInformation::<O> {
-            ociswap: map(&self.ociswap)?,
-            caviarnine: map(&self.caviarnine)?,
+            ociswap_v1: map(&self.ociswap_v1)?,
+            caviarnine_v1: map(&self.caviarnine_v1)?,
         })
     }
 }

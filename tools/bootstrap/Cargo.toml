@@ -15,10 +15,10 @@ gateway-client = { path = "../../libraries/gateway-client" }
 package-loader = { path = "../../libraries/package-loader", features = [
     "build-time-blueprints",
 ] }
-ociswap-adapter-v1 = { path = "../../packages/ociswap-adapter-v1", features = [
+ociswap-v1-adapter-v1 = { path = "../../packages/ociswap-v1-adapter-v1", features = [
     "manifest-builder-stubs",
 ] }
-caviarnine-adapter-v1 = { path = "../../packages/caviarnine-adapter-v1", features = [
+caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
     "manifest-builder-stubs",
 ] }
 

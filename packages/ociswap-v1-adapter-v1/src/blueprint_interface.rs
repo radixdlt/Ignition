@@ -2,7 +2,7 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 define_interface! {
-    BasicPool as OciswapPool impl [
+    BasicPool as OciswapV1Pool impl [
         ScryptoStub,
         ScryptoTestStub,
         #[cfg(feature = "manifest-builder-stubs")]

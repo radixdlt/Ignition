@@ -23,7 +23,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            const $name: &'static str = concat!("[Caviarnine Adapter]", " ", $item);
+            const $name: &'static str = concat!("[Caviarnine v1 Adapter v1]", " ", $item);
         )*
     };
 }
@@ -44,7 +44,7 @@ pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
 #[blueprint_with_traits]
 #[types(ComponentAddress, PoolInformation)]
 pub mod adapter {
-    struct CaviarnineAdapter {
+    struct CaviarnineV1Adapter {
         /// A cache of the information of the pool, this is done so that we do
         /// not need to query the pool's information each time. Note: I would've
         /// proffered to keep the adapter completely stateless but it seems like
@@ -53,12 +53,12 @@ pub mod adapter {
             KeyValueStore<ComponentAddress, PoolInformation>,
     }
 
-    impl CaviarnineAdapter {
+    impl CaviarnineV1Adapter {
         pub fn instantiate(
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
-        ) -> Global<CaviarnineAdapter> {
+        ) -> Global<CaviarnineV1Adapter> {
             let address_reservation = address_reservation.unwrap_or(
                 Runtime::allocate_component_address(BlueprintId {
                     package_address: Runtime::package_address(),
@@ -104,8 +104,8 @@ pub mod adapter {
 
         fn pool(
             component_address: ComponentAddress,
-        ) -> CaviarninePoolInterfaceScryptoStub {
-            CaviarninePoolInterfaceScryptoStub::from(component_address)
+        ) -> CaviarnineV1PoolInterfaceScryptoStub {
+            CaviarnineV1PoolInterfaceScryptoStub::from(component_address)
         }
 
         fn get_pool_information(
@@ -122,7 +122,7 @@ pub mod adapter {
         }
     }
 
-    impl PoolAdapterInterfaceTrait for CaviarnineAdapter {
+    impl PoolAdapterInterfaceTrait for CaviarnineV1Adapter {
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -254,7 +254,7 @@ pub mod adapter {
             };
 
             let adapter_specific_information =
-                CaviarnineAdapterSpecificInformation {
+                CaviarnineV1AdapterSpecificInformation {
                     bin_contributions: pool
                         .get_redemption_bin_values(
                             receipt_global_id.local_id().clone(),
@@ -305,7 +305,7 @@ pub mod adapter {
 
             // Decoding the adapter specific information as the type we expect
             // it to be.
-            let CaviarnineAdapterSpecificInformation {
+            let CaviarnineV1AdapterSpecificInformation {
                 bin_contributions,
                 price_when_position_was_opened,
                 ..
@@ -412,7 +412,7 @@ pub struct PoolInformation {
 }
 
 #[derive(ScryptoSbor, Debug, Clone)]
-pub struct CaviarnineAdapterSpecificInformation {
+pub struct CaviarnineV1AdapterSpecificInformation {
     /// Stores how much was contributed to the bin.
     pub bin_contributions: IndexMap<u32, ResourceIndexedData<Decimal>>,
 
@@ -423,12 +423,12 @@ pub struct CaviarnineAdapterSpecificInformation {
     pub liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
 }
 
-impl CaviarnineAdapterSpecificInformation {
+impl CaviarnineV1AdapterSpecificInformation {
     pub fn new(
         liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
         price_when_position_was_opened: Decimal,
     ) -> Self {
-        CaviarnineAdapterSpecificInformation {
+        CaviarnineV1AdapterSpecificInformation {
             bin_contributions: Default::default(),
             liquidity_receipt_non_fungible_global_id,
             price_when_position_was_opened,
@@ -448,8 +448,8 @@ impl CaviarnineAdapterSpecificInformation {
     }
 }
 
-impl From<CaviarnineAdapterSpecificInformation> for AnyValue {
-    fn from(value: CaviarnineAdapterSpecificInformation) -> Self {
+impl From<CaviarnineV1AdapterSpecificInformation> for AnyValue {
+    fn from(value: CaviarnineV1AdapterSpecificInformation) -> Self {
         AnyValue::from_typed(&value).unwrap()
     }
 }

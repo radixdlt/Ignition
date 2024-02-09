@@ -14,7 +14,7 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
         environment: ref mut env,
         resources,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -25,7 +25,7 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -72,16 +72,16 @@ fn cant_open_liquidity_position_against_a_pool_outside_of_the_allow_list(
         environment: ref mut env,
         resources,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
-    let new_pool = OciswapPoolInterfaceScryptoTestStub::instantiate(
+    let new_pool = OciswapV1PoolInterfaceScryptoTestStub::instantiate(
         resources.bitcoin,
         XRD,
         dec!(0),
         FAUCET,
-        ociswap.package,
+        ociswap_v1.package,
         env,
     )?;
     let bitcoin_bucket =
@@ -109,20 +109,21 @@ fn cant_open_a_liquidity_position_in_a_pool_after_it_has_been_removed_from_allow
         environment: ref mut env,
         resources,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
-    protocol
-        .ignition
-        .remove_allowed_pool(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.ignition.remove_allowed_pool(
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        env,
+    )?;
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
 
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -140,7 +141,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -150,7 +151,7 @@ fn cant_open_a_liquidity_position_with_some_random_resource(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(random_resource),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -168,7 +169,7 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -183,7 +184,7 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(protocol_resource),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -201,7 +202,7 @@ pub fn can_open_a_liquidity_position_before_the_price_is_stale(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
@@ -216,7 +217,7 @@ pub fn can_open_a_liquidity_position_before_the_price_is_stale(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -234,7 +235,7 @@ pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
@@ -252,7 +253,7 @@ pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -270,7 +271,7 @@ pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
@@ -288,7 +289,7 @@ pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -306,7 +307,7 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
@@ -324,7 +325,7 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -378,7 +379,7 @@ fn test_open_position_oracle_price_cutoffs(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
@@ -396,7 +397,7 @@ fn test_open_position_oracle_price_cutoffs(
     // Act
     protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )
@@ -409,7 +410,7 @@ fn cant_open_a_liquidity_position_with_an_invalid_lockup_period(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -421,7 +422,7 @@ fn cant_open_a_liquidity_position_with_an_invalid_lockup_period(
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_seconds(1),
         env,
     );
@@ -485,7 +486,7 @@ fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resou
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -493,12 +494,12 @@ fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resou
         .mint_initial_supply(100, env)?;
     let fungible2 = ResourceBuilder::new_fungible(OwnerRole::None)
         .mint_initial_supply(100, env)?;
-    let pool = OciswapPoolInterfaceScryptoTestStub::instantiate(
+    let pool = OciswapV1PoolInterfaceScryptoTestStub::instantiate(
         fungible1.resource_address(env)?,
         fungible2.resource_address(env)?,
         dec!(0),
         FAUCET,
-        ociswap.package,
+        ociswap_v1.package,
         env,
     )?;
 
@@ -566,7 +567,7 @@ fn cant_open_a_liquidity_position_with_volatile_user_resource_when_volatile_vaul
         environment: ref mut env,
         mut protocol,
         resources,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -581,7 +582,7 @@ fn cant_open_a_liquidity_position_with_volatile_user_resource_when_volatile_vaul
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -600,7 +601,7 @@ fn cant_open_a_liquidity_position_with_non_volatile_user_resource_when_non_volat
         environment: ref mut env,
         mut protocol,
         resources,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -621,7 +622,7 @@ fn cant_open_a_liquidity_position_with_non_volatile_user_resource_when_non_volat
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(usdc_bucket),
-        ociswap.pools.usdc.try_into().unwrap(),
+        ociswap_v1.pools.usdc.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -639,7 +640,7 @@ fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_va
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -657,7 +658,7 @@ fn can_open_a_liquidity_position_with_no_protocol_resources_in_user_resources_va
     // Act
     let rtn = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     );
@@ -675,7 +676,7 @@ fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -701,7 +702,7 @@ fn opening_a_liquidity_position_of_a_volatile_resource_consumes_protocol_assets_
     // Act
     let _ = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
@@ -745,7 +746,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -773,7 +774,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     let (receipt, upfront_reward, bitcoin_change) =
         protocol.ignition.open_liquidity_position(
             FungibleBucket(bitcoin_bucket),
-            ociswap.pools.bitcoin.try_into().unwrap(),
+            ociswap_v1.pools.bitcoin.try_into().unwrap(),
             lockup_period,
             env,
         )?;
@@ -805,16 +806,16 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
         Decimal::ZERO
     };
 
-    let liquidity_receipt_data = ResourceManager(ociswap.liquidity_receipt)
+    let liquidity_receipt_data = ResourceManager(ociswap_v1.liquidity_receipt)
         .get_non_fungible_data::<_, _, LiquidityReceipt>(
-        receipt
-            .0
-            .non_fungible_local_ids(env)?
-            .first()
-            .unwrap()
-            .clone(),
-        env,
-    )?;
+            receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
 
     assert_eq!(
         liquidity_receipt_data.lockup_period,
@@ -822,7 +823,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     );
     assert_eq!(
         liquidity_receipt_data.pool_address,
-        ComponentAddress::try_from(ociswap.pools.bitcoin).unwrap()
+        ComponentAddress::try_from(ociswap_v1.pools.bitcoin).unwrap()
     );
     assert_eq!(
         liquidity_receipt_data.user_resource_address,
@@ -867,7 +868,7 @@ fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError
         environment: ref mut env,
         mut protocol,
         resources,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
@@ -884,7 +885,7 @@ fn cant_close_a_liquidity_position_using_a_fake_nft() -> Result<(), RuntimeError
             .mint_initial_supply(
                 [utils::liquidity_receipt_data_with_modifier(|receipt| {
                     receipt.pool_address =
-                        ociswap.pools.bitcoin.try_into().unwrap();
+                        ociswap_v1.pools.bitcoin.try_into().unwrap();
                     receipt.user_resource_address = resources.bitcoin
                 })],
                 env,
@@ -910,18 +911,18 @@ fn cant_close_a_liquidity_position_when_closing_is_closed(
         environment: ref mut env,
         mut protocol,
         resources,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
     protocol
         .ignition
         .set_is_close_position_enabled(false, env)?;
 
-    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+    let (bucket, _) = ResourceManager(ociswap_v1.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
                 receipt.pool_address =
-                    ociswap.pools.bitcoin.try_into().unwrap();
+                    ociswap_v1.pools.bitcoin.try_into().unwrap();
                 receipt.user_resource_address = resources.bitcoin
             }),
             env,
@@ -946,24 +947,24 @@ fn cant_close_a_liquidity_position_with_more_than_one_nft(
         environment: ref mut env,
         mut protocol,
         resources,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
 
-    let (bucket1, _) = ResourceManager(ociswap.liquidity_receipt)
+    let (bucket1, _) = ResourceManager(ociswap_v1.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
                 receipt.pool_address =
-                    ociswap.pools.bitcoin.try_into().unwrap();
+                    ociswap_v1.pools.bitcoin.try_into().unwrap();
                 receipt.user_resource_address = resources.bitcoin
             }),
             env,
         )?;
-    let (bucket2, _) = ResourceManager(ociswap.liquidity_receipt)
+    let (bucket2, _) = ResourceManager(ociswap_v1.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
                 receipt.pool_address =
-                    ociswap.pools.bitcoin.try_into().unwrap();
+                    ociswap_v1.pools.bitcoin.try_into().unwrap();
                 receipt.user_resource_address = resources.bitcoin
             }),
             env,
@@ -988,16 +989,16 @@ fn cant_close_a_liquidity_position_before_its_maturity_date(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
 
-    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+    let (bucket, _) = ResourceManager(ociswap_v1.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
                 receipt.pool_address =
-                    ociswap.pools.bitcoin.try_into().unwrap();
+                    ociswap_v1.pools.bitcoin.try_into().unwrap();
                 receipt.user_resource_address = resources.bitcoin;
                 env.set_current_time(Instant::new(60));
                 receipt.maturity_date = Instant::new(120);
@@ -1023,7 +1024,7 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -1032,21 +1033,21 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
     let (liquidity_receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
-    let liquidity_receipt_data = ResourceManager(ociswap.liquidity_receipt)
+    let liquidity_receipt_data = ResourceManager(ociswap_v1.liquidity_receipt)
         .get_non_fungible_data::<_, _, LiquidityReceipt>(
-        liquidity_receipt
-            .0
-            .non_fungible_local_ids(env)?
-            .first()
-            .unwrap()
-            .clone(),
-        env,
-    )?;
+            liquidity_receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
     env.set_current_time(liquidity_receipt_data.maturity_date);
     protocol
         .oracle
@@ -1070,10 +1071,10 @@ fn cant_close_a_liquidity_position_of_a_pool_with_no_adapter(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        ociswap,
+        ociswap_v1,
         ..
     } = ScryptoTestEnv::new()?;
-    let (bucket, _) = ResourceManager(ociswap.liquidity_receipt)
+    let (bucket, _) = ResourceManager(ociswap_v1.liquidity_receipt)
         .mint_non_fungible_single_ruid(
             utils::liquidity_receipt_data_with_modifier(|receipt| {
                 receipt.pool_address = FAUCET;
@@ -1099,7 +1100,7 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
     let Environment {
         environment: ref mut env,
         mut protocol,
-        mut ociswap,
+        mut ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -1108,14 +1109,14 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
     let bitcoin_bucket = ResourceManager(resources.bitcoin)
         .mint_fungible(dec!(100_000_000), env)?;
-    let _ = ociswap.pools.bitcoin.swap(bitcoin_bucket, env)?;
+    let _ = ociswap_v1.pools.bitcoin.swap(bitcoin_bucket, env)?;
 
     let current_time = env.get_current_time();
     env.set_current_time(
@@ -1124,9 +1125,9 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
             .unwrap(),
     );
 
-    let pool_price = ociswap
+    let pool_price = ociswap_v1
         .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+        .price(ociswap_v1.pools.bitcoin.try_into().unwrap(), env)?;
     assert_eq!(pool_price.base, resources.bitcoin);
     assert_eq!(pool_price.quote, XRD);
     protocol.oracle.set_price(
@@ -1170,7 +1171,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let Environment {
         environment: ref mut env,
         mut protocol,
-        mut ociswap,
+        mut ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -1179,14 +1180,14 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
     let xrd_bucket =
         ResourceManager(XRD).mint_fungible(dec!(10_000_000), env)?;
-    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+    let _ = ociswap_v1.pools.bitcoin.swap(xrd_bucket, env)?;
 
     let current_time = env.get_current_time();
     env.set_current_time(
@@ -1195,9 +1196,9 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
             .unwrap(),
     );
 
-    let pool_price = ociswap
+    let pool_price = ociswap_v1
         .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+        .price(ociswap_v1.pools.bitcoin.try_into().unwrap(), env)?;
     let oracle_price = pool_price;
     assert_eq!(pool_price.base, resources.bitcoin);
     assert_eq!(pool_price.quote, XRD);
@@ -1241,7 +1242,7 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
     let Environment {
         environment: ref mut env,
         mut protocol,
-        mut ociswap,
+        mut ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -1250,14 +1251,14 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
     let xrd_bucket =
         ResourceManager(XRD).mint_fungible(dec!(10_000_000), env)?;
-    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+    let _ = ociswap_v1.pools.bitcoin.swap(xrd_bucket, env)?;
 
     let current_time = env.get_current_time();
     env.set_current_time(
@@ -1266,9 +1267,9 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
             .unwrap(),
     );
 
-    let pool_price = ociswap
+    let pool_price = ociswap_v1
         .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+        .price(ociswap_v1.pools.bitcoin.try_into().unwrap(), env)?;
     let oracle_price = pool_price.price - (dec!(0.005) * pool_price.price);
     assert_eq!(pool_price.base, resources.bitcoin);
     assert_eq!(pool_price.quote, XRD);
@@ -1312,7 +1313,7 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
     let Environment {
         environment: ref mut env,
         mut protocol,
-        mut ociswap,
+        mut ociswap_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -1321,14 +1322,14 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
     let (receipt, _, _) = protocol.ignition.open_liquidity_position(
         FungibleBucket(bitcoin_bucket),
-        ociswap.pools.bitcoin.try_into().unwrap(),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
         LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
     let xrd_bucket =
         ResourceManager(XRD).mint_fungible(dec!(10_000_000_000), env)?;
-    let _ = ociswap.pools.bitcoin.swap(xrd_bucket, env)?;
+    let _ = ociswap_v1.pools.bitcoin.swap(xrd_bucket, env)?;
 
     let current_time = env.get_current_time();
     env.set_current_time(
@@ -1337,9 +1338,9 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
             .unwrap(),
     );
 
-    let pool_price = ociswap
+    let pool_price = ociswap_v1
         .adapter
-        .price(ociswap.pools.bitcoin.try_into().unwrap(), env)?;
+        .price(ociswap_v1.pools.bitcoin.try_into().unwrap(), env)?;
     let oracle_price = pool_price;
     assert_eq!(pool_price.base, resources.bitcoin);
     assert_eq!(pool_price.quote, XRD);
@@ -1389,7 +1390,7 @@ mod utils {
             user_resource_volatility_classification: NonVolatile,
             protocol_contribution_amount: dec!(1),
             maturity_date: Instant::new(1),
-            adapter_specific_information: OciswapAdapterSpecificInformation {
+            adapter_specific_information: OciswapV1AdapterSpecificInformation {
                 pool_k_when_position_opened: pdec!(100),
                 user_share_in_pool_when_position_opened: dec!(0.01),
             }

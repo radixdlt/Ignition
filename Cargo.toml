@@ -4,8 +4,8 @@ members = [
     # Packages
     "packages/ignition",
     "packages/simple-oracle",
-    "packages/ociswap-adapter-v1",
-    "packages/caviarnine-adapter-v1",
+    "packages/ociswap-v1-adapter-v1",
+    "packages/caviarnine-v1-adapter-v1",
     # Libraries
     "libraries/package-loader",
     "libraries/gateway-client",

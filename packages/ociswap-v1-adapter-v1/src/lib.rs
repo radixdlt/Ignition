@@ -16,7 +16,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            pub const $name: &'static str = concat!("[Ociswap Adapter]", " ", $item);
+            pub const $name: &'static str = concat!("[Ociswap v1 Adapter v1]", " ", $item);
         )*
     };
 }
@@ -35,14 +35,14 @@ define_error! {
 
 #[blueprint_with_traits]
 pub mod adapter {
-    struct OciswapAdapter;
+    struct OciswapV1Adapter;
 
-    impl OciswapAdapter {
+    impl OciswapV1Adapter {
         pub fn instantiate(
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
-        ) -> Global<OciswapAdapter> {
+        ) -> Global<OciswapV1Adapter> {
             let address_reservation = address_reservation.unwrap_or(
                 Runtime::allocate_component_address(BlueprintId {
                     package_address: Runtime::package_address(),
@@ -64,12 +64,12 @@ pub mod adapter {
 
         fn pool(
             component_address: ComponentAddress,
-        ) -> OciswapPoolInterfaceScryptoStub {
-            OciswapPoolInterfaceScryptoStub::from(component_address)
+        ) -> OciswapV1PoolInterfaceScryptoStub {
+            OciswapV1PoolInterfaceScryptoStub::from(component_address)
         }
     }
 
-    impl PoolAdapterInterfaceTrait for OciswapAdapter {
+    impl PoolAdapterInterfaceTrait for OciswapV1Adapter {
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -107,7 +107,7 @@ pub mod adapter {
                     .unwrap_or_default(),
                 others: Default::default(),
                 adapter_specific_information:
-                    OciswapAdapterSpecificInformation {
+                    OciswapV1AdapterSpecificInformation {
                         user_share_in_pool_when_position_opened: user_share,
                         pool_k_when_position_opened: pool_k,
                     }
@@ -178,11 +178,11 @@ pub mod adapter {
                     .map(|bucket| (bucket.resource_address(), bucket))
                     .collect::<IndexMap<_, _>>();
 
-                let OciswapAdapterSpecificInformation {
+                let OciswapV1AdapterSpecificInformation {
                     pool_k_when_position_opened,
                     user_share_in_pool_when_position_opened,
                 } = adapter_specific_information
-                    .as_typed::<OciswapAdapterSpecificInformation>()
+                    .as_typed::<OciswapV1AdapterSpecificInformation>()
                     .unwrap();
 
                 let price = self.price(pool_address);
@@ -275,7 +275,7 @@ pub mod adapter {
 }
 
 #[derive(ScryptoSbor, Debug, Clone)]
-pub struct OciswapAdapterSpecificInformation {
+pub struct OciswapV1AdapterSpecificInformation {
     /// The share of the user in the pool when the position was opened.
     pub user_share_in_pool_when_position_opened: Decimal,
 
@@ -283,8 +283,8 @@ pub struct OciswapAdapterSpecificInformation {
     pub pool_k_when_position_opened: PreciseDecimal,
 }
 
-impl From<OciswapAdapterSpecificInformation> for AnyValue {
-    fn from(value: OciswapAdapterSpecificInformation) -> Self {
+impl From<OciswapV1AdapterSpecificInformation> for AnyValue {
+    fn from(value: OciswapV1AdapterSpecificInformation) -> Self {
         AnyValue::from_typed(&value).unwrap()
     }
 }
