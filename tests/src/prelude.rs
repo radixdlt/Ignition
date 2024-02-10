@@ -1,4 +1,4 @@
-#![allow(ambiguous_glob_reexports)]
+#![allow(ambiguous_glob_reexports, ambiguous_glob_imports)]
 
 pub use crate::environment::*;
 pub use crate::errors::*;

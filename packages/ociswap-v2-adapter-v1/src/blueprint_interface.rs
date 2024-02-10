@@ -82,6 +82,25 @@ define_interface! {
         fn y_address(&self) -> ResourceAddress;
         fn registry(&self) -> ComponentAddress;
         fn next_sync_time(&self) -> u64;
+        fn active_tick(&self) -> i32;
+        fn price_sqrt(&self) -> PreciseDecimal;
+        fn total_fees(&self, position_id: NonFungibleLocalId) -> (Decimal, Decimal);
+    }
+}
+
+define_interface! {
+    Registry as OciswapV2Registry impl [
+        ScryptoStub,
+        ScryptoTestStub,
+        #[cfg(feature = "manifest-builder-stubs")]
+        ManifestBuilderStub
+    ] {
+        fn instantiate(
+            owner_badge_address: ResourceAddress,
+            fee_protocol_share: Decimal,
+            sync_period: u64,
+            sync_slots: u64
+        ) -> Self;
     }
 }
 

@@ -280,11 +280,34 @@ impl ScryptoTestEnv {
             ociswap_v2_adapter_v1_package,
             ociswap_v2_pools,
         ) = {
-            let ociswap_v2_package = {
+            let ociswap_v2_pool_package = {
                 let ociswap_v2_package_wasm =
-                    include_bytes!("../assets/ociswap_v2.wasm");
+                    include_bytes!("../assets/ociswap_v2_pool.wasm");
                 let ociswap_v2_package_rpd =
-                    include_bytes!("../assets/ociswap_v2.rpd");
+                    include_bytes!("../assets/ociswap_v2_pool.rpd");
+                let ociswap_v2_package_definition =
+                    manifest_decode::<PackageDefinition>(
+                        ociswap_v2_package_rpd,
+                    )
+                    .unwrap();
+
+                env.call_function_typed::<_, PackagePublishWasmOutput>(
+                    PACKAGE_PACKAGE,
+                    PACKAGE_BLUEPRINT,
+                    PACKAGE_PUBLISH_WASM_IDENT,
+                    &PackagePublishWasmInput {
+                        code: ociswap_v2_package_wasm.to_vec(),
+                        definition: ociswap_v2_package_definition,
+                        metadata: Default::default(),
+                    },
+                )?
+                .0
+            };
+            let ociswap_v2_registry_package = {
+                let ociswap_v2_package_wasm =
+                    include_bytes!("../assets/ociswap_v2_registry.wasm");
+                let ociswap_v2_package_rpd =
+                    include_bytes!("../assets/ociswap_v2_registry.rpd");
                 let ociswap_v2_package_definition =
                     manifest_decode::<PackageDefinition>(
                         ociswap_v2_package_rpd,
@@ -307,6 +330,16 @@ impl ScryptoTestEnv {
             let ociswap_v2_adapter_v1_package =
                 Self::publish_package("ociswap-v2-adapter-v1", &mut env)?;
 
+            let registry =
+                OciswapV2RegistryInterfaceScryptoTestStub::instantiate(
+                    GLOBAL_CALLER_VIRTUAL_BADGE,
+                    dec!(0.03),
+                    10080,
+                    20,
+                    ociswap_v2_registry_package,
+                    &mut env,
+                )?;
+
             let ociswap_v2_pools =
                 resource_addresses.try_map(|resource_address| {
                     let (resource_x, resource_y) = if XRD < *resource_address {
@@ -322,10 +355,10 @@ impl ScryptoTestEnv {
                             pdec!(1),
                             dec!(0.03),
                             dec!(0.03),
-                            FAUCET,
+                            registry.try_into().unwrap(),
                             vec![],
                             FAUCET,
-                            ociswap_v2_package,
+                            ociswap_v2_pool_package,
                             &mut env,
                         )?;
 
@@ -342,7 +375,7 @@ impl ScryptoTestEnv {
                 })?;
 
             (
-                ociswap_v2_package,
+                ociswap_v2_pool_package,
                 ociswap_v2_adapter_v1_package,
                 ociswap_v2_pools,
             )
@@ -599,6 +632,7 @@ impl ScryptoUnitEnv {
             });
             TestRunnerBuilder::new()
                 .with_custom_database(in_memory_substate_database)
+                .without_trace()
                 .build()
         };
 
@@ -769,11 +803,11 @@ impl ScryptoUnitEnv {
             ociswap_v2_adapter_v1_package,
             ociswap_v2_pools,
         ) = {
-            let ociswap_v2_package = {
+            let ociswap_v2_pool_package = {
                 let ociswap_v2_package_wasm =
-                    include_bytes!("../assets/ociswap_v2.wasm");
+                    include_bytes!("../assets/ociswap_v2_pool.wasm");
                 let ociswap_v2_package_rpd =
-                    include_bytes!("../assets/ociswap_v2.rpd");
+                    include_bytes!("../assets/ociswap_v2_pool.rpd");
                 let ociswap_v2_package_definition =
                     manifest_decode::<PackageDefinition>(
                         ociswap_v2_package_rpd,
@@ -789,6 +823,46 @@ impl ScryptoUnitEnv {
                     Default::default(),
                 )
             };
+            let ociswap_v2_registry_package = {
+                let ociswap_v2_package_wasm =
+                    include_bytes!("../assets/ociswap_v2_registry.wasm");
+                let ociswap_v2_package_rpd =
+                    include_bytes!("../assets/ociswap_v2_registry.rpd");
+                let ociswap_v2_package_definition =
+                    manifest_decode::<PackageDefinition>(
+                        ociswap_v2_package_rpd,
+                    )
+                    .unwrap();
+
+                test_runner.publish_package(
+                    (
+                        ociswap_v2_package_wasm.to_vec(),
+                        ociswap_v2_package_definition,
+                    ),
+                    Default::default(),
+                    Default::default(),
+                )
+            };
+
+            let registry = test_runner
+                .execute_manifest(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .ociswap_v2_registry_instantiate(
+                            ociswap_v2_registry_package,
+                            GLOBAL_CALLER_VIRTUAL_BADGE,
+                            dec!(0.03),
+                            10080,
+                            20,
+                        )
+                        .build(),
+                    vec![],
+                )
+                .expect_commit_success()
+                .new_component_addresses()
+                .first()
+                .copied()
+                .unwrap();
 
             let (code, definition) =
                 package_loader::PackageLoader::get("ociswap-v2-adapter-v1");
@@ -808,13 +882,13 @@ impl ScryptoUnitEnv {
                 let manifest = ManifestBuilder::new()
                     .lock_fee_from_faucet()
                     .ociswap_v2_pool_instantiate(
-                        ociswap_v2_package,
+                        ociswap_v2_pool_package,
                         resource_x,
                         resource_y,
                         pdec!(1),
                         dec!(0.03),
                         dec!(0.03),
-                        FAUCET,
+                        registry,
                         vec![],
                         FAUCET,
                     )
@@ -855,7 +929,7 @@ impl ScryptoUnitEnv {
             });
 
             (
-                ociswap_v2_package,
+                ociswap_v2_pool_package,
                 ociswap_v2_adapter_v1_package,
                 ociswap_v2_pools,
             )
