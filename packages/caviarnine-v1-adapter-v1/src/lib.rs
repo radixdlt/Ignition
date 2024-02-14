@@ -47,7 +47,7 @@ pub mod adapter {
     struct CaviarnineV1Adapter {
         /// A cache of the information of the pool, this is done so that we do
         /// not need to query the pool's information each time. Note: I would've
-        /// proffered to keep the adapter completely stateless but it seems like
+        /// preferred to keep the adapter completely stateless but it seems like
         /// we're pretty much forced to cache this data to get some fee gains.
         pool_information_cache:
             KeyValueStore<ComponentAddress, PoolInformation>,
@@ -579,7 +579,6 @@ pub fn calculate_liquidity(
 /// Given the amount of assets that used to be in the bin and a certain change
 /// in price, this function calculates the new composition of the bins based on
 /// price action alone.
-// TODO: Write unit tests for this function in isolation of everything else.
 fn calculate_bin_amounts_due_to_price_action(
     bin_amounts: &[(u32, ResourceIndexedData<Decimal>)],
     current_price: Decimal,
@@ -614,19 +613,17 @@ fn calculate_bin_amounts_due_to_price_action(
                 // be based on the current price.
                 let expected_bin_composition_now =
                     match tick.cmp(&active_bin) {
-                        // Case A: The current price is inside this bin.
-                        // Since we are the current active bin then it's
-                        // expected that this bin has both X and Y assets.
+                        // Case A: The current price is inside this bin. Since 
+                        // we are the current active bin then it's expected that
+                        // this bin has both X and Y assets.
                         Ordering::Equal => Composition::Composite,
-                        //  // Case B: The current price of the pool is
-                        // greater than the upper bound of the bin. We're
-                        // outside of that range and there should only be Y
-                        // assets in the bin.
+                        // Case B: The current price of the pool is greater than
+                        // the upper bound of the bin. We're outside of that
+                        // range and there should only be Y assets in the bin.
                         Ordering::Less => Composition::EntirelyY,
-                        // Case C: The current price of the pool is smaller
-                        // than the lower bound of the bin. We're outside of
-                        // that range and there should only be X assets in
-                        // the bin.
+                        // Case C: The current price of the pool is smaller than
+                        // the lower bound of the bin. We're outside of that
+                        // range and there should only be X assets in the bin.
                         Ordering::Greater => Composition::EntirelyX,
                     };
 
