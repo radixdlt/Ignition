@@ -12,6 +12,7 @@ members = [
     "libraries/gateway-client",
     "libraries/scrypto-interface",
     "libraries/ports-interface",
+    "libraries/scrypto-math",
     # Tools
     "tools/bootstrap",
     # Tests
@@ -25,6 +26,7 @@ description = "The implementation of project Ignition in Scrypto for the Radix L
 
 [workspace.dependencies]
 sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
+utils = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }

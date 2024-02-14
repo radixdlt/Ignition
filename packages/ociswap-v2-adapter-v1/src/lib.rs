@@ -6,6 +6,7 @@ pub use blueprint_interface::*;
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
+use scrypto_math::*;
 
 macro_rules! define_error {
     (
@@ -93,7 +94,18 @@ pub mod adapter {
             // a 20x upside and downside. We calculate this through a function
             // provided by Ociswap: offset = ln(multiplier) / ln(1.0001) and
             // then round up.
-            let active_tick = pool.active_tick();
+            let active_tick = {
+                pool.price_sqrt()
+                    .checked_powi(2)
+                    .and_then(|value| {
+                        value.checked_div(
+                            dec!(1.0001).ln().expect(OVERFLOW_ERROR),
+                        )
+                    })
+                    .and_then(|value| value.0.checked_div(pdec!(1).0))
+                    .and_then(|value| i32::try_from(value).ok())
+                    .expect(OVERFLOW_ERROR)
+            };
             let offset = 29959;
 
             let lower_tick =

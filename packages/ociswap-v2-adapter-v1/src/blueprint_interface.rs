@@ -82,7 +82,6 @@ define_interface! {
         fn y_address(&self) -> ResourceAddress;
         fn registry(&self) -> ComponentAddress;
         fn next_sync_time(&self) -> u64;
-        fn active_tick(&self) -> i32;
         fn price_sqrt(&self) -> PreciseDecimal;
         fn total_fees(&self, position_id: NonFungibleLocalId) -> (Decimal, Decimal);
     }
