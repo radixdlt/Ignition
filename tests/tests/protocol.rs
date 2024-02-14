@@ -548,9 +548,8 @@ fn cant_add_allowed_pool_of_a_blueprint_that_is_not_registered(
     Ok(())
 }
 
-// TODO: Maybe we also need a caviarnine version of this.
 #[test]
-fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resource(
+fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resource_ociswap_v1(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -570,6 +569,82 @@ fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resou
         dec!(0),
         FAUCET,
         ociswap_v1.package,
+        env,
+    )?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .add_allowed_pool(pool.try_into().unwrap(), env);
+
+    // Assert
+    assert_is_ignition_neither_pool_resource_is_protocol_resource_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resource_ociswap_v2(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v2,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let fungible1 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let fungible2 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let (pool, ..) = OciswapV2PoolInterfaceScryptoTestStub::instantiate(
+        fungible2.resource_address(env)?,
+        fungible1.resource_address(env)?,
+        pdec!(1),
+        dec!(0.03),
+        dec!(0.03),
+        FAUCET,
+        vec![],
+        FAUCET,
+        ociswap_v2.package,
+        env,
+    )?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .add_allowed_pool(pool.try_into().unwrap(), env);
+
+    // Assert
+    assert_is_ignition_neither_pool_resource_is_protocol_resource_error(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resource_caviarnine_v1(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        caviarnine_v1,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let fungible1 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let fungible2 = ResourceBuilder::new_fungible(OwnerRole::None)
+        .mint_initial_supply(100, env)?;
+    let pool = CaviarnineV1PoolInterfaceScryptoTestStub::new(
+        rule!(allow_all),
+        rule!(allow_all),
+        fungible1.resource_address(env)?,
+        fungible2.resource_address(env)?,
+        50,
+        None,
+        caviarnine_v1.package,
         env,
     )?;
 
