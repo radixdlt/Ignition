@@ -336,7 +336,6 @@ pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_with
     Ok(())
 }
 
-// TODO: Similar test is required for closing of a position.
 #[test]
 #[allow(unused_must_use)]
 fn oracle_price_cutoffs_for_opening_liquidity_positions_are_implemented_correctly(
@@ -401,6 +400,77 @@ fn test_open_position_oracle_price_cutoffs(
         LockupPeriod::from_months(6).unwrap(),
         env,
     )
+}
+
+#[test]
+#[allow(unused_must_use)]
+fn oracle_price_cutoffs_for_closing_liquidity_positions_are_implemented_correctly(
+) {
+    const SMALL_DECIMAL: Decimal = dec!(0.000000000000000010);
+
+    test_close_position_oracle_price_cutoffs(dec!(1) / dec!(1.01), dec!(0.01))
+        .expect("Should succeed!");
+    test_close_position_oracle_price_cutoffs(dec!(1) / dec!(0.99), dec!(0.01))
+        .expect("Should succeed!");
+    test_close_position_oracle_price_cutoffs(
+        dec!(1) / dec!(0.99) - SMALL_DECIMAL,
+        dec!(0.01),
+    )
+    .expect("Should succeed!");
+    test_close_position_oracle_price_cutoffs(
+        dec!(1) / dec!(1.01) + SMALL_DECIMAL,
+        dec!(0.01),
+    )
+    .expect("Should succeed!");
+
+    assert_is_ignition_relative_price_difference_larger_than_allowed_error(
+        &test_close_position_oracle_price_cutoffs(
+            dec!(1) / dec!(0.99) + SMALL_DECIMAL,
+            dec!(0.01),
+        ),
+    );
+    assert_is_ignition_relative_price_difference_larger_than_allowed_error(
+        &test_close_position_oracle_price_cutoffs(
+            dec!(1) / dec!(1.01) - SMALL_DECIMAL,
+            dec!(0.01),
+        ),
+    );
+}
+
+fn test_close_position_oracle_price_cutoffs(
+    oracle_price: Decimal,
+    allowed_price_difference: Decimal,
+) -> Result<Vec<Bucket>, RuntimeError> {
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: allowed_price_difference,
+        ..Default::default()
+    })?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    let current_time = env.get_current_time();
+    env.set_current_time(current_time.add_days(12 * 30).unwrap());
+
+    protocol
+        .oracle
+        .set_price(resources.bitcoin, XRD, oracle_price, env)?;
+
+    protocol.ignition.close_liquidity_position(receipt, env)
 }
 
 #[test]

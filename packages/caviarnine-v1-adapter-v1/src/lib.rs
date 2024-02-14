@@ -604,14 +604,6 @@ fn calculate_bin_amounts_due_to_price_action(
                     bin_amount.resource_x == Decimal::ZERO,
                     bin_amount.resource_y == Decimal::ZERO,
                 ) {
-                    // TODO: I think that this is impossible? I believe that
-                    // it is impossible since we only capture the bins that
-                    // we have contributed to and THEN store the reserves in
-                    // the bin. If we contributed to it, how come its empty
-                    // of both resources?
-                    //
-                    // If this is somehow possible, what do we want to do
-                    // in this case?
                     (true, true) => return None,
                     (true, false) => Composition::EntirelyY,
                     (false, true) => Composition::EntirelyX,

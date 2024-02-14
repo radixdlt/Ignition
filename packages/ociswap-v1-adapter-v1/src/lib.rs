@@ -77,7 +77,6 @@ pub mod adapter {
         ) -> OpenLiquidityPositionOutput {
             let mut pool = Self::pool(pool_address);
 
-            // TODO: Is this actually pool units and change?
             let (pool_units, change) = pool.add_liquidity(buckets.0, buckets.1);
 
             let user_share = pool_units
