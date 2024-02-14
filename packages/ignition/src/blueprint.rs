@@ -177,6 +177,11 @@ mod ignition {
         /// The mapping of the [`BlueprintId`] to the pool information means
         /// that each Dex, or at least Dex blueprint, has a single entry in the
         /// protocol.
+        ///
+        /// Note: it is well understood that [`PoolBlueprintInformation`] data
+        /// is unbounded in size and that it can lead to state explosion. But,
+        /// we will only have four allowed pools in Ignition and therefore we
+        /// are not worried about the state explosion problems.
         pool_information: KeyValueStore<BlueprintId, PoolBlueprintInformation>,
 
         /// Maps a resource address to its volatility classification in the
