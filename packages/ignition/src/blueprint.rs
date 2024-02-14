@@ -72,6 +72,18 @@ type PoolAdapter = PoolAdapterInterfaceScryptoStub;
 type OracleAdapter = OracleAdapterInterfaceScryptoStub;
 
 #[blueprint]
+#[types(
+    Decimal,
+    ResourceAddress,
+    NonFungibleGlobalId,
+    BlueprintId,
+    Vault,
+    Vec<Vault>,
+    FungibleVault,
+    LockupPeriod,
+    Volatility,
+    PoolBlueprintInformation,
+)]
 mod ignition {
     enable_method_auth! {
         roles {
@@ -141,6 +153,7 @@ mod ignition {
             withdraw_user_resources => restrict_to: [protocol_owner];
             deposit_pool_units => restrict_to: [protocol_owner];
             withdraw_pool_units => restrict_to: [protocol_owner];
+            forcefully_liquidate => restrict_to: [protocol_owner];
             /* User methods */
             open_liquidity_position => PUBLIC;
             close_liquidity_position => PUBLIC;
@@ -216,6 +229,18 @@ mod ignition {
         /// protocol is allowed to deposit or withdraw into these vaults.
         pool_units: KeyValueStore<NonFungibleGlobalId, Vault>,
 
+        /// A KeyValueStore that stores all of the tokens owed to users of the
+        /// protocol whose liquidity claims have been forcefully liquidated.
+        ///
+        /// Note: It is understood that the value type used here can in theory
+        /// lead to state explosion. However, realistically, there would only
+        /// be 2 vaults in here since the pools we're interacting with are all
+        /// of two resources. Perhaps there would be a third if some of the DEXs
+        /// has an incentive program. However, it is very unlikely that there
+        /// would be more than that.
+        forced_liquidation_claims:
+            KeyValueStore<NonFungibleGlobalId, Vec<Vault>>,
+
         /* Configuration */
         /// The upfront reward rates supported by the protocol. This is a map of
         /// the lockup period to the reward rate ratio. In this case, the value
@@ -282,18 +307,22 @@ mod ignition {
                 let mut ignition = Self {
                     protocol_resource,
                     oracle_adapter: oracle_adapter.into(),
-                    pool_information: KeyValueStore::new(),
-                    user_resources_vaults: KeyValueStore::new(),
-                    pool_units: KeyValueStore::new(),
-                    reward_rates: KeyValueStore::new(),
+                    pool_information: KeyValueStore::new_with_registered_type(),
+                    user_resources_vaults:
+                        KeyValueStore::new_with_registered_type(),
+                    pool_units: KeyValueStore::new_with_registered_type(),
+                    reward_rates: KeyValueStore::new_with_registered_type(),
                     is_open_position_enabled: false,
                     is_close_position_enabled: false,
                     maximum_allowed_price_staleness,
                     maximum_allowed_price_difference_percentage,
-                    user_resource_volatility: KeyValueStore::new(),
+                    user_resource_volatility:
+                        KeyValueStore::new_with_registered_type(),
                     protocol_resource_reserves: ProtocolResourceReserves::new(
                         protocol_resource.address(),
                     ),
+                    forced_liquidation_claims:
+                        KeyValueStore::new_with_registered_type(),
                 };
 
                 if let Some(resource_volatility) =
@@ -617,6 +646,101 @@ mod ignition {
         /// Given the non-fungible representing the liquidity receipt, this
         /// method closes the liquidity position after the maturity period
         /// elapses. The liquidity receipt is burned and the user is given
+        /// back some amount of assets. If the user has been forcefully
+        /// liquidated by the owner of the protocol then the amount returned
+        /// will be the amount they were owed at liquidation time.
+        ///
+        /// # Arguments
+        ///
+        /// `liquidity_receipt`: [`NonFungibleBucket`] - A bucket of the non
+        /// fungible liquidity receipt.
+        ///
+        /// # Returns
+        ///
+        /// [`Vec<Bucket>`] - A vector of buckets of the amount to give back to
+        /// the user.
+        pub fn close_liquidity_position(
+            &mut self,
+            liquidity_receipt: NonFungibleBucket,
+        ) -> Vec<Bucket> {
+            // Ensure that there is only a single NFT in the bucket, we do not
+            // service more than a single one at a time.
+            assert_eq!(
+                liquidity_receipt.amount(),
+                Decimal::ONE,
+                "{}",
+                MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR
+            );
+
+            // At this point it is safe to get the non-fungible global id of the
+            // liquidity receipt NFT.
+            let liquidity_receipt_global_id = liquidity_receipt
+                .non_fungible::<LiquidityReceipt>()
+                .global_id()
+                .clone();
+
+            // If the passed non-fungible is found in the KVStore of liquidity
+            // claims then it has been forcefully closed and it can be claimed
+            // from there.
+            let entry = self
+                .forced_liquidation_claims
+                .get_mut(&liquidity_receipt_global_id);
+            if let Some(mut vaults) = entry {
+                // The liquidity receipt is no longer needed and can be burned.
+                liquidity_receipt.burn();
+
+                // Take all of the funds in the vaults and return them back to
+                // the user.
+                vaults.iter_mut().map(Vault::take_all).collect()
+            }
+            // There is no entry in the forced liquidations for this receipt. So
+            // we can close it.
+            else {
+                drop(entry);
+
+                // A liquidity position can only be closed when the closing
+                // period is opened. Otherwise, it can't be. However, this
+                // does not apply for claiming already liquidated positions.
+                assert!(
+                    self.is_close_position_enabled,
+                    "{}",
+                    CLOSING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
+                );
+
+                let buckets = self.liquidate(liquidity_receipt_global_id);
+
+                // The liquidity receipt is no longer needed and can be burned.
+                liquidity_receipt.burn();
+
+                buckets
+            }
+        }
+
+        /// Forcefully liquidates a liquidity position keeping the resources
+        /// in a separate claims KVStore such that users can claim them at any
+        /// point of time.
+        ///
+        /// # Arguments
+        ///
+        /// `liquidity_receipt_global_id`: [`NonFungibleGlobalId`] - The non
+        /// fungible global id of liquidity receipt to liquidate.
+        pub fn forcefully_liquidate(
+            &mut self,
+            liquidity_receipt_global_id: NonFungibleGlobalId,
+        ) {
+            let buckets = self.liquidate(liquidity_receipt_global_id.clone());
+            self.forced_liquidation_claims.insert(
+                liquidity_receipt_global_id,
+                buckets.into_iter().map(Vault::with_bucket).collect(),
+            );
+        }
+
+        /// Liquidates a liquidity position after its maturity period has
+        /// elapsed.
+        ///
+        /// Given the non-fungible representing the liquidity receipt, this
+        /// method closes the liquidity position after the maturity period
+        /// elapses. The liquidity receipt is burned and the user is given
         /// back some amount of assets.
         ///
         /// The assets given back to the user depends on what the protocol gets
@@ -638,32 +762,17 @@ mod ignition {
         ///
         /// # Arguments
         ///
-        /// `liquidity_receipt`: [`NonFungibleBucket`] - A bucket of the non
-        /// fungible liquidity receipt.
+        /// `liquidity_receipt_global_id`: [`NonFungibleGlobalId`] - The non
+        /// fungible global id of liquidity receipt to liquidate.
         ///
         /// # Returns
         ///
         /// [`Vec<Bucket>`] - A vector of buckets of the amount to give back to
         /// the user.
-        pub fn close_liquidity_position(
+        fn liquidate(
             &mut self,
-            liquidity_receipt: NonFungibleBucket,
+            liquidity_receipt_global_id: NonFungibleGlobalId,
         ) -> Vec<Bucket> {
-            // Ensure that we currently allow closing liquidity positions.
-            assert!(
-                self.is_close_position_enabled,
-                "{}",
-                CLOSING_LIQUIDITY_POSITIONS_IS_CLOSED_ERROR
-            );
-            // Ensure that there is only a single NFT in the bucket, we do not
-            // service more than a single one at a time.
-            assert_eq!(
-                liquidity_receipt.amount(),
-                Decimal::ONE,
-                "{}",
-                MORE_THAN_ONE_LIQUIDITY_RECEIPT_NFTS_ERROR
-            );
-
             let (
                 mut adapter,
                 liquidity_receipt_data,
@@ -673,8 +782,9 @@ mod ignition {
                 // validating that the resource address is what we expect. We do
                 // this as we need to check it against the data of the blueprint
                 // of the pool. So, that must be read first.
-                let non_fungible =
-                    liquidity_receipt.non_fungible::<LiquidityReceipt>();
+                let non_fungible = NonFungible::<LiquidityReceipt>::from(
+                    liquidity_receipt_global_id,
+                );
                 let liquidity_receipt_data = non_fungible.data();
                 let (pool_adapter, liquidity_receipt_resource, _) = self
                     .checked_get_pool_adapter_and_liquidity_receipt(
@@ -688,9 +798,6 @@ mod ignition {
                     "{}",
                     NOT_A_VALID_LIQUIDITY_RECEIPT_ERROR
                 );
-
-                // Burn the liquidity receipt
-                liquidity_receipt.burn();
 
                 // At this point, the non-fungible can be trusted to belong to
                 // the liquidity receipt resource of the blueprint.

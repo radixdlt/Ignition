@@ -1377,6 +1377,316 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
     Ok(())
 }
 
+#[test]
+fn protocol_manager_cant_perform_forced_liquidation() -> Result<(), RuntimeError>
+{
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    env.enable_auth_module();
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    // Act
+    LocalAuthZone::push(
+        protocol.protocol_manager_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    let rtn = protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env);
+
+    // Assert
+    matches!(
+        rtn,
+        Err(RuntimeError::SystemModuleError(
+            SystemModuleError::AuthError(AuthError::Unauthorized(..))
+        ))
+    );
+
+    Ok(())
+}
+
+#[test]
+fn protocol_owner_can_perform_forced_liquidation() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+    env.enable_auth_module();
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    let current_time = env.get_current_time();
+    env.set_current_time(current_time.add_days(7 * 30).unwrap());
+
+    // Act
+    LocalAuthZone::push(
+        protocol.protocol_owner_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    let rtn = protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env);
+
+    // Assert
+    assert!(rtn.is_ok());
+    Ok(())
+}
+
+#[test]
+fn protocol_owner_can_perform_forced_liquidation_even_when_liquidation_is_closed(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+    env.enable_auth_module();
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    let current_time = env.get_current_time();
+    env.set_current_time(current_time.add_days(7 * 30).unwrap());
+
+    LocalAuthZone::push(
+        protocol.protocol_owner_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    protocol
+        .ignition
+        .set_is_close_position_enabled(false, env)?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env);
+
+    // Assert
+    assert!(rtn.is_ok());
+    Ok(())
+}
+
+#[test]
+fn protocol_owner_cant_perform_forced_liquidation_before_maturity_date(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+    env.enable_auth_module();
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    // Act
+    LocalAuthZone::push(
+        protocol.protocol_owner_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    let rtn = protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env);
+
+    // Assert
+    assert_is_ignition_liquidity_position_has_not_matured_error(&rtn);
+    Ok(())
+}
+
+#[test]
+fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_position(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    let current_time = env.get_current_time();
+    env.set_current_time(current_time.add_days(7 * 30).unwrap());
+
+    protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env)?;
+
+    // Act
+    let buckets = protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let buckets = IndexedBuckets::from_buckets(buckets, env)?;
+    let bitcoin_bucket = buckets.get(&resources.bitcoin).unwrap();
+    let amount = bitcoin_bucket.amount(env)?;
+    assert_eq!(amount, dec!(99.99999999));
+    Ok(())
+}
+
+#[test]
+fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_position_even_when_closing_is_disabled(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+    let receipt_global_id = NonFungibleGlobalId::new(
+        receipt.0.resource_address(env)?,
+        receipt
+            .0
+            .non_fungible_local_ids(env)?
+            .first()
+            .unwrap()
+            .clone(),
+    );
+
+    let current_time = env.get_current_time();
+    env.set_current_time(current_time.add_days(7 * 30).unwrap());
+
+    protocol
+        .ignition
+        .forcefully_liquidate(receipt_global_id, env)?;
+
+    protocol
+        .ignition
+        .set_is_close_position_enabled(false, env)?;
+
+    // Act
+    let buckets = protocol.ignition.close_liquidity_position(receipt, env)?;
+
+    // Assert
+    let buckets = IndexedBuckets::from_buckets(buckets, env)?;
+    let bitcoin_bucket = buckets.get(&resources.bitcoin).unwrap();
+    let amount = bitcoin_bucket.amount(env)?;
+    assert_eq!(amount, dec!(99.99999999));
+    Ok(())
+}
+
 mod utils {
     use super::*;
 
