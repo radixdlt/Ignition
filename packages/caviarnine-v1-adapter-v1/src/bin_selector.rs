@@ -9,7 +9,7 @@ const MAXIMUM_TICK_VALUE: usize = 54000;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SelectedTicks {
-    pub active_bin: u32,
+    pub active_tick: u32,
     pub lower_ticks: Vec<u32>,
     pub higher_ticks: Vec<u32>,
 }
@@ -52,25 +52,25 @@ impl SelectedTicks {
     ///
     /// ## Example 1: Simple Case
     ///
-    /// * `active_bin`: 100
+    /// * `active_tick`: 100
     /// * `bin_span`: 10
     /// * `preferred_total_number_of_higher_and_lower_ticks`: 4
     ///
     /// This function will return the following:
     ///
-    /// * `active_bin`: 100
+    /// * `active_tick`: 100
     /// * `lower_ticks`: [90, 80]
     /// * `higher_ticks`: [110, 120]
     ///
     /// ## Example 2: Left Skew
     ///
-    /// * `active_bin`: 20
+    /// * `active_tick`: 20
     /// * `bin_span`: 10
     /// * `preferred_total_number_of_higher_and_lower_ticks`: 6
     ///
     /// This function will return the following:
     ///
-    /// * `active_bin`: 20
+    /// * `active_tick`: 20
     /// * `lower_ticks`: [10, 0]
     /// * `higher_ticks`: [30, 40, 50, 60]
     ///
@@ -80,13 +80,13 @@ impl SelectedTicks {
     ///
     /// ## Example 3: Right Skew
     ///
-    /// * `active_bin`: 53980
+    /// * `active_tick`: 53980
     /// * `bin_span`: 10
     /// * `preferred_total_number_of_higher_and_lower_ticks`: 6
     ///
     /// This function will return the following:
     ///
-    /// * `active_bin`: 53980
+    /// * `active_tick`: 53980
     /// * `lower_ticks`: [53970, 53960, 53950, 53940]
     /// * `higher_ticks`: [53990, 54000]
     ///
@@ -96,13 +96,13 @@ impl SelectedTicks {
     ///
     /// Example 4: Bin Size too large
     ///
-    /// * `active_bin`: 27000
+    /// * `active_tick`: 27000
     /// * `bin_span`: 54000
     /// * `preferred_total_number_of_higher_and_lower_ticks`: 6
     ///
     /// This function will return the following:
     ///
-    /// * `active_bin`: 27000
+    /// * `active_tick`: 27000
     /// * `lower_ticks`: []
     /// * `higher_ticks`: []
     ///
@@ -112,19 +112,19 @@ impl SelectedTicks {
     ///
     /// Example 4: Bin Size too large with a skew
     ///
-    /// * `active_bin`: 54000
+    /// * `active_tick`: 54000
     /// * `bin_span`: 30000
     /// * `preferred_total_number_of_higher_and_lower_ticks`: 6
     ///
     /// This function will return the following:
     ///
-    /// * `active_bin`: 54000
+    /// * `active_tick`: 54000
     /// * `lower_ticks`: [24000]
     /// * `higher_ticks`: []
     ///
     /// # Arguments:
     ///
-    /// * `active_bin`: [`u32`] - The pool's currently active bin.
+    /// * `active_tick`: [`u32`] - The pool's currently active bin.
     /// * `bin_span`: [`u32`] - The span between each bin and another or the
     /// distance between them.
     /// * `preferred_total_number_of_higher_and_lower_ticks`: [`u32`] - The total
@@ -137,12 +137,12 @@ impl SelectedTicks {
     /// [`SelectedTicks`] - A struct with the ticks that have been selected by
     /// this function.
     pub fn select(
-        active_bin: u32,
+        active_tick: u32,
         bin_span: u32,
         preferred_total_number_of_higher_and_lower_ticks: u32,
     ) -> Self {
         let mut selected_ticks = Self {
-            active_bin,
+            active_tick,
             higher_ticks: vec![],
             lower_ticks: vec![],
         };
@@ -150,9 +150,9 @@ impl SelectedTicks {
         let mut remaining = preferred_total_number_of_higher_and_lower_ticks;
 
         let mut forward_counter =
-            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_bin);
+            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_tick);
         let mut backward_counter =
-            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_bin);
+            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_tick);
 
         while remaining > 0 {
             let mut forward_counter_incremented = false;

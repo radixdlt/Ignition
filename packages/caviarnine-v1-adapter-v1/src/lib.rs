@@ -177,13 +177,14 @@ pub mod adapter {
             let amount_y = bucket_y.amount();
 
             // Select the bins that we will contribute to.
-            let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
+            let active_tick =
+                pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
             let SelectedTicks {
                 higher_ticks,
                 lower_ticks,
                 ..
             } = SelectedTicks::select(
-                active_bin,
+                active_tick,
                 bin_span,
                 PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
             );
@@ -201,8 +202,7 @@ pub mod adapter {
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
-            let pool_price = self.price(pool_address);
-            let price = pool_price.price;
+            let price = pool.get_price().expect(NO_PRICE_ERROR);
 
             let ratio_in_active_bin_x = amount_in_active_bin_x
                 .checked_mul(price)
@@ -247,7 +247,7 @@ pub mod adapter {
             };
 
             let mut positions = vec![(
-                active_bin,
+                active_tick,
                 position_amount_x
                     .checked_mul(ratio_in_active_bin_x)
                     .expect(OVERFLOW_ERROR),
@@ -324,7 +324,8 @@ pub mod adapter {
                         resource_y,
                     },
             } = self.get_pool_information(pool_address);
-            let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
+            let active_tick =
+                pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
 
             // Decoding the adapter specific information as the type we expect
             // it to be.
@@ -351,7 +352,7 @@ pub mod adapter {
                             .collect::<Vec<_>>(),
                         pool.get_price().expect(NO_PRICE_ERROR),
                         price_when_position_was_opened,
-                        active_bin,
+                        active_tick,
                         bin_span,
                     )
                     .expect(OVERFLOW_ERROR);
@@ -606,7 +607,7 @@ fn calculate_bin_amounts_due_to_price_action(
     bin_amounts: &[(u32, ResourceIndexedData<Decimal>)],
     current_price: Decimal,
     price_when_position_was_opened: Decimal,
-    active_bin: u32,
+    active_tick: u32,
     bin_span: u32,
 ) -> Option<Vec<(u32, ResourceIndexedData<Decimal>)>> {
     bin_amounts.iter().copied().map(
@@ -635,7 +636,7 @@ fn calculate_bin_amounts_due_to_price_action(
                 // Determine what we expect the composition of this bin to
                 // be based on the current price.
                 let expected_bin_composition_now =
-                    match tick.cmp(&active_bin) {
+                    match tick.cmp(&active_tick) {
                         // Case A: The current price is inside this bin. Since 
                         // we are the current active bin then it's expected that
                         // this bin has both X and Y assets.
@@ -656,7 +657,7 @@ fn calculate_bin_amounts_due_to_price_action(
                 ) {
                     // The bin was entirely made of X and is still the same. We
                     // have not touched it. The starting and ending price of the
-                    // "swap" is the same, we didn't go through this bin.
+                    // "swap" is the same.
                     (Composition::EntirelyX, Composition::EntirelyX)
                         => (bin_lower_price, bin_lower_price),
                     (Composition::EntirelyY, Composition::EntirelyY)
