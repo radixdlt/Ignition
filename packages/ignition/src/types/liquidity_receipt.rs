@@ -30,8 +30,8 @@ pub struct LiquidityReceipt {
     /// protocol assets back into the same vault.
     pub user_resource_volatility_classification: Volatility,
 
-    /// The amount of XRD that was contributed by the Ignition protocol to match
-    /// the users contribution.
+    /// The amount of XRD that was contributed by the Ignition protocol to
+    /// match the users contribution.
     pub protocol_contribution_amount: Decimal,
 
     /// The date after which this liquidity position can be closed.

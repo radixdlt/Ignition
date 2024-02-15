@@ -27,23 +27,25 @@ impl SelectedTicks {
     /// In simple cases where the active bin is in the middle of the bin range
     /// and the bin span is small enough, the selection of the lower and higher
     /// ticks is simple enough: preferred number of ticks (divided by 2) to the
-    /// left and the same on the right. This gives the caller the number of ticks
-    /// that they wish to have on the left and the right of the active bin.
+    /// left and the same on the right. This gives the caller the number of
+    /// ticks that they wish to have on the left and the right of the active
+    /// bin.
     ///
-    /// There are cases however where the number of lower ticks can't be equal to
-    /// the number of higher ticks. Specifically, cases when the active bin's
-    /// value is too small or too large or cases when the bin span is too large.
-    /// In such cases, this function attempts to compensate the other side. As
-    /// an example, if we wish to have 10 ticks and can only have 2 lower ticks,
-    /// then the higher ticks will have 8, thus achieving the preferred number of
-    /// lower and higher ticks specified by the caller. A similar thing happens
-    /// if the current active bin is too close to the maximum.
+    /// There are cases however where the number of lower ticks can't be equal
+    /// to the number of higher ticks. Specifically, cases when the active
+    /// bin's value is too small or too large or cases when the bin span is
+    /// too large. In such cases, this function attempts to compensate the
+    /// other side. As an example, if we wish to have 10 ticks and can only
+    /// have 2 lower ticks, then the higher ticks will have 8, thus
+    /// achieving the preferred number of lower and higher ticks specified
+    /// by the caller. A similar thing happens if the current active bin is
+    /// too close to the maximum.
     ///
-    /// There are cases when the proffered number of ticks can not be achieved by
-    /// the function, specifically, cases when the bin span is too large that
-    /// any bin to the right or the left will be outside of the range is allowed
-    /// ticks. In such cases, this function returns a number of left and right
-    /// ticks that is less than the desired.
+    /// There are cases when the proffered number of ticks can not be achieved
+    /// by the function, specifically, cases when the bin span is too large
+    /// that any bin to the right or the left will be outside of the range
+    /// is allowed ticks. In such cases, this function returns a number of
+    /// left and right ticks that is less than the desired.
     ///
     /// # Examples
     ///
@@ -127,10 +129,10 @@ impl SelectedTicks {
     /// * `active_tick`: [`u32`] - The pool's currently active bin.
     /// * `bin_span`: [`u32`] - The span between each bin and another or the
     /// distance between them.
-    /// * `preferred_total_number_of_higher_and_lower_ticks`: [`u32`] - The total
-    /// number of ticks the caller wishes to have on the right and the left
-    /// (summed). As detailed above, this may or may not be achieved depending
-    /// on the pool's current bin and bin span.
+    /// * `preferred_total_number_of_higher_and_lower_ticks`: [`u32`] - The
+    /// total number of ticks the caller wishes to have on the right and the
+    /// left (summed). As detailed above, this may or may not be achieved
+    /// depending on the pool's current bin and bin span.
     ///
     /// # Returns:
     ///

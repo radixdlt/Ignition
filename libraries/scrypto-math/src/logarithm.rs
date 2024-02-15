@@ -13,36 +13,27 @@
  * Return the logarithm of x
  *
  * Method :
- *   1. Argument Reduction: find k and f such that
- *                      x = 2^k * (1+f),
- *         where  sqrt(2)/2 < 1+f < sqrt(2) .
+ *   1. Argument Reduction: find k and f such that x = 2^k * (1+f), where
+ *      sqrt(2)/2 < 1+f < sqrt(2) .
  *
- *   2. Approximation of log(1+f).
- *      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
- *               = 2s + 2/3 s**3 + 2/5 s**5 + .....,
- *               = 2s + s*R
- *      We use a special Remez algorithm on [0,0.1716] to generate
- *      a polynomial of degree 14 to approximate R The maximum error
- *      of this polynomial approximation is bounded by 2**-58.45. In
- *      other words,
- *                      2      4      6      8      10      12      14
- *          R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s +Lg5*s  +Lg6*s  +Lg7*s
- *      (the values of Lg1 to Lg7 are listed in the program)
- *      and
- *          |      2          14          |     -58.45
- *          | Lg1*s +...+Lg7*s    -  R(z) | <= 2
- *          |                             |
- *      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
- *      In order to guarantee error in log below 1ulp, we compute log
- *      by
- *              log(1+f) = f - s*(f - R)        (if f is not too large)
- *              log(1+f) = f - (hfsq - s*(hfsq+R)).     (better accuracy)
+ *   2. Approximation of log(1+f). Let s = f/(2+f) ; based on log(1+f) =
+ *      log(1+s) - log(1-s) = 2s + 2/3 s**3 + 2/5 s**5 + ....., = 2s + s*R We
+ *      use a special Remez algorithm on [0,0.1716] to generate a polynomial
+ *      of degree 14 to approximate R The maximum error of this polynomial
+ *      approximation is bounded by 2**-58.45. In other words, 2      4
+ *      6      8      10      12      14 R(z) ~ Lg1*s +Lg2*s +Lg3*s +Lg4*s
+ *      +Lg5*s  +Lg6*s  +Lg7*s (the values of Lg1 to Lg7 are listed in the
+ *      program) and |      2          14          |     -58.45 | Lg1*s
+ *      +...+Lg7*s    -  R(z) | <= 2 |                             | Note
+ *      that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2. In order
+ *      to guarantee error in log below 1ulp, we compute log by log(1+f) = f
+ *      - s*(f - R)        (if f is not too large) log(1+f) = f - (hfsq -
+ *      s*(hfsq+R)).     (better accuracy)
  *
- *   3. Finally,  log(x) = k*ln2 + log(1+f).
- *                       = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
- *      Here ln2 is split into two floating point number:
- *                  ln2_hi + ln2_lo,
- *      where n*ln2_hi is always exact for |n| < 2000.
+ *   3. Finally,  log(x) = k*ln2 + log(1+f). =
+ *      k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo))) Here ln2 is split into two
+ *      floating point number: ln2_hi + ln2_lo, where n*ln2_hi is always
+ *      exact for |n| < 2000.
  *
  * Special cases:
  *      log(x) is NaN with signal if x < 0 (including -INF) ;
@@ -54,8 +45,8 @@
  *      1 ulp (unit in the last place).
  *
  * Misc:
- *      hi and lo separation is not needed for Decimal and PreciseDecimal in Scrypto
- *      due to exact integer calculation.
+ *      hi and lo separation is not needed for Decimal and PreciseDecimal in
+ * Scrypto      due to exact integer calculation.
  */
 
 use num_traits::Zero;
@@ -108,7 +99,8 @@ fn log_reduce_argument(number: PreciseDecimal) -> (i32, PreciseDecimal) {
             return (-k, r);
         }
 
-        // r can be smaller than SQRT_HALF but still having the same amount of leading zeros
+        // r can be smaller than SQRT_HALF but still having the same amount of
+        // leading zeros
         return (-k - 1, r * pdec!(2));
     }
 
@@ -121,7 +113,8 @@ fn log_reduce_argument(number: PreciseDecimal) -> (i32, PreciseDecimal) {
         return (k, r);
     }
 
-    // r can be larger than SQRT but still having the same amount of leading zeros
+    // r can be larger than SQRT but still having the same amount of leading
+    // zeros
     return (k + 1, r / pdec!(2));
 }
 
@@ -286,7 +279,8 @@ mod tests {
         assert_eq!(
             dec!("0.664613997892457936").ln(),
             Some(dec!("-0.408548861152152805") + dec!("0.000000000000000001"))
-        ); // * 2; equal leading zeros of sqrt_half and number (~ 2 ** 119 = 1000...)
+        ); // * 2; equal leading zeros of sqrt_half and number (~ 2 ** 119 =
+           //   1000...)
         assert_eq!(dec!("0.5").ln(), Some(dec!("-0.693147180559945309"))); // * 2
         assert_eq!(dec!("0.25").ln(), Some(dec!("-1.386294361119890618"))); // * 2^2
         assert_eq!(dec!("0.125").ln(), Some(dec!("-2.079441541679835928"))); // * 2^3
@@ -316,7 +310,8 @@ mod tests {
         assert_eq!(
             dec!("1.329227995784915872").ln(),
             Some(dec!("0.284598319407792504") + dec!("0.000000000000000001"))
-        ); // equal leading zeros of sqrt_half and number (~ 2 ** 120 - 1 = 1111...)
+        ); // equal leading zeros of sqrt_half and number (~ 2 ** 120 - 1 =
+           // 1111...)
         assert_eq!(
             dec!("1.329227995784915873").ln(),
             Some(dec!("0.284598319407792505"))

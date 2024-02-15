@@ -13,33 +13,50 @@
 //
 //                    n
 // Method:  Let x =  2   * (1+f)
-//      1. Compute and return log2(x) in two pieces:                                (does not apply - due to integer math)
-//              log2(x) = w1 + w2,
-//         where w1 has 53-24 = 29 bit trailing zeros.
-//      2. Perform y*log2(x) = n+y' by simulating muti-precision                    (does not apply - due to integer math)
-//         arithmetic, where |y'|<=0.5.
-//      3. Return x**y = 2**n*exp(y'*log2)                                          (x**y = exp(ln(x) * y))
+//      1. Compute and return log2(x) in two pieces:
+//         (does not apply - due to integer math) log2(x) = w1 + w2, where w1
+//         has 53-24 = 29 bit trailing zeros.
+//      2. Perform y*log2(x) = n+y' by simulating muti-precision
+//         (does not apply - due to integer math) arithmetic, where |y'|<=0.5.
+//      3. Return x**y = 2**n*exp(y'*log2)
+//         (x**y = exp(ln(x) * y))
 //
 // Special cases:
-//      1.  (anything) ** 0  is 1
-//      2.  1 ** (anything)  is 1
-//      3.  (anything except 1) ** NAN is NAN                                       (does not apply - no NAN)
-//      4.  NAN ** (anything except 0) is NAN                                       (does not apply - no NAN)
-//      5.  +-(|x| > 1) **  +INF is +INF                                            (does not apply - no INF)
-//      6.  +-(|x| > 1) **  -INF is +0                                              (does not apply - no INF)
-//      7.  +-(|x| < 1) **  +INF is +0                                              (does not apply - no INF)
-//      8.  +-(|x| < 1) **  -INF is +INF                                            (does not apply - no INF)
-//      9.  -1          ** +-INF is 1                                               (does not apply - no INF)
+//      1. (anything) ** 0  is 1
+//      2. 1 ** (anything)  is 1
+//      3. (anything except 1) ** NAN is NAN
+//         (does not apply - no NAN)
+//      4. NAN ** (anything except 0) is NAN
+//         (does not apply - no NAN)
+//      5. +-(|x| > 1) **  +INF is +INF
+//         (does not apply - no INF)
+//      6. +-(|x| > 1) **  -INF is +0
+//         (does not apply - no INF)
+//      7. +-(|x| < 1) **  +INF is +0
+//         (does not apply - no INF)
+//      8. +-(|x| < 1) **  -INF is +INF
+//         (does not apply - no INF)
+//      9. -1          ** +-INF is 1
+//         (does not apply - no INF)
 //      10. +0 ** (+anything except 0, NAN)               is +0
-//      11. -0 ** (+anything except 0, NAN, odd integer)  is +0                     (does not apply - only positive zero)
-//      12. +0 ** (-anything except 0, NAN)               is +INF, raise divbyzero
-//      13. -0 ** (-anything except 0, NAN, odd integer)  is +INF, raise divbyzero  (does not apply - only positive zero)
-//      14. -0 ** (+odd integer) is -0                                              (does not apply - only positive zero)
-//      15. -0 ** (-odd integer) is -INF, raise divbyzero                           (does not apply - only positive zero)
-//      16. +INF ** (+anything except 0,NAN) is +INF                                (does not apply - no INF)
-//      17. +INF ** (-anything except 0,NAN) is +0                                  (does not apply - no INF)
-//      18. -INF ** (+odd integer) is -INF                                          (does not apply - no INF)
-//      19. -INF ** (anything) = -0 ** (-anything), (anything except odd integer)   (does not apply - no INF)
+//      11. -0 ** (+anything except 0, NAN, odd integer)  is +0
+//          (does not apply - only positive zero)
+//      12. +0 ** (-anything except 0, NAN)               is +INF, raise
+//          divbyzero
+//      13. -0 ** (-anything except 0, NAN, odd integer)  is +INF, raise
+//          divbyzero  (does not apply - only positive zero)
+//      14. -0 ** (+odd integer) is -0
+//          (does not apply - only positive zero)
+//      15. -0 ** (-odd integer) is -INF, raise divbyzero
+//          (does not apply - only positive zero)
+//      16. +INF ** (+anything except 0,NAN) is +INF
+//          (does not apply - no INF)
+//      17. +INF ** (-anything except 0,NAN) is +0
+//          (does not apply - no INF)
+//      18. -INF ** (+odd integer) is -INF
+//          (does not apply - no INF)
+//      19. -INF ** (anything) = -0 ** (-anything), (anything except odd
+//          integer)   (does not apply - no INF)
 //      20. (anything) ** 1 is (anything)
 //      21. (anything) ** -1 is 1/(anything)
 //      22. (-anything) ** (integer) is (-1)**(integer)*(+anything**integer)

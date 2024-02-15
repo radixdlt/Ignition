@@ -16,8 +16,8 @@ pub struct Pair {
 pub struct PairPriceEntry {
     pub price: Decimal,
     /// This is an instant of when did the component observe the submitted
-    /// prices and not when they were actually observed by the oracle off-ledger
-    /// software.
+    /// prices and not when they were actually observed by the oracle
+    /// off-ledger software.
     pub observed_by_component_at: Instant,
 }
 

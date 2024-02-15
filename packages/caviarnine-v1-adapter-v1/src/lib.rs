@@ -69,9 +69,10 @@ pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
 pub mod adapter {
     struct CaviarnineV1Adapter {
         /// A cache of the information of the pool, this is done so that we do
-        /// not need to query the pool's information each time. Note: I would've
-        /// preferred to keep the adapter completely stateless but it seems like
-        /// we're pretty much forced to cache this data to get some fee gains.
+        /// not need to query the pool's information each time. Note: I
+        /// would've preferred to keep the adapter completely stateless
+        /// but it seems like we're pretty much forced to cache this
+        /// data to get some fee gains.
         pool_information_cache:
             KeyValueStore<ComponentAddress, PoolInformation>,
     }
@@ -199,12 +200,12 @@ pub mod adapter {
             // bins. We have m on the left and m on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
             // be like contributing to m.x and m.y bins where x = 1-y. X here
-            // is the ratio of resources x in the active bin.
+            // is the percentage of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
             let price = pool.get_price().expect(NO_PRICE_ERROR);
 
-            let ratio_in_active_bin_x = amount_in_active_bin_x
+            let percentage_in_active_bin_x = amount_in_active_bin_x
                 .checked_mul(price)
                 .and_then(|value| {
                     value.checked_div(
@@ -214,23 +215,23 @@ pub mod adapter {
                     )
                 })
                 .expect(OVERFLOW_ERROR);
-            let ratio_in_active_bin_y = Decimal::one()
-                .checked_sub(ratio_in_active_bin_x)
+            let percentage_in_active_bin_y = Decimal::one()
+                .checked_sub(percentage_in_active_bin_x)
                 .expect(OVERFLOW_ERROR);
 
             // In here, we decide the amount x by the number of higher bins plus
-            // the ratio of the x in the currently active bin since the pool
-            // starting from the current price and upward is entirely composed
-            // of X. Similarly, we divide amount_y by the number of lower
-            // positions plus the ratio of y in the active bin since the pool
-            // starting from the current price and downward is composed just of
-            // y.
+            // the percentage of the x in the currently active bin since the
+            // pool starting from the current price and upward is
+            // entirely composed of X. Similarly, we divide amount_y
+            // by the number of lower positions plus the percentage
+            // of y in the active bin since the pool starting from
+            // the current price and downward is composed just of y.
             let position_amount_x = Decimal::from(higher_ticks.len() as u32)
-                .checked_add(ratio_in_active_bin_x)
+                .checked_add(percentage_in_active_bin_x)
                 .and_then(|value| amount_x.checked_div(value))
                 .expect(OVERFLOW_ERROR);
             let position_amount_y = Decimal::from(lower_ticks.len() as u32)
-                .checked_add(ratio_in_active_bin_y)
+                .checked_add(percentage_in_active_bin_y)
                 .and_then(|value| amount_y.checked_div(value))
                 .expect(OVERFLOW_ERROR);
 
@@ -249,10 +250,10 @@ pub mod adapter {
             let mut positions = vec![(
                 active_tick,
                 position_amount_x
-                    .checked_mul(ratio_in_active_bin_x)
+                    .checked_mul(percentage_in_active_bin_x)
                     .expect(OVERFLOW_ERROR),
                 position_amount_y
-                    .checked_mul(ratio_in_active_bin_y)
+                    .checked_mul(percentage_in_active_bin_y)
                     .expect(OVERFLOW_ERROR),
             )];
             positions.extend(

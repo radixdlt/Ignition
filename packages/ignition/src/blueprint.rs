@@ -164,13 +164,13 @@ mod ignition {
     }
 
     struct Ignition {
-        /// A reference to the resource manager of the protocol's resource. This
-        /// is the resource that the protocol will be lending out to users who
-        /// wish to provide liquidity. In other words, this is the one side of
-        /// the liquidity that will be provided by the protocol and the other
-        /// side must be provided by the user. This can't be changed after the
-        /// component has been instantiated. Thus, it would be chosen with some
-        /// caution.
+        /// A reference to the resource manager of the protocol's resource.
+        /// This is the resource that the protocol will be lending out
+        /// to users who wish to provide liquidity. In other words,
+        /// this is the one side of the liquidity that will be provided
+        /// by the protocol and the other side must be provided by the
+        /// user. This can't be changed after the component has been
+        /// instantiated. Thus, it would be chosen with some caution.
         ///
         /// Even though Ignition will only be lending out XRD this information
         /// is kept dynamic instead of static to allow for easier testing of
@@ -202,10 +202,11 @@ mod ignition {
         /// is unbounded in size and that it can lead to state explosion. But,
         /// we will only have four allowed pools in Ignition and therefore we
         /// are not worried about the state explosion problems. Additionally,
-        /// using a [`KeyValueStore`] there would mean that the pool information
-        /// entires can not be removed or replaced from the map due to the fact
-        /// that a kv-store can't be dropped. Therefore, a regular [`IndexMap`]
-        /// is used and its guaranteed that there will only be four pools there.
+        /// using a [`KeyValueStore`] there would mean that the pool
+        /// information entires can not be removed or replaced from the
+        /// map due to the fact that a kv-store can't be dropped.
+        /// Therefore, a regular [`IndexMap`] is used and its
+        /// guaranteed that there will only be four pools there.
         pool_information: KeyValueStore<BlueprintId, PoolBlueprintInformation>,
 
         /// Maps a resource address to its volatility classification in the
@@ -229,8 +230,9 @@ mod ignition {
         /// for the protocol to run, they're primarily used by the protocol to
         /// deposit some of the user assets obtained when closing liquidity
         /// positions. `protocol_resource_reserves` stores the protocol assets
-        /// required for the protocol operations. Only the owner of the protocol
-        /// is allowed to deposit and withdraw from these vaults.
+        /// required for the protocol operations. Only the owner of the
+        /// protocol is allowed to deposit and withdraw from these
+        /// vaults.
         user_resources_vaults: KeyValueStore<ResourceAddress, FungibleVault>,
 
         /// The vaults storing the pool units and liquidity receipts obtained
@@ -246,17 +248,17 @@ mod ignition {
         /// Note: It is understood that the value type used here can in theory
         /// lead to state explosion. However, realistically, there would only
         /// be 2 vaults in here since the pools we're interacting with are all
-        /// of two resources. Perhaps there would be a third if some of the DEXs
-        /// has an incentive program. However, it is very unlikely that there
-        /// would be more than that.
+        /// of two resources. Perhaps there would be a third if some of the
+        /// DEXs has an incentive program. However, it is very unlikely
+        /// that there would be more than that.
         forced_liquidation_claims:
             KeyValueStore<NonFungibleGlobalId, Vec<Vault>>,
 
         /* Configuration */
-        /// The upfront reward rates supported by the protocol. This is a map of
-        /// the lockup period to the reward rate ratio. In this case, the value
-        /// is a decimal in the range [0, ∞] where 0 means 0%, 0.5 means 50%,
-        /// and 1 means 100%.
+        /// The upfront reward rates supported by the protocol. This is a map
+        /// of the lockup period to the reward rate ratio. In this
+        /// case, the value is a decimal in the range [0, ∞] where 0
+        /// means 0%, 0.5 means 50%, and 1 means 100%.
         reward_rates: KeyValueStore<LockupPeriod, Decimal>,
 
         /// Controls whether the protocol currently allows users to open
@@ -1676,9 +1678,9 @@ mod ignition {
             })
         }
 
-        /// Gets the price of the `base` resource in terms of the `quote` resource
-        /// from the currently configured oracle, checks for staleness, and
-        /// returns the price.
+        /// Gets the price of the `base` resource in terms of the `quote`
+        /// resource from the currently configured oracle, checks for
+        /// staleness, and returns the price.
         ///
         /// # Arguments
         ///

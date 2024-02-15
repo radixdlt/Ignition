@@ -619,8 +619,8 @@ pub fn handle_blueprint_with_traits(
     }
 
     if let Some((_, ref items)) = module.content {
-        // Getting the name of the blueprint by finding the first struct item we find inside the
-        // module.
+        // Getting the name of the blueprint by finding the first struct item we
+        // find inside the module.
         let blueprint_ident = items
             .iter()
             .filter_map(|item| {
