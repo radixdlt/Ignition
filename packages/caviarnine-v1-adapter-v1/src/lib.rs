@@ -1,13 +1,13 @@
 #![warn(clippy::arithmetic_side_effects)]
 #![allow(clippy::new_without_default)]
 
-mod bin_selector;
 mod blueprint_interface;
 mod tick_math;
+mod tick_selector;
 
-pub use crate::bin_selector::*;
 pub use crate::blueprint_interface::*;
 pub use crate::tick_math::*;
+pub use crate::tick_selector::*;
 
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
@@ -258,17 +258,17 @@ pub mod adapter {
             )];
             positions.extend(
                 lower_ticks
-                    .iter()
-                    .map(|bin_id| (*bin_id, dec!(0), position_amount_y)),
+                    .into_iter()
+                    .map(|bin_id| (bin_id, dec!(0), position_amount_y)),
             );
             positions.extend(
                 higher_ticks
-                    .iter()
-                    .map(|bin_id| (*bin_id, position_amount_x, dec!(0))),
+                    .into_iter()
+                    .map(|bin_id| (bin_id, position_amount_x, dec!(0))),
             );
 
             let (receipt, change_x, change_y) =
-                pool.add_liquidity(bucket_x, bucket_y, positions.clone());
+                pool.add_liquidity(bucket_x, bucket_y, positions);
 
             let receipt_global_id = {
                 let resource_address = receipt.resource_address();
