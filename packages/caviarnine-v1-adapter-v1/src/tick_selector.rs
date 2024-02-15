@@ -5,6 +5,7 @@
 #![allow(clippy::arithmetic_side_effects)]
 
 /// Ticks are in the range [0, 54000].
+const MINIMUM_TICK_VALUE: usize = 0;
 const MAXIMUM_TICK_VALUE: usize = 54000;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -138,6 +139,7 @@ impl SelectedTicks {
     ///
     /// [`SelectedTicks`] - A struct with the ticks that have been selected by
     /// this function.
+    // TODO: Look into making this non-iterative.
     pub fn select(
         active_tick: u32,
         bin_span: u32,
@@ -152,9 +154,9 @@ impl SelectedTicks {
         let mut remaining = preferred_total_number_of_higher_and_lower_ticks;
 
         let mut forward_counter =
-            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_tick);
+            BoundedU32::<MINIMUM_TICK_VALUE, MAXIMUM_TICK_VALUE>(active_tick);
         let mut backward_counter =
-            BoundedU32::<0, MAXIMUM_TICK_VALUE>(active_tick);
+            BoundedU32::<MINIMUM_TICK_VALUE, MAXIMUM_TICK_VALUE>(active_tick);
 
         while remaining > 0 {
             let mut forward_counter_incremented = false;
