@@ -46,7 +46,22 @@ macro_rules! pool {
 }
 
 /// The total number of bins that we will be using on the left and the right
-/// excluding the one in the middle.
+/// excluding the one in the middle. This number, in addition to the bin span
+/// of the pool determines how much upside and downside we're covering. The
+/// upside and downside we should cover is a business decision and its 20x up
+/// and down. To calculate how much bins are needed (on each side) we can do
+/// the following:
+///
+/// ```math
+/// bins_required = ceil(log(value = multiplier, base = 1.0005) / (2 * bin_span))
+/// ```
+///
+/// In the case of a bin span of 50, the amount of bins we want to contribute to
+/// on each side is 60 bins (60L and 60R). Therefore, the amount of bins to
+/// contribute to is dependent on the bin span of the pool. However, in this
+/// implementation we assume pools of a fixed bin span of 50 since we can't find
+/// the number of bins required in Scrypto due to a missing implementation of a
+/// function for computing the log.
 pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
 
 #[blueprint_with_traits]
@@ -163,20 +178,26 @@ pub mod adapter {
 
             // Select the bins that we will contribute to.
             let active_bin = pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
-            let SelectedBins {
-                higher_bins,
-                lower_bins,
+            let SelectedTicks {
+                higher_ticks,
+                lower_ticks,
                 ..
-            } = SelectedBins::select(
+            } = SelectedTicks::select(
                 active_bin,
                 bin_span,
                 PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
             );
 
+            // This comment was quickly going out of sync with the constant that
+            // is defined above of the number of bins to contribute to. Thus, to
+            // make this simple, let's say that the number of bins to contribute
+            // to is defined as `m` such that we're contributing to `m` bins to
+            // the left and `m` to the right.
+            //
             // Determine the amount of resources that we will add to each of the
-            // bins. We have 20 on the left and 20 on the right. But, we also
+            // bins. We have m on the left and m on the right. But, we also
             // have the active bin that is composed of both x and y. So, this
-            // be like contributing to 20.x and 20.y bins where x = 1-y. X here
+            // be like contributing to m.x and m.y bins where x = 1-y. X here
             // is the ratio of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
@@ -204,11 +225,11 @@ pub mod adapter {
             // positions plus the ratio of y in the active bin since the pool
             // starting from the current price and downward is composed just of
             // y.
-            let position_amount_x = Decimal::from(higher_bins.len() as u32)
+            let position_amount_x = Decimal::from(higher_ticks.len() as u32)
                 .checked_add(ratio_in_active_bin_x)
                 .and_then(|value| amount_x.checked_div(value))
                 .expect(OVERFLOW_ERROR);
-            let position_amount_y = Decimal::from(lower_bins.len() as u32)
+            let position_amount_y = Decimal::from(lower_ticks.len() as u32)
                 .checked_add(ratio_in_active_bin_y)
                 .and_then(|value| amount_y.checked_div(value))
                 .expect(OVERFLOW_ERROR);
@@ -235,12 +256,12 @@ pub mod adapter {
                     .expect(OVERFLOW_ERROR),
             )];
             positions.extend(
-                lower_bins
+                lower_ticks
                     .iter()
                     .map(|bin_id| (*bin_id, dec!(0), position_amount_y)),
             );
             positions.extend(
-                higher_bins
+                higher_ticks
                     .iter()
                     .map(|bin_id| (*bin_id, position_amount_x, dec!(0))),
             );
