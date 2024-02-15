@@ -27,6 +27,14 @@ define_error! {
     UNEXPECTED_ERROR => "Unexpected error.";
 }
 
+macro_rules! pool {
+    ($address: expr) => {
+        $crate::blueprint_interface::OciswapV2PoolInterfaceScryptoStub::from(
+            $address,
+        )
+    };
+}
+
 #[blueprint_with_traits]
 pub mod adapter {
     struct OciswapV2Adapter;
@@ -55,12 +63,6 @@ pub mod adapter {
                 .with_address(address_reservation)
                 .globalize()
         }
-
-        fn pool(
-            component_address: ComponentAddress,
-        ) -> OciswapV2PoolInterfaceScryptoStub {
-            OciswapV2PoolInterfaceScryptoStub::from(component_address)
-        }
     }
 
     impl PoolAdapterInterfaceTrait for OciswapV2Adapter {
@@ -69,7 +71,7 @@ pub mod adapter {
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
         ) -> OpenLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
 
             // Sorting the buckets according to the ordering of the pool itself.
             let (bucket_x, bucket_y) = {
@@ -134,7 +136,7 @@ pub mod adapter {
             pool_units: Bucket,
             _: AnyValue,
         ) -> CloseLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
 
             // Calculate how much fees were earned on the position while it was
             // opened.
@@ -162,7 +164,7 @@ pub mod adapter {
         }
 
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
             let price_sqrt = pool.price_sqrt();
             let price = price_sqrt
                 .checked_powi(2)
@@ -181,7 +183,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
         ) -> (ResourceAddress, ResourceAddress) {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
             (pool.x_address(), pool.y_address())
         }
     }

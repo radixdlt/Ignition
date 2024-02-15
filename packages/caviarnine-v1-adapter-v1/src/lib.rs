@@ -37,6 +37,14 @@ define_error! {
     OVERFLOW_ERROR => "Overflow error.";
 }
 
+macro_rules! pool {
+    ($address: expr) => {
+        $crate::blueprint_interface::CaviarnineV1PoolInterfaceScryptoStub::from(
+            $address,
+        )
+    };
+}
+
 /// The total number of bins that we will be using on the left and the right
 /// excluding the one in the middle.
 pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
@@ -85,7 +93,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
         ) -> PoolInformation {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
             let resource_address_x = pool.get_token_x_address();
             let resource_address_y = pool.get_token_y_address();
             let bin_span = pool.get_bin_span();
@@ -100,12 +108,6 @@ pub mod adapter {
             self.pool_information_cache
                 .insert(pool_address, pool_information);
             pool_information
-        }
-
-        fn pool(
-            component_address: ComponentAddress,
-        ) -> CaviarnineV1PoolInterfaceScryptoStub {
-            CaviarnineV1PoolInterfaceScryptoStub::from(component_address)
         }
 
         fn get_pool_information(
@@ -128,7 +130,7 @@ pub mod adapter {
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
         ) -> OpenLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
 
             // Split the two buckets into bucket_x and bucket_y in the same way
             // that they're defined in the pool itself.
@@ -292,7 +294,7 @@ pub mod adapter {
             pool_units: Bucket,
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
             let PoolInformation {
                 bin_span,
                 resources:
@@ -375,7 +377,7 @@ pub mod adapter {
         }
 
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
 
             let PoolInformation {
                 resources:
@@ -398,7 +400,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
         ) -> (ResourceAddress, ResourceAddress) {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
 
             (pool.get_token_x_address(), pool.get_token_y_address())
         }

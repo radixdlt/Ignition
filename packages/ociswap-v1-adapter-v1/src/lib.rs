@@ -33,6 +33,14 @@ define_error! {
     OVERFLOW_ERROR => "Calculation overflowed.";
 }
 
+macro_rules! pool {
+    ($address: expr) => {
+        $crate::blueprint_interface::OciswapV1PoolInterfaceScryptoStub::from(
+            $address,
+        )
+    };
+}
+
 #[blueprint_with_traits]
 pub mod adapter {
     struct OciswapV1Adapter;
@@ -61,12 +69,6 @@ pub mod adapter {
                 .with_address(address_reservation)
                 .globalize()
         }
-
-        fn pool(
-            component_address: ComponentAddress,
-        ) -> OciswapV1PoolInterfaceScryptoStub {
-            OciswapV1PoolInterfaceScryptoStub::from(component_address)
-        }
     }
 
     impl PoolAdapterInterfaceTrait for OciswapV1Adapter {
@@ -75,7 +77,7 @@ pub mod adapter {
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
         ) -> OpenLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
 
             let (pool_units, change) = pool.add_liquidity(buckets.0, buckets.1);
 
@@ -165,7 +167,7 @@ pub mod adapter {
             pool_units: Bucket,
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
-            let mut pool = Self::pool(pool_address);
+            let mut pool = pool!(pool_address);
 
             let (bucket1, bucket2) = pool.remove_liquidity(pool_units);
 
@@ -235,7 +237,7 @@ pub mod adapter {
         }
 
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
             let pool = Global::<TwoResourcePool>::from(pool.liquidity_pool());
             let vault_amounts = pool.get_vault_amounts();
 
@@ -259,7 +261,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
         ) -> (ResourceAddress, ResourceAddress) {
-            let pool = Self::pool(pool_address);
+            let pool = pool!(pool_address);
             let pool = Global::<TwoResourcePool>::from(pool.liquidity_pool());
             let mut keys = pool.get_vault_amounts().into_keys();
 
