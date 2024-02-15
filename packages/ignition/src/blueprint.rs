@@ -171,12 +171,19 @@ mod ignition {
         /// side must be provided by the user. This can't be changed after the
         /// component has been instantiated. Thus, it would be chosen with some
         /// caution.
+        ///
+        /// Even though Ignition will only be lending out XRD this information
+        /// is kept dynamic instead of static to allow for easier testing of
+        /// Ignition and to allow for it to be deployed and tested on testnets
+        /// with mintable resources.
         protocol_resource: ResourceManager,
 
         /// The adapter of the oracle to use for the protocol. The oracle is
         /// expected to have a specific interface that is required by this
         /// blueprint. This adapter can be updated and changed at runtime to
-        /// a new one or even to a completely new oracle.
+        /// a new one whose underlying oracle is completely different. Thus
+        /// we can switch between oracle providers at runtime by developing a
+        /// new adapter for said oracle provider.
         oracle_adapter: OracleAdapter,
 
         /// Information about the pool blueprints, indexed by the id of the
@@ -194,7 +201,11 @@ mod ignition {
         /// Note: it is well understood that [`PoolBlueprintInformation`] data
         /// is unbounded in size and that it can lead to state explosion. But,
         /// we will only have four allowed pools in Ignition and therefore we
-        /// are not worried about the state explosion problems.
+        /// are not worried about the state explosion problems. Additionally,
+        /// using a [`KeyValueStore`] there would mean that the pool information
+        /// entires can not be removed or replaced from the map due to the fact
+        /// that a kv-store can't be dropped. Therefore, a regular [`IndexMap`]
+        /// is used and its guaranteed that there will only be four pools there.
         pool_information: KeyValueStore<BlueprintId, PoolBlueprintInformation>,
 
         /// Maps a resource address to its volatility classification in the
