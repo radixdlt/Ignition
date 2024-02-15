@@ -235,17 +235,17 @@ pub mod adapter {
                 .and_then(|value| amount_y.checked_div(value))
                 .expect(OVERFLOW_ERROR);
 
-            let amount_bin_x_in_y =
+            let position_amount_x_in_y =
                 position_amount_x.checked_mul(price).expect(OVERFLOW_ERROR);
-            let (position_amount_x, position_amount_y) = if amount_bin_x_in_y
-                > position_amount_y
-            {
-                let position_amount_y_in_x =
-                    position_amount_y.checked_div(price).expect(OVERFLOW_ERROR);
-                (position_amount_y_in_x, position_amount_y)
-            } else {
-                (position_amount_x, amount_bin_x_in_y)
-            };
+            let (position_amount_x, position_amount_y) =
+                if position_amount_x_in_y > position_amount_y {
+                    let position_amount_y_in_x = position_amount_y
+                        .checked_div(price)
+                        .expect(OVERFLOW_ERROR);
+                    (position_amount_y_in_x, position_amount_y)
+                } else {
+                    (position_amount_x, position_amount_x_in_y)
+                };
 
             let mut positions = vec![(
                 active_tick,
