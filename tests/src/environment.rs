@@ -1299,6 +1299,18 @@ impl<T> ResourceInformation<T> {
     pub fn iter(self) -> impl Iterator<Item = T> {
         [self.bitcoin, self.ethereum, self.usdc, self.usdt].into_iter()
     }
+
+    pub fn zip<O>(
+        self,
+        other: ResourceInformation<O>,
+    ) -> ResourceInformation<(T, O)> {
+        ResourceInformation {
+            bitcoin: (self.bitcoin, other.bitcoin),
+            ethereum: (self.ethereum, other.ethereum),
+            usdc: (self.usdc, other.usdc),
+            usdt: (self.usdt, other.usdt),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

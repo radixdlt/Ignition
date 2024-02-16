@@ -62,7 +62,7 @@ macro_rules! pool {
 /// implementation we assume pools of a fixed bin span of 50 since we can't find
 /// the number of bins required in Scrypto due to a missing implementation of a
 /// function for computing the log.
-pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 60 * 2;
+pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 30 * 2;
 
 #[blueprint_with_traits]
 #[types(ComponentAddress, PoolInformation)]
@@ -605,34 +605,36 @@ fn calculate_bin_amounts_due_to_price_action(
     active_tick: u32,
     bin_span: u32,
 ) -> Option<Vec<(u32, ResourceIndexedData<Decimal>)>> {
-    bin_amounts.iter().copied().map(
-        |(tick, bin_amount)| -> Option<(u32, ResourceIndexedData<Decimal>)> {
-            // Calculating the lower and upper prices of the bin based on the
-            // the starting tick and the bin span.
-            let lower_tick = tick;
-            let upper_tick = tick.checked_add(bin_span)?;
+    bin_amounts
+        .iter()
+        .copied()
+        .map(
+            |(tick, bin_amount)| -> Option<(u32, ResourceIndexedData<Decimal>)> {
+                // Calculating the lower and upper prices of the bin based on the
+                // the starting tick and the bin span.
+                let lower_tick = tick;
+                let upper_tick = tick.checked_add(bin_span)?;
 
-            let bin_lower_price = tick_to_spot(lower_tick)?;
-            let bin_upper_price = tick_to_spot(upper_tick)?;
+                let bin_lower_price = tick_to_spot(lower_tick)?;
+                let bin_upper_price = tick_to_spot(upper_tick)?;
 
-            // Determine the starting and ending prices to use in the math.
+                // Determine the starting and ending prices to use in the math.
 
-            let (starting_price, ending_price) = {
-                let bin_composition_when_position_opened = match (
-                    bin_amount.resource_x == Decimal::ZERO,
-                    bin_amount.resource_y == Decimal::ZERO,
-                ) {
-                    (true, true) => return None,
-                    (true, false) => Composition::EntirelyY,
-                    (false, true) => Composition::EntirelyX,
-                    (false, false) => Composition::Composite,
-                };
+                let (starting_price, ending_price) = {
+                    let bin_composition_when_position_opened = match (
+                        bin_amount.resource_x == Decimal::ZERO,
+                        bin_amount.resource_y == Decimal::ZERO,
+                    ) {
+                        (true, true) => return None,
+                        (true, false) => Composition::EntirelyY,
+                        (false, true) => Composition::EntirelyX,
+                        (false, false) => Composition::Composite,
+                    };
 
-                // Determine what we expect the composition of this bin to
-                // be based on the current price.
-                let expected_bin_composition_now =
-                    match tick.cmp(&active_tick) {
-                        // Case A: The current price is inside this bin. Since 
+                    // Determine what we expect the composition of this bin to
+                    // be based on the current price.
+                    let expected_bin_composition_now = match tick.cmp(&active_tick) {
+                        // Case A: The current price is inside this bin. Since
                         // we are the current active bin then it's expected that
                         // this bin has both X and Y assets.
                         Ordering::Equal => Composition::Composite,
@@ -646,84 +648,89 @@ fn calculate_bin_amounts_due_to_price_action(
                         Ordering::Greater => Composition::EntirelyX,
                     };
 
-                match (
-                    bin_composition_when_position_opened,
-                    expected_bin_composition_now,
-                ) {
-                    // The bin was entirely made of X and is still the same. We
-                    // have not touched it. The starting and ending price of the
-                    // "swap" is the same.
-                    (Composition::EntirelyX, Composition::EntirelyX)
-                        => (bin_lower_price, bin_lower_price),
-                    (Composition::EntirelyY, Composition::EntirelyY)
-                        => (bin_upper_price, bin_upper_price),
-                    // The bin was entirely made up of one asset and is now made
-                    // up of another. 
-                    (Composition::EntirelyX, Composition::EntirelyY)
-                        => (bin_lower_price, bin_upper_price),
-                    (Composition::EntirelyY, Composition::EntirelyX)
-                        => (bin_upper_price, bin_lower_price),
-                    // The bin was entirely made up of one of the assets and 
-                    // is now made up of both of them. 
-                    (Composition::EntirelyX, Composition::Composite)
-                        => (bin_lower_price, current_price),
-                    (Composition::EntirelyY, Composition::Composite)
-                        => (bin_upper_price, current_price),
-                    // The bin was made up of both assets and is now just made 
-                    // up of one of them.
-                    (Composition::Composite, Composition::EntirelyX)
-                        => (price_when_position_was_opened, bin_lower_price),
-                    (Composition::Composite, Composition::EntirelyY)
-                        => (price_when_position_was_opened, bin_upper_price),
-                    // The bin was made up of both assets and is still made up
-                    // of both assets.
-                    (Composition::Composite, Composition::Composite)
-                        => (price_when_position_was_opened, current_price),
-                }
-            };
+                    match (
+                        bin_composition_when_position_opened,
+                        expected_bin_composition_now,
+                    ) {
+                        // The bin was entirely made of X and is still the same. We
+                        // have not touched it. The starting and ending price of the
+                        // "swap" is the same.
+                        (Composition::EntirelyX, Composition::EntirelyX) => {
+                            (bin_lower_price, bin_lower_price)
+                        }
+                        (Composition::EntirelyY, Composition::EntirelyY) => {
+                            (bin_upper_price, bin_upper_price)
+                        }
+                        // The bin was entirely made up of one asset and is now made
+                        // up of another.
+                        (Composition::EntirelyX, Composition::EntirelyY) => {
+                            (bin_lower_price, bin_upper_price)
+                        }
+                        (Composition::EntirelyY, Composition::EntirelyX) => {
+                            (bin_upper_price, bin_lower_price)
+                        }
+                        // The bin was entirely made up of one of the assets and
+                        // is now made up of both of them.
+                        (Composition::EntirelyX, Composition::Composite) => {
+                            (bin_lower_price, current_price)
+                        }
+                        (Composition::EntirelyY, Composition::Composite) => {
+                            (bin_upper_price, current_price)
+                        }
+                        // The bin was made up of both assets and is now just made
+                        // up of one of them.
+                        (Composition::Composite, Composition::EntirelyX) => {
+                            (price_when_position_was_opened, bin_lower_price)
+                        }
+                        (Composition::Composite, Composition::EntirelyY) => {
+                            (price_when_position_was_opened, bin_upper_price)
+                        }
+                        // The bin was made up of both assets and is still made up
+                        // of both assets.
+                        (Composition::Composite, Composition::Composite) => {
+                            (price_when_position_was_opened, current_price)
+                        }
+                    }
+                };
 
-            // Small fee optimization - if the starting and ending price are the
-            // same then do not calculate the L. In this case the change is 0 
-            // and the amount is the same.
-            let (new_x, new_y) = if starting_price == ending_price {
-                (bin_amount.resource_x, bin_amount.resource_y)
-            } else {
-                let liquidity = calculate_liquidity(
-                    bin_amount,
-                    bin_lower_price,
-                    bin_upper_price,
-                )?;
+                // Small fee optimization - if the starting and ending price are the
+                // same then do not calculate the L. In this case the change is 0
+                // and the amount is the same.
+                let (new_x, new_y) = if starting_price == ending_price {
+                    (bin_amount.resource_x, bin_amount.resource_y)
+                } else {
+                    let liquidity =
+                        calculate_liquidity(bin_amount, bin_lower_price, bin_upper_price)?;
 
-                let change_x = liquidity.checked_mul(
-                    Decimal::ONE
-                        .checked_div(ending_price.checked_sqrt()?)?
-                        .checked_sub(
-                            Decimal::ONE
-                                .checked_div(starting_price.checked_sqrt()?)?,
-                        )?,
-                )?;
-                let change_y = liquidity.checked_mul(
-                    ending_price
-                        .checked_sqrt()?
-                        .checked_sub(starting_price.checked_sqrt()?)?,
-                )?;
+                    let change_x = liquidity.checked_mul(
+                        Decimal::ONE
+                            .checked_div(ending_price.checked_sqrt()?)?
+                            .checked_sub(
+                                Decimal::ONE.checked_div(starting_price.checked_sqrt()?)?,
+                            )?,
+                    )?;
+                    let change_y = liquidity.checked_mul(
+                        ending_price
+                            .checked_sqrt()?
+                            .checked_sub(starting_price.checked_sqrt()?)?,
+                    )?;
 
-                let new_x = max(bin_amount.resource_x.checked_add(change_x)?, Decimal::ZERO);
-                let new_y = max(bin_amount.resource_y.checked_add(change_y)?, Decimal::ZERO);
+                    let new_x = max(bin_amount.resource_x.checked_add(change_x)?, Decimal::ZERO);
+                    let new_y = max(bin_amount.resource_y.checked_add(change_y)?, Decimal::ZERO);
 
-                (new_x, new_y)
-            };
+                    (new_x, new_y)
+                };
 
-            Some((
-                tick,
-                ResourceIndexedData {
-                    resource_x: new_x,
-                    resource_y: new_y,
-                },
-            ))
-        },
-    )
-    .collect()
+                Some((
+                    tick,
+                    ResourceIndexedData {
+                        resource_x: new_x,
+                        resource_y: new_y,
+                    },
+                ))
+            },
+        )
+        .collect()
 }
 
 #[cfg(test)]
