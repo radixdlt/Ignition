@@ -336,11 +336,7 @@ pub mod adapter {
                 ..
             } = adapter_specific_information.as_typed().unwrap();
 
-            let (bucket1, bucket2) = pool.remove_liquidity(pool_units);
-            let resources = indexmap! {
-                bucket1.resource_address() => bucket1,
-                bucket2.resource_address() => bucket2,
-            };
+            let (bucket_x, bucket_y) = pool.remove_liquidity(pool_units);
 
             let fees = {
                 // Calculate how much we expect to find in the bins at this
@@ -372,19 +368,13 @@ pub mod adapter {
                 // calculated up above is the fees.
                 indexmap! {
                     resource_x => max(
-                        resources
-                            .get(&resource_x)
-                            .map(|bucket| bucket.amount())
-                            .unwrap_or_default()
+                        bucket_x.amount()
                             .checked_sub(expected_amount_back.resource_x)
                             .expect(OVERFLOW_ERROR),
                         Decimal::ZERO
                     ),
                     resource_y => max(
-                        resources
-                            .get(&resource_y)
-                            .map(|bucket| bucket.amount())
-                            .unwrap_or_default()
+                        bucket_y.amount()
                             .checked_sub(expected_amount_back.resource_y)
                             .expect(OVERFLOW_ERROR),
                         Decimal::ZERO
@@ -393,7 +383,10 @@ pub mod adapter {
             };
 
             CloseLiquidityPositionOutput {
-                resources,
+                resources: indexmap! {
+                    resource_x => bucket_x,
+                    resource_y => bucket_y,
+                },
                 others: Default::default(),
                 fees,
             }
@@ -577,6 +570,7 @@ pub fn calculate_liquidity(
 
     let reserves_x = PreciseDecimal::from(reserves_x);
     let reserves_y = PreciseDecimal::from(reserves_y);
+    // TODO: Consider caching the the sqrt.
     let lower_price_sqrt = PreciseDecimal::from(lower_price).checked_sqrt()?;
     let upper_price_sqrt = PreciseDecimal::from(upper_price).checked_sqrt()?;
 
