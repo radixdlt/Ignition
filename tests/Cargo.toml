@@ -14,8 +14,10 @@ radix-engine = { workspace = true }
 radix-engine-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 
+common = { path = "../libraries/common" }
 ignition = { path = "../packages/ignition", features = ["test"] }
 simple-oracle = { path = "../packages/simple-oracle", features = ["test"] }
+ports-interface = { path = "../libraries/ports-interface" }
 ociswap-v1-adapter-v1 = { path = "../packages/ociswap-v1-adapter-v1", features = [
     "test",
     "manifest-builder-stubs"

@@ -10,6 +10,7 @@ transaction = { workspace = true }
 radix-engine = { workspace = true }
 radix-engine-interface = { workspace = true }
 
+common = { path = "../../libraries/common" }
 ignition = { path = "../../packages/ignition" }
 gateway-client = { path = "../../libraries/gateway-client" }
 package-loader = { path = "../../libraries/package-loader", features = [

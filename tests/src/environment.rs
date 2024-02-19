@@ -188,9 +188,9 @@ impl ScryptoTestEnv {
         // will use.
         let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
-                ResourceBuilder::new_ruid_non_fungible::<LiquidityReceipt>(
-                    OwnerRole::None,
-                )
+                ResourceBuilder::new_ruid_non_fungible::<
+                    LiquidityReceipt<AnyValue>,
+                >(OwnerRole::None)
                 .mint_roles(mint_roles! {
                     minter => rule!(allow_all);
                     minter_updater => rule!(allow_all);
@@ -681,7 +681,7 @@ impl ScryptoUnitEnv {
                             NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
                                 owner_role: OwnerRole::None,
                                 track_total_supply: true,
-                                non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                                non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt<AnyValue>>(),
                                 entries: vec![],
                                 resource_roles: NonFungibleResourceRoles {
                                     mint_roles: mint_roles! {

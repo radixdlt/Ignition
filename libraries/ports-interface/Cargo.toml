@@ -12,6 +12,7 @@ radix-engine-common = { workspace = true }
 radix-engine-derive = { workspace = true }
 radix-engine-interface = { workspace = true }
 
+common = { path = "../common" }
 scrypto-interface = { path = "../scrypto-interface" }
 
 [features]

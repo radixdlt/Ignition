@@ -12,6 +12,7 @@ transaction = { workspace = true, optional = true }
 
 scrypto-interface = { path = "../../libraries/scrypto-interface" }
 ports-interface = { path = "../../libraries/ports-interface" }
+common = { path = "../../libraries/common" }
 
 [features]
 default = []

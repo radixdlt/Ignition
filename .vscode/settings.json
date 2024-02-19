@@ -15,4 +15,9 @@
         "ruid",
         "uninit"
     ],
+    // The gateway client directory is too large and slows down navigation 
+    // to different files. Thus, we execlude it from search.
+    "search.exclude": {        
+        "libraries/gateway-client/**/*.rs": true
+    }
 }

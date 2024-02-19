@@ -33,6 +33,54 @@ pub fn can_open_a_simple_position_against_a_caviarnine_pool(
 }
 
 #[test]
+pub fn liquidity_receipt_information_can_be_read_through_adapter(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Act
+    let data = caviarnine_v1.adapter.liquidity_receipt_data(
+        NonFungibleGlobalId::new(
+            receipt.0.resource_address(env)?,
+            receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+        ),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(
+        data.adapter_specific_information.bin_contributions.len(),
+        61
+    );
+
+    Ok(())
+}
+
+#[test]
 fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
@@ -368,7 +416,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
     // Act
     let liquidity_receipt_data =
         ResourceManager(caviarnine_v1.liquidity_receipt)
-            .get_non_fungible_data::<_, _, LiquidityReceipt>(
+            .get_non_fungible_data::<_, _, LiquidityReceipt<AnyValue>>(
                 liquidity_receipt
                     .0
                     .non_fungible_local_ids(env)?
@@ -429,7 +477,7 @@ pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
     };
     let ignition_receipt_data =
         ResourceManager(caviarnine_v1.liquidity_receipt)
-            .get_non_fungible_data::<_, _, LiquidityReceipt>(
+            .get_non_fungible_data::<_, _, LiquidityReceipt<AnyValue>>(
                 ignition_receipt
                     .0
                     .non_fungible_local_ids(env)?

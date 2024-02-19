@@ -10,9 +10,11 @@ scrypto = { workspace = true }
 radix-engine-interface = { workspace = true }
 transaction = { workspace = true, optional = true }
 
-scrypto-interface = { path = "../../libraries/scrypto-interface" }
+common = { path = "../../libraries/common" }
 scrypto-math = { path = "../../libraries/scrypto-math" }
+scrypto-interface = { path = "../../libraries/scrypto-interface" }
 ports-interface = { path = "../../libraries/ports-interface" }
+
 
 [features]
 default = []

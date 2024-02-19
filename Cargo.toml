@@ -8,6 +8,7 @@ members = [
     "packages/ociswap-v2-adapter-v1",
     "packages/caviarnine-v1-adapter-v1",
     # Libraries
+    "libraries/common",
     "libraries/package-loader",
     "libraries/gateway-client",
     "libraries/scrypto-interface",

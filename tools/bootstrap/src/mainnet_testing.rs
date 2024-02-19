@@ -3,9 +3,9 @@ use crate::transaction_service::*;
 use crate::types::*;
 use crate::*;
 use clap::Parser;
+use common::prelude::*;
 use ignition::{
-    InitializationParametersManifest, LiquidityReceipt, LockupPeriod,
-    PoolBlueprintInformationManifest, Volatility,
+    InitializationParametersManifest, PoolBlueprintInformationManifest,
 };
 use package_loader::PackageLoader;
 use radix_engine_interface::api::node_modules::auth::*;
@@ -364,7 +364,7 @@ impl MainnetTesting {
                     NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
                         owner_role: owner_role.clone(),
                         track_total_supply: true,
-                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt<AnyValue>>(),
                         entries: Vec::new(),
                         resource_roles: roles.clone(),
                         metadata: metadata! {
@@ -399,7 +399,7 @@ impl MainnetTesting {
                     NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
                         owner_role: owner_role.clone(),
                         track_total_supply: true,
-                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt>(),
+                        non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt<AnyValue>>(),
                         entries: Vec::new(),
                         resource_roles: roles.clone(),
                         metadata: metadata! {

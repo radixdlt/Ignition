@@ -1,0 +1,19 @@
+[package]
+name = "common"
+version.workspace = true
+edition.workspace = true
+description = "A crate that defines types used by the other crates."
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+transaction = { workspace = true, optional = true }
+radix-engine-common = { workspace = true }
+radix-engine-derive = { workspace = true }
+radix-engine-interface = { workspace = true }
+
+# Used to print the lockup period in a readable format.
+humantime = { version = "2.1.0" }
+
+[lib]
+crate-type = ["cdylib", "lib"]

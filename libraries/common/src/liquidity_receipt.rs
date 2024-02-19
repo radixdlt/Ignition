@@ -1,10 +1,12 @@
-use crate::*;
-use ports_interface::prelude::*;
+use crate::prelude::*;
 use scrypto::prelude::*;
 
 /// The data of the liquidity positions given to the users of Ignition.
 #[derive(ScryptoSbor, Clone, Debug, PartialEq, Eq, NonFungibleData)]
-pub struct LiquidityReceipt {
+pub struct LiquidityReceipt<T>
+where
+    T: ScryptoSbor,
+{
     /* Metadata/NonFungibleData standard */
     pub name: String,
 
@@ -41,10 +43,13 @@ pub struct LiquidityReceipt {
     /// opened. This is information that the adapter expects to be passed back
     /// when a liquidity position is closed. This is used in calculating the
     /// fees.
-    pub adapter_specific_information: AnyValue,
+    pub adapter_specific_information: T,
 }
 
-impl LiquidityReceipt {
+impl<T> LiquidityReceipt<T>
+where
+    T: ScryptoSbor,
+{
     pub fn new(
         lockup_period: LockupPeriod,
         pool_address: ComponentAddress,
@@ -52,7 +57,7 @@ impl LiquidityReceipt {
         user_contribution_amount: Decimal,
         user_volatility_classification: Volatility,
         protocol_contribution_amount: Decimal,
-        adapter_specific_information: AnyValue,
+        adapter_specific_information: T,
     ) -> Self {
         let maturity_date = Clock::current_time_rounded_to_minutes()
             .add_seconds(*lockup_period.seconds() as i64)

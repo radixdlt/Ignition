@@ -62,11 +62,11 @@
 //! and not baked into the blueprint itself allowing additional reward rates to
 //! be added and for some reward rates to be removed.
 
-use std::cmp::*;
-
-use crate::*;
+use crate::errors::*;
+use common::prelude::*;
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
+use std::cmp::*;
 
 type PoolAdapter = PoolAdapterInterfaceScryptoStub;
 type OracleAdapter = OracleAdapterInterfaceScryptoStub;
@@ -688,7 +688,7 @@ mod ignition {
             // At this point it is safe to get the non-fungible global id of the
             // liquidity receipt NFT.
             let liquidity_receipt_global_id = liquidity_receipt
-                .non_fungible::<LiquidityReceipt>()
+                .non_fungible::<LiquidityReceipt<AnyValue>>()
                 .global_id()
                 .clone();
 
@@ -795,9 +795,10 @@ mod ignition {
                 // validating that the resource address is what we expect. We do
                 // this as we need to check it against the data of the blueprint
                 // of the pool. So, that must be read first.
-                let non_fungible = NonFungible::<LiquidityReceipt>::from(
-                    liquidity_receipt_global_id,
-                );
+                let non_fungible =
+                    NonFungible::<LiquidityReceipt<AnyValue>>::from(
+                        liquidity_receipt_global_id,
+                    );
                 let liquidity_receipt_data = non_fungible.data();
                 let (pool_adapter, liquidity_receipt_resource, _) = self
                     .checked_get_pool_adapter_and_liquidity_receipt(
@@ -1844,13 +1845,6 @@ impl ProtocolResourceReserves {
             Volatility::NonVolatile => &self.non_volatile,
         }
     }
-}
-
-/// An enum that describes the volatility of an asset.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, ScryptoSbor, ManifestSbor)]
-pub enum Volatility {
-    Volatile,
-    NonVolatile,
 }
 
 /// Optional parameters to set on Ignition when its first instantiated. All of

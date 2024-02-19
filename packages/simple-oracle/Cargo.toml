@@ -11,6 +11,7 @@ radix-engine-derive = { workspace = true }
 
 scrypto-interface = { path = "../../libraries/scrypto-interface" }
 ports-interface = { path = "../../libraries/ports-interface" }
+common = { path = "../../libraries/common" }
 
 humantime = { version = "2.1.0" }
 

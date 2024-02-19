@@ -5,6 +5,7 @@ pub use blueprint_interface::*;
 
 use std::cmp::*;
 
+use common::prelude::*;
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -68,6 +69,44 @@ pub mod adapter {
                 })
                 .with_address(address_reservation)
                 .globalize()
+        }
+
+        pub fn liquidity_receipt_data(
+            // Does not depend on state, this is kept in case this is required
+            // in the future for whatever reason.
+            &self,
+            global_id: NonFungibleGlobalId,
+        ) -> LiquidityReceipt<OciswapV1AdapterSpecificInformation> {
+            // Read the non-fungible data.
+            let LiquidityReceipt {
+                name,
+                lockup_period,
+                pool_address,
+                user_resource_address,
+                user_contribution_amount,
+                user_resource_volatility_classification,
+                protocol_contribution_amount,
+                maturity_date,
+                adapter_specific_information,
+            } = ResourceManager::from_address(global_id.resource_address())
+                .get_non_fungible_data::<LiquidityReceipt<AnyValue>>(
+                global_id.local_id(),
+            );
+            let adapter_specific_information = adapter_specific_information
+                .as_typed::<OciswapV1AdapterSpecificInformation>()
+                .unwrap();
+
+            LiquidityReceipt {
+                name,
+                lockup_period,
+                pool_address,
+                user_resource_address,
+                user_contribution_amount,
+                user_resource_volatility_classification,
+                protocol_contribution_amount,
+                maturity_date,
+                adapter_specific_information,
+            }
         }
     }
 

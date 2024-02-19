@@ -952,7 +952,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
     };
 
     let liquidity_receipt_data = ResourceManager(ociswap_v1.liquidity_receipt)
-        .get_non_fungible_data::<_, _, LiquidityReceipt>(
+        .get_non_fungible_data::<_, _, LiquidityReceipt<AnyValue>>(
             receipt
                 .0
                 .non_fungible_local_ids(env)?
@@ -1184,7 +1184,7 @@ fn can_close_a_liquidity_position_the_minute_it_matures(
     )?;
 
     let liquidity_receipt_data = ResourceManager(ociswap_v1.liquidity_receipt)
-        .get_non_fungible_data::<_, _, LiquidityReceipt>(
+        .get_non_fungible_data::<_, _, LiquidityReceipt<AnyValue>>(
             liquidity_receipt
                 .0
                 .non_fungible_local_ids(env)?
@@ -1835,7 +1835,7 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
 mod utils {
     use super::*;
 
-    pub fn liquidity_receipt_data() -> LiquidityReceipt {
+    pub fn liquidity_receipt_data() -> LiquidityReceipt<AnyValue> {
         LiquidityReceipt {
             name: "Some name".to_owned(),
             lockup_period: "6 months".to_owned(),
@@ -1854,8 +1854,8 @@ mod utils {
     }
 
     pub fn liquidity_receipt_data_with_modifier(
-        modifier: impl FnOnce(&mut LiquidityReceipt),
-    ) -> LiquidityReceipt {
+        modifier: impl FnOnce(&mut LiquidityReceipt<AnyValue>),
+    ) -> LiquidityReceipt<AnyValue> {
         let mut data = liquidity_receipt_data();
         modifier(&mut data);
         data

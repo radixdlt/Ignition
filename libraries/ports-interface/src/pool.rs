@@ -1,6 +1,6 @@
 //! Defines the interface of the adapters used to communicate with pools.
 
-use crate::prelude::*;
+use common::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
