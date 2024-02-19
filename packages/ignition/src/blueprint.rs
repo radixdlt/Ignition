@@ -1715,7 +1715,7 @@ mod ignition {
             );
 
             // Return price
-            price
+            Price { price, base, quote }
         }
 
         fn check_pool_resources(

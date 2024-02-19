@@ -30,13 +30,14 @@ define_interface! {
         ///
         /// # Returns
         ///
-        /// [`Price`] - The price of the asset.
+        /// [`Decimal`] - The price of the asset. If the caller desires a
+        /// [`Price`] object then its their responsibility to construct it.
         /// [`Instant`] - The instant when the price was updated, used in
         /// staleness calculations.
         fn get_price(
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> (Price, Instant);
+        ) -> (Decimal, Instant);
     }
 }
