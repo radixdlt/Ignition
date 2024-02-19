@@ -1,4 +1,3 @@
-#![warn(clippy::arithmetic_side_effects)]
 #![allow(clippy::new_without_default)]
 
 mod blueprint_interface;

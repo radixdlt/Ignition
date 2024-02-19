@@ -34,3 +34,6 @@ build-time-blueprints = [
 
 [lib]
 crate-type = ["cdylib", "lib"]
+
+[lints]
+workspace = true

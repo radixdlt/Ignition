@@ -2,8 +2,6 @@
 //! liquidity to based on the current active bin, the bin span, and the maximum
 //! number of allowed ticks.
 
-#![allow(clippy::arithmetic_side_effects)]
-
 /// Ticks are in the range [0, 54000].
 const MINIMUM_TICK_VALUE: usize = 0;
 const MAXIMUM_TICK_VALUE: usize = 54000;
@@ -163,14 +161,18 @@ impl SelectedTicks {
             let mut backward_counter_decremented = false;
 
             if forward_counter.checked_add_assign(bin_span).is_some() {
-                remaining -= 1;
+                remaining = remaining
+                    .checked_sub(1)
+                    .expect("Impossible, we do the check somewhere else");
                 selected_ticks.higher_ticks.push(forward_counter.0);
                 forward_counter_incremented = true;
             }
             if remaining > 0
                 && backward_counter.checked_sub_assign(bin_span).is_some()
             {
-                remaining -= 1;
+                remaining = remaining
+                    .checked_sub(1)
+                    .expect("Impossible, we do the check somewhere else");
                 selected_ticks.lower_ticks.push(backward_counter.0);
                 backward_counter_decremented = true;
             }

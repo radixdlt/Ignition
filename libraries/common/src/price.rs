@@ -89,9 +89,9 @@ impl Price {
         amount: Decimal,
     ) -> Option<(ResourceAddress, Decimal)> {
         if resource_address == self.base {
-            Some((self.quote, self.price * amount))
+            Some((self.quote, self.price.checked_mul(amount)?))
         } else if resource_address == self.quote {
-            Some((self.base, amount / self.price))
+            Some((self.base, amount.checked_div(self.price)?))
         } else {
             None
         }
@@ -109,7 +109,8 @@ impl Price {
         Price {
             base: self.quote,
             quote: self.base,
-            price: 1 / self.price,
+            // Panics if price is zero.
+            price: dec!(1).checked_div(self.price).unwrap(),
         }
     }
 }

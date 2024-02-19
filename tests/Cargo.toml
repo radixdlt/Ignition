@@ -40,3 +40,6 @@ lazy_static = "1.4.0"
 
 [build-dependencies]
 flate2 = { version = "1.0.28" }
+
+[lints]
+workspace = true

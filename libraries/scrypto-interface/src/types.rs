@@ -184,7 +184,9 @@ impl Arguments {
             Self::NoReceiver { arguments } => arguments.len(),
             Self::SelfReferenceReceiver { arguments, .. }
             | Self::SelfMutReferenceReceiver { arguments, .. } => {
-                1 + arguments.len()
+                // Unwrap here is fine, this all happens at compile time. Plus,
+                // who would have more than u64 or u32 worth of arguments?
+                arguments.len().checked_add(1).unwrap()
             }
         }
     }

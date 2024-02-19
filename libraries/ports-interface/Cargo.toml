@@ -29,3 +29,6 @@ manifest-builder-stubs = ["dep:transaction"]
 
 [lib]
 crate-type = ["cdylib", "lib"]
+
+[lints]
+workspace = true

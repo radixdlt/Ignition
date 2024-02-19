@@ -1,5 +1,3 @@
-#![warn(clippy::arithmetic_side_effects)]
-
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;

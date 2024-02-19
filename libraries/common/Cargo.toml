@@ -17,3 +17,6 @@ humantime = { version = "2.1.0" }
 
 [lib]
 crate-type = ["cdylib", "lib"]
+
+[lints]
+workspace = true
