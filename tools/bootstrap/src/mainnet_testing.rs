@@ -106,6 +106,14 @@ impl MainnetTesting {
         // This key will initially control the dApp definition to allow us to
         // easily update the metadata and will later on change the owner role
         // of the dApp definition to the protocol owner.
+
+        let ephemeral_private_key =
+            Ed25519PrivateKey::from_u64(rand::random()).unwrap();
+        println!(
+            "Ephemeral Private Key: {:?}",
+            ephemeral_private_key.to_bytes()
+        );
+
         let ephemeral_private_key = PrivateKey::Ed25519(
             Ed25519PrivateKey::from_u64(rand::random()).unwrap(),
         );
@@ -375,8 +383,8 @@ impl MainnetTesting {
                                 metadata_locker_updater => protocol_owner_rule.clone();
                             },
                             init {
-                                // TODO: Confirm with the exchanges what they want
-                                // their name to be.
+                                // TODO: Confirm with the exchanges what they
+                                // want their name to be.
                                 "name" => "Ignition LP: Ociswap", updatable;
                                 "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
                                 "tags" => vec!["lp token"], updatable;
@@ -592,7 +600,6 @@ impl MainnetTesting {
         // should have.
         {
             let manifest = ManifestBuilder::new()
-                .lock_fee_from_faucet()
                 .set_metadata(
                     dapp_definition_account,
                     "account_type",
