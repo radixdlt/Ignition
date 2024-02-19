@@ -1,6 +1,5 @@
 #![warn(clippy::arithmetic_side_effects)]
 
-use common::prelude::*;
 use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
@@ -110,7 +109,7 @@ mod simple_oracle {
             &self,
             base: ResourceAddress,
             quote: ResourceAddress,
-        ) -> (Price, Instant) {
+        ) -> (Decimal, Instant) {
             let PairPriceEntry {
                 price,
                 observed_by_component_at,
@@ -118,7 +117,7 @@ mod simple_oracle {
                 .prices
                 .get(&Pair { base, quote })
                 .expect("Price not found for this resource");
-            (Price { base, quote, price }, observed_by_component_at)
+            (price, observed_by_component_at)
         }
     }
 }

@@ -46,12 +46,12 @@ impl Price {
     /// [article]: https://en.wikipedia.org/wiki/Relative_change
     pub fn relative_difference(&self, other: &Self) -> Option<Decimal> {
         if self.base == other.base && self.quote == other.quote {
-            Some(
-                (other.price - self.price)
-                    .checked_abs()
-                    .unwrap_or(Decimal::MAX)
-                    / self.price,
-            )
+            other
+                .price
+                .checked_sub(self.price)
+                .and_then(|value| value.checked_abs())
+                .unwrap_or(Decimal::MAX)
+                .checked_div(self.price)
         } else if self.base == other.quote && self.quote == other.base {
             self.relative_difference(&other.reciprocal())
         } else {

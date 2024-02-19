@@ -106,7 +106,7 @@ pub mod adapter {
             .globalize()
         }
 
-        pub fn cache_pool_information(
+        pub fn preload_pool_information(
             &mut self,
             pool_address: ComponentAddress,
         ) -> PoolInformation {
@@ -174,7 +174,7 @@ pub mod adapter {
                 *entry
             } else {
                 drop(entry);
-                self.cache_pool_information(pool_address)
+                self.preload_pool_information(pool_address)
             }
         }
     }

@@ -1047,7 +1047,7 @@ impl ScryptoUnitEnv {
                         .iter()
                         .map(|address| InstructionV1::CallMethod {
                             address: caviarnine_v1_adapter_v1.into(),
-                            method_name: "cache_pool_information".to_owned(),
+                            method_name: "preload_pool_information".to_owned(),
                             args: manifest_args!(address).into(),
                         })
                         .collect(),

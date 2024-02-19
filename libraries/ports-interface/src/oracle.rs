@@ -2,7 +2,6 @@
 //! project ignition. This interface can be implemented by the oracles
 //! or their adapters.
 
-use common::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 

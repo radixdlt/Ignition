@@ -224,7 +224,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
                     .lock_fee_from_faucet()
                     .call_method(
                         caviarnine_v1.adapter,
-                        "cache_pool_information",
+                        "preload_pool_information",
                         (pool_address,),
                     )
                     .build(),
