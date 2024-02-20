@@ -546,7 +546,7 @@ mod ignition {
             );
             let OpenLiquidityPositionOutput {
                 pool_units,
-                change,
+                mut change,
                 others,
                 adapter_specific_information,
             } = adapter.open_liquidity_position(
@@ -637,19 +637,16 @@ mod ignition {
             };
 
             // Create the buckets to return back to the user.
-            let mut buckets_to_return = vec![];
-            for bucket in change.into_values() {
-                let bucket_resource_address = bucket.resource_address();
-                if bucket_resource_address == self.protocol_resource.address() {
-                    self.deposit_protocol_resources(
-                        FungibleBucket(bucket),
-                        volatility,
-                    )
-                } else {
-                    buckets_to_return.push(bucket);
-                }
+            if let Some(bucket) =
+                change.remove(&self.protocol_resource.address())
+            {
+                self.deposit_protocol_resources(
+                    FungibleBucket(bucket),
+                    volatility,
+                )
             }
-            buckets_to_return.extend(others);
+            let buckets_to_return =
+                change.into_values().chain(others).collect();
 
             // Return all
             (liquidity_receipt, upfront_reward, buckets_to_return)
