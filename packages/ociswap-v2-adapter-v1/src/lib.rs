@@ -44,13 +44,14 @@ pub mod adapter {
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
         ) -> Global<OciswapV2Adapter> {
-            let address_reservation = address_reservation.unwrap_or(
-                Runtime::allocate_component_address(BlueprintId {
-                    package_address: Runtime::package_address(),
-                    blueprint_name: Runtime::blueprint_name(),
-                })
-                .0,
-            );
+            let address_reservation =
+                address_reservation.unwrap_or_else(|| {
+                    Runtime::allocate_component_address(BlueprintId {
+                        package_address: Runtime::package_address(),
+                        blueprint_name: Runtime::blueprint_name(),
+                    })
+                    .0
+                });
 
             Self {}
                 .instantiate()
