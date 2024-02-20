@@ -62,6 +62,8 @@
 //! and not baked into the blueprint itself allowing additional reward rates to
 //! be added and for some reward rates to be removed.
 
+#![allow(clippy::type_complexity)]
+
 use crate::errors::*;
 use common::prelude::*;
 use ports_interface::prelude::*;
@@ -82,7 +84,7 @@ type OracleAdapter = OracleAdapterInterfaceScryptoStub;
     FungibleVault,
     LockupPeriod,
     Volatility,
-    PoolBlueprintInformation,
+    StoredPoolBlueprintInformation,
 )]
 mod ignition {
     enable_method_auth! {
@@ -198,16 +200,16 @@ mod ignition {
         /// that each Dex, or at least Dex blueprint, has a single entry in the
         /// protocol.
         ///
-        /// Note: it is well understood that [`PoolBlueprintInformation`] data
-        /// is unbounded in size and that it can lead to state explosion. But,
-        /// we will only have four allowed pools in Ignition and therefore we
-        /// are not worried about the state explosion problems. Additionally,
-        /// using a [`KeyValueStore`] there would mean that the pool
-        /// information entires can not be removed or replaced from the
-        /// map due to the fact that a kv-store can't be dropped.
-        /// Therefore, a regular [`IndexMap`] is used and its
-        /// guaranteed that there will only be four pools there.
-        pool_information: KeyValueStore<BlueprintId, PoolBlueprintInformation>,
+        /// Note: it is well understood that [`StoredPoolBlueprintInformation`]
+        /// data is unbounded in size and that it can lead to state explosion.
+        /// But, we will only have four allowed pools in Ignition and therefore
+        /// we are not worried about the state explosion problems. Additionally,
+        /// using a [`KeyValueStore`] there would mean that the pool information
+        /// entires can not be removed or replaced from the map due to the fact
+        /// that a kv-store can't be dropped. Therefore, a regular [`IndexMap`]
+        /// is used and its guaranteed that there will only be four pools there.
+        pool_information:
+            KeyValueStore<BlueprintId, StoredPoolBlueprintInformation>,
 
         /// Maps a resource address to its volatility classification in the
         /// protocol. This is used to store whether a resource is considered to
@@ -482,15 +484,14 @@ mod ignition {
             // pool. If it is, this means that we can move ahead with the pool.
             // Also, it means that the pool is guaranteed to have the protocol
             // resource on one of its sides.
-            let (mut adapter, liquidity_receipt_resource, _) = self
-                .checked_get_pool_adapter_and_liquidity_receipt(pool_address)
-                .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR);
+            let (mut adapter, liquidity_receipt_resource, pool_resources, _) =
+                self.checked_get_pool_adapter_information(pool_address)
+                    .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR);
 
             // Ensure that the passed bucket belongs to the pool and that it is
             // not some random resource.
             {
-                let (resource1, resource2) =
-                    adapter.resource_addresses(pool_address);
+                let (resource1, resource2) = pool_resources;
 
                 assert!(
                     resource1 == user_resource_address
@@ -800,8 +801,8 @@ mod ignition {
                         liquidity_receipt_global_id,
                     );
                 let liquidity_receipt_data = non_fungible.data();
-                let (pool_adapter, liquidity_receipt_resource, _) = self
-                    .checked_get_pool_adapter_and_liquidity_receipt(
+                let (pool_adapter, liquidity_receipt_resource, _, _) = self
+                    .checked_get_pool_adapter_information(
                         liquidity_receipt_data.pool_address,
                     )
                     .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR);
@@ -1121,8 +1122,7 @@ mod ignition {
             self.with_pool_blueprint_information_mut(
                 pool_address,
                 |pool_information| {
-                    let resources = pool_information
-                        .adapter
+                    let resources = PoolAdapter::from(pool_information.adapter)
                         .resource_addresses(pool_address);
 
                     Self::check_pool_resources(
@@ -1131,7 +1131,9 @@ mod ignition {
                         &user_resource_volatility,
                     );
 
-                    pool_information.allowed_pools.insert(pool_address);
+                    pool_information
+                        .allowed_pools
+                        .insert(pool_address, resources);
                 },
             )
             .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR)
@@ -1224,16 +1226,29 @@ mod ignition {
             pool_information: PoolBlueprintInformation,
         ) {
             let protocol_resource_address = self.protocol_resource.address();
-            pool_information.allowed_pools.iter().for_each(|pool| {
-                let resources =
-                    pool_information.adapter.clone().resource_addresses(*pool);
+            let pool_information = StoredPoolBlueprintInformation {
+                adapter: PoolAdapter::from(pool_information.adapter),
+                liquidity_receipt: pool_information.liquidity_receipt,
+                allowed_pools: pool_information
+                    .allowed_pools
+                    .into_iter()
+                    .map(|pool_component_address| {
+                        let mut adapter =
+                            PoolAdapter::from(pool_information.adapter);
 
-                Self::check_pool_resources(
-                    resources,
-                    protocol_resource_address,
-                    &self.user_resource_volatility,
-                );
-            });
+                        let resources =
+                            adapter.resource_addresses(pool_component_address);
+
+                        Self::check_pool_resources(
+                            resources,
+                            protocol_resource_address,
+                            &self.user_resource_volatility,
+                        );
+
+                        (pool_component_address, resources)
+                    })
+                    .collect(),
+            };
 
             self.pool_information.insert(blueprint_id, pool_information)
         }
@@ -1615,7 +1630,7 @@ mod ignition {
         ) -> Option<O>
         where
             F: FnOnce(
-                &mut KeyValueEntryRefMut<'_, PoolBlueprintInformation>,
+                &mut KeyValueEntryRefMut<'_, StoredPoolBlueprintInformation>,
             ) -> O,
         {
             let blueprint_id = ScryptoVmV1Api::object_get_blueprint_id(
@@ -1650,18 +1665,21 @@ mod ignition {
         /// * [`PoolAdapter`] - The adapter to use for the pool.
         /// * [`ResourceManager`] - The resource manager reference of the
         /// liquidity receipt token.
+        /// * [`(ResourceAddress, ResourceAddress)`] - A tuple of the resource
+        /// addresses of the pool.
         ///
         /// # Note
         ///
         /// The [`KeyValueEntryRef<'_, PoolBlueprintInformation>`] is returned
         /// to allow the references of the addresses to remain.
-        fn checked_get_pool_adapter_and_liquidity_receipt(
+        fn checked_get_pool_adapter_information(
             &self,
             pool_address: ComponentAddress,
         ) -> Option<(
             PoolAdapter,
             ResourceManager,
-            KeyValueEntryRef<'_, PoolBlueprintInformation>,
+            (ResourceAddress, ResourceAddress),
+            KeyValueEntryRef<'_, StoredPoolBlueprintInformation>,
         )> {
             let blueprint_id = ScryptoVmV1Api::object_get_blueprint_id(
                 pool_address.as_node_id(),
@@ -1669,13 +1687,12 @@ mod ignition {
             let entry = self.pool_information.get(&blueprint_id);
 
             entry.map(|entry| {
-                assert!(
-                    entry.allowed_pools.contains(&pool_address),
-                    "{}",
-                    POOL_IS_NOT_IN_ALLOW_LIST_ERROR
-                );
+                let resources = entry
+                    .allowed_pools
+                    .get(&pool_address)
+                    .expect(POOL_IS_NOT_IN_ALLOW_LIST_ERROR);
 
-                (entry.adapter, entry.liquidity_receipt(), entry)
+                (entry.adapter, entry.liquidity_receipt(), *resources, entry)
             })
         }
 
@@ -1758,17 +1775,20 @@ mod ignition {
     }
 }
 
-/// Represents the information of pools belonging to a particular blueprint.
+/// Represents the information of pools belonging to a particular blueprint that
+/// the Ignition component stores in its state. This type is not public as it
+/// does not need to be.
 #[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor, ManifestSbor)]
-pub struct PoolBlueprintInformation {
+struct StoredPoolBlueprintInformation {
     /// The adapter to utilize when making calls to pools belonging to this
     /// blueprint.
     pub adapter: PoolAdapter,
 
-    /// A vector of the pools that the protocol allows contributions to. A pool
-    /// that is not found in this list for their corresponding blueprint will
-    /// not be allowed to be contributed to.
-    pub allowed_pools: IndexSet<ComponentAddress>,
+    /// A map of the pools that the protocol allows contributions to. A pool
+    /// that is not found in this map for their corresponding blueprint will
+    /// not be allowed to be contributed to. The value in this map is the
+    pub allowed_pools:
+        IndexMap<ComponentAddress, (ResourceAddress, ResourceAddress)>,
 
     /// A reference to the resource manager of the resource used as a receipt
     /// for providing liquidity to pools of this blueprint
@@ -1777,7 +1797,7 @@ pub struct PoolBlueprintInformation {
 
 /// Represents the information of pools belonging to a particular blueprint.
 #[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor, ManifestSbor)]
-pub struct PoolBlueprintInformationManifest {
+pub struct PoolBlueprintInformation {
     /// The adapter to utilize when making calls to pools belonging to this
     /// blueprint.
     pub adapter: ComponentAddress,
@@ -1792,7 +1812,7 @@ pub struct PoolBlueprintInformationManifest {
     pub liquidity_receipt: ResourceAddress,
 }
 
-impl PoolBlueprintInformation {
+impl StoredPoolBlueprintInformation {
     pub fn liquidity_receipt(&self) -> ResourceManager {
         ResourceManager::from(self.liquidity_receipt)
     }
@@ -1882,7 +1902,7 @@ pub struct InitializationParameters {
 pub struct InitializationParametersManifest {
     /// The initial set of pool information to add to to Ignition.
     pub initial_pool_information:
-        Option<IndexMap<BlueprintId, PoolBlueprintInformationManifest>>,
+        Option<IndexMap<BlueprintId, PoolBlueprintInformation>>,
 
     /// The initial volatility settings to add to Ignition.
     pub initial_user_resource_volatility:

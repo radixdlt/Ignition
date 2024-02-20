@@ -497,7 +497,7 @@ impl ScryptoTestEnv {
                     ociswap_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: ociswap_v1_adapter_v1.into(),
+                    adapter: ociswap_v1_adapter_v1.try_into().unwrap(),
                     allowed_pools: ociswap_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
@@ -512,7 +512,7 @@ impl ScryptoTestEnv {
                     ociswap_v2_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: ociswap_v2_adapter_v1.into(),
+                    adapter: ociswap_v2_adapter_v1.try_into().unwrap(),
                     allowed_pools: ociswap_v2_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
@@ -527,7 +527,7 @@ impl ScryptoTestEnv {
                     caviarnine_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: caviarnine_v1_adapter_v1.into(),
+                    adapter: caviarnine_v1_adapter_v1.try_into().unwrap(),
                     allowed_pools: caviarnine_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())

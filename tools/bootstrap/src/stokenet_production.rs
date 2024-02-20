@@ -4,9 +4,7 @@ use crate::types::*;
 use crate::*;
 use clap::Parser;
 use common::prelude::*;
-use ignition::{
-    InitializationParametersManifest, PoolBlueprintInformationManifest,
-};
+use ignition::{InitializationParametersManifest, PoolBlueprintInformation};
 use package_loader::PackageLoader;
 use radix_engine_interface::api::node_modules::auth::*;
 use radix_engine_interface::api::node_modules::*;
@@ -536,7 +534,7 @@ impl StokenetProduction {
                                 BlueprintId {
                                     package_address: exchanges.caviarnine_v1.package,
                                     blueprint_name: "QuantaSwap".to_owned()
-                                } => PoolBlueprintInformationManifest {
+                                } => PoolBlueprintInformation {
                                     adapter: caviarnine_v1_adapter_v1_component,
                                     allowed_pools: exchanges.caviarnine_v1.pools.into_iter().collect(),
                                     liquidity_receipt: caviarnine_v1_liquidity_receipt_resource
@@ -544,7 +542,7 @@ impl StokenetProduction {
                                 BlueprintId {
                                     package_address: exchanges.ociswap_v1.package,
                                     blueprint_name: "BasicPool".to_owned()
-                                } => PoolBlueprintInformationManifest {
+                                } => PoolBlueprintInformation {
                                     adapter: ociswap_v1_adapter_v1_component,
                                     // TODO: Fix this when we have actual 
                                     // ociswap pools.
