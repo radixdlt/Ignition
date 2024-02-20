@@ -61,7 +61,7 @@ impl EnvironmentSpecifier for ScryptoUnitEnvironmentSpecifier {
     type CaviarnineV1Adapter = ComponentAddress;
 
     // Badges
-    type Badge = (PublicKey, ComponentAddress, ResourceAddress);
+    type Badge = (PublicKey, PrivateKey, ComponentAddress, ResourceAddress);
 }
 
 /// The environment that Ignition is tested in.
@@ -637,7 +637,7 @@ impl ScryptoUnitEnv {
         };
 
         // The account that everything gets deposited into throughout the tests.
-        let (public_key, _, account) = test_runner.new_account(false);
+        let (public_key, private_key, account) = test_runner.new_account(false);
 
         let protocol_manager_badge =
             test_runner.create_fungible_resource(dec!(1), 0, account);
@@ -1188,11 +1188,15 @@ impl ScryptoUnitEnv {
                 oracle: simple_oracle,
                 protocol_owner_badge: (
                     public_key.into(),
+                    Secp256k1PrivateKey::from_bytes(&private_key.to_bytes())
+                        .unwrap()
+                        .into(),
                     account,
                     protocol_owner_badge,
                 ),
                 protocol_manager_badge: (
                     public_key.into(),
+                    private_key.into(),
                     account,
                     protocol_manager_badge,
                 ),

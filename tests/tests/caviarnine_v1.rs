@@ -93,7 +93,7 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         maximum_allowed_relative_price_difference: dec!(0.03),
         ..Default::default()
     });
-    let (public_key, account_address, _) = protocol.protocol_owner_badge;
+    let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
 
     test_runner
         .execute_manifest(
@@ -136,7 +136,7 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.execute_manifest(
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(
@@ -158,16 +158,19 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
             })
             .try_deposit_entire_worktop_or_abort(account_address, None)
             .build(),
-        vec![NonFungibleGlobalId::from_public_key(&public_key)],
+        &private_key,
     );
 
     // Assert
-    println!("{receipt:?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
         ..
     } = receipt.fee_summary;
+    println!(
+        "Execution cost to open a position: {} XRD",
+        total_execution_cost_in_xrd
+    );
 
     assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
@@ -185,7 +188,7 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         maximum_allowed_relative_price_difference: dec!(0.03),
         ..Default::default()
     });
-    let (public_key, account_address, _) = protocol.protocol_owner_badge;
+    let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
 
     test_runner
         .execute_manifest(
@@ -276,7 +279,7 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.execute_manifest(
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(
@@ -294,16 +297,19 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
             })
             .try_deposit_entire_worktop_or_abort(account_address, None)
             .build(),
-        vec![NonFungibleGlobalId::from_public_key(&public_key)],
+        &private_key,
     );
 
     // Assert
-    println!("{receipt:#?}");
     receipt.expect_commit_success();
     let TransactionFeeSummary {
         total_execution_cost_in_xrd,
         ..
     } = receipt.fee_summary;
+    println!(
+        "Execution cost to close a position: {} XRD",
+        total_execution_cost_in_xrd
+    );
 
     assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
@@ -775,6 +781,7 @@ pub enum CloseLiquidityResult {
     Reimbursement,
 }
 
+#[allow(clippy::arithmetic_side_effects)]
 fn approximately_equals(a: Decimal, b: Decimal) -> bool {
     let difference = match (a == Decimal::ZERO, b == Decimal::ZERO) {
         (true, true) => dec!(0),

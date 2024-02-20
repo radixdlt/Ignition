@@ -32,4 +32,33 @@ pub impl DefaultTestRunner {
             execution_config,
         )
     }
+
+    /// Constructs a notarized transaction and executes it. This is primarily
+    /// used in the testing of fees to make sure that they're approximated in
+    /// the best way.
+    fn construct_and_execute_notarized_transaction(
+        &mut self,
+        manifest: TransactionManifestV1,
+        notary_private_key: &PrivateKey,
+    ) -> TransactionReceiptV1 {
+        let network_definition = NetworkDefinition::simulator();
+        let current_epoch = self.get_current_epoch();
+        let transaction = TransactionBuilder::new()
+            .header(TransactionHeaderV1 {
+                network_id: network_definition.id,
+                start_epoch_inclusive: current_epoch,
+                end_epoch_exclusive: current_epoch.after(10).unwrap(),
+                nonce: self.next_transaction_nonce(),
+                notary_public_key: notary_private_key.public_key(),
+                notary_is_signatory: true,
+                tip_percentage: 0,
+            })
+            .manifest(manifest)
+            .notarize(notary_private_key)
+            .build();
+        self.execute_raw_transaction(
+            &network_definition,
+            &transaction.to_raw().unwrap(),
+        )
+    }
 }
