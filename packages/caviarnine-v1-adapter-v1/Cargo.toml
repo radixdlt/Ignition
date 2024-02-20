@@ -11,6 +11,7 @@ radix-engine-interface = { workspace = true }
 transaction = { workspace = true, optional = true }
 
 scrypto-interface = { path = "../../libraries/scrypto-interface" }
+scrypto-math = { path = "../../libraries/scrypto-math" }
 ports-interface = { path = "../../libraries/ports-interface" }
 common = { path = "../../libraries/common" }
 

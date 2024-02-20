@@ -129,7 +129,7 @@ pub mod adapter {
         pub fn liquidity_receipt_data(
             // Does not depend on state, this is kept in case this is required
             // in the future for whatever reason.
-            &self,
+            &mut self,
             global_id: NonFungibleGlobalId,
         ) -> LiquidityReceipt<CaviarnineV1AdapterSpecificInformation> {
             // Read the non-fungible data.
@@ -164,6 +164,23 @@ pub mod adapter {
             }
         }
 
+        pub fn price_and_active_tick(
+            &mut self,
+            pool_address: ComponentAddress,
+            pool_information: Option<PoolInformation>,
+        ) -> Option<(Decimal, u32)> {
+            let pool_information = pool_information
+                .unwrap_or(self.get_pool_information(pool_address));
+            let pool = pool!(pool_address);
+            let price = pool.get_price()?;
+            let active_tick = spot_to_tick(price)
+                .and_then(|value| value.checked_div(pool_information.bin_span))
+                .and_then(|value| {
+                    value.checked_mul(pool_information.bin_span)
+                })?;
+            Some((price, active_tick))
+        }
+
         fn get_pool_information(
             &mut self,
             pool_address: ComponentAddress,
@@ -188,7 +205,7 @@ pub mod adapter {
 
             // Split the two buckets into bucket_x and bucket_y in the same way
             // that they're defined in the pool itself.
-            let PoolInformation {
+            let pool_information @ PoolInformation {
                 bin_span,
                 resources:
                     ResourceIndexedData {
@@ -216,8 +233,10 @@ pub mod adapter {
             let amount_y = bucket_y.amount();
 
             // Select the bins that we will contribute to.
-            let active_tick =
-                pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
+            let (price, active_tick) = self
+                .price_and_active_tick(pool_address, Some(pool_information))
+                .expect(NO_PRICE_ERROR);
+
             let SelectedTicks {
                 higher_ticks,
                 lower_ticks,
@@ -241,7 +260,6 @@ pub mod adapter {
             // is the percentage of resources x in the active bin.
             let (amount_in_active_bin_x, amount_in_active_bin_y) =
                 pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
-            let price = pool.get_price().expect(NO_PRICE_ERROR);
 
             let percentage_in_active_bin_x = amount_in_active_bin_x
                 .checked_mul(price)
@@ -355,7 +373,7 @@ pub mod adapter {
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
-            let PoolInformation {
+            let pool_information @ PoolInformation {
                 bin_span,
                 resources:
                     ResourceIndexedData {
@@ -363,8 +381,9 @@ pub mod adapter {
                         resource_y,
                     },
             } = self.get_pool_information(pool_address);
-            let active_tick =
-                pool.get_active_tick().expect(NO_ACTIVE_BIN_ERROR);
+            let (price, active_tick) = self
+                .price_and_active_tick(pool_address, Some(pool_information))
+                .expect(NO_PRICE_ERROR);
 
             // Decoding the adapter specific information as the type we expect
             // it to be.
@@ -385,7 +404,7 @@ pub mod adapter {
                             .into_iter()
                             .map(|value| (value.0, value.1))
                             .collect::<Vec<_>>(),
-                        pool.get_price().expect(NO_PRICE_ERROR),
+                        price,
                         price_when_position_was_opened,
                         active_tick,
                         bin_span,

@@ -39,7 +39,7 @@ pub fn liquidity_receipt_information_can_be_read_through_adapter(
     let Environment {
         environment: ref mut env,
         mut protocol,
-        caviarnine_v1,
+        mut caviarnine_v1,
         resources,
         ..
     } = ScryptoTestEnv::new()?;
@@ -790,4 +790,67 @@ fn approximately_equals(a: Decimal, b: Decimal) -> bool {
         (false, false) => (b - a).checked_abs().unwrap() / b,
     };
     difference <= dec!(0.000001)
+}
+
+#[test]
+pub fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    env.disable_limits_module();
+
+    let bin_span = 100u32;
+    for bin in (0u32..=54000u32).step_by(bin_span as usize) {
+        let mut pool = CaviarnineV1PoolInterfaceScryptoTestStub::new(
+            rule!(allow_all),
+            rule!(allow_all),
+            XRD,
+            resources.bitcoin,
+            bin_span,
+            None,
+            caviarnine_v1.package,
+            env,
+        )?;
+
+        let bucket_x = ResourceManager(XRD).mint_fungible(dec!(100), env)?;
+        let bucket_y =
+            ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+        let _ = pool.add_liquidity(
+            bucket_x,
+            bucket_y,
+            vec![(bin, dec!(100), dec!(100))],
+            env,
+        )?;
+
+        // Act
+        let (adapter_reported_price, adapter_reported_active_tick) =
+            caviarnine_v1
+                .adapter
+                .price_and_active_tick(
+                    pool.try_into().unwrap(),
+                    Some(PoolInformation {
+                        bin_span,
+                        resources: ResourceIndexedData {
+                            resource_x: XRD,
+                            resource_y: resources.bitcoin,
+                        },
+                    }),
+                    env,
+                )?
+                .unwrap();
+
+        // Assert
+        let pool_reported_price = pool.get_price(env)?.unwrap();
+        let pool_reported_active_tick = pool.get_active_tick(env)?.unwrap();
+        assert_eq!(adapter_reported_price, pool_reported_price);
+        assert_eq!(adapter_reported_active_tick, pool_reported_active_tick);
+    }
+
+    Ok(())
 }
