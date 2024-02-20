@@ -390,6 +390,605 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
     }
 }
 
+macro_rules! define_price_test {
+    (
+        $($multiplier: expr),* $(,)?
+    ) => {
+        paste::paste! {
+            $(
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_bitcoin_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.bitcoin.0, pool_information.bitcoin.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_ethereum_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.ethereum.0, pool_information.ethereum.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_usdc_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.usdc.0, pool_information.usdc.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_usdt_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.usdt.0, pool_information.usdt.1 )
+                }
+            )*
+            $(
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_bitcoin_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees($multiplier, env, pool_information.bitcoin.0, pool_information.bitcoin.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_ethereum_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees($multiplier, env, pool_information.ethereum.0, pool_information.ethereum.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_usdc_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees($multiplier, env, pool_information.usdc.0, pool_information.usdc.1 )
+                }
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_usdt_pool>](
+                ) {
+                    let env = ScryptoUnitEnv::new();
+                    let pool_information = mainnet_state::pool_information(&env.resources);
+                    let pool_information = ResourceInformation {
+                        bitcoin: (pool_information.bitcoin, 8),
+                        ethereum: (pool_information.ethereum, 18),
+                        usdc: (pool_information.usdc, 6),
+                        usdt: (pool_information.usdt, 6),
+                    };
+                    test_effect_of_price_action_on_fees($multiplier, env, pool_information.usdt.0, pool_information.usdt.1 )
+                }
+            )*
+        }
+    };
+}
+
+define_price_test! {
+    100,
+    90,
+    80,
+    70,
+    60,
+    50,
+    40,
+    30,
+    20,
+    10,
+}
+
+fn test_effect_of_price_action_on_fees(
+    multiplier: i32,
+    env: ScryptoUnitEnv,
+    pool_information: mainnet_state::PoolInformation,
+    divisibility: u8,
+) {
+    let ScryptoUnitEnv {
+        environment: mut test_runner,
+        protocol,
+        caviarnine_v1,
+        ..
+    } = env;
+    let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
+
+    let mainnet_state::PoolInformation {
+        resource_x,
+        resource_y,
+        active_tick,
+        bin_span,
+        bins_below,
+        bins_above,
+        price,
+    } = pool_information;
+
+    let user_resource_address = if resource_x == XRD {
+        resource_y
+    } else {
+        resource_x
+    };
+
+    let pool_address = test_runner
+        .execute_manifest(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .caviarnine_v1_pool_new(
+                    caviarnine_v1.package,
+                    rule!(allow_all),
+                    rule!(allow_all),
+                    resource_x,
+                    resource_y,
+                    bin_span,
+                    None,
+                )
+                .build(),
+            vec![],
+        )
+        .expect_commit_success()
+        .new_component_addresses()
+        .first()
+        .copied()
+        .unwrap();
+
+    // Providing liquidity identical to the mainnet pool
+    {
+        // Providing the liquidity to the pools.
+        let (divisibility_x, divisibility_y) = if resource_x == XRD {
+            (18, divisibility)
+        } else {
+            (divisibility, 18)
+        };
+
+        let mut amount_in_bins = {
+            let mut amount = indexmap! {};
+
+            for (tick, amount_x) in bins_above {
+                let (x, _) = amount.entry(tick).or_insert((dec!(0), dec!(0)));
+                *x = amount_x + *x;
+            }
+
+            for (tick, amount_y) in bins_below {
+                let (_, y) = amount.entry(tick).or_insert((dec!(0), dec!(0)));
+                *y = amount_y + *y;
+            }
+
+            amount
+        };
+
+        let amount_x = amount_in_bins
+            .values()
+            .map(|x| x.0)
+            .reduce(|acc, item| acc + item)
+            .unwrap_or_default();
+        let amount_y = amount_in_bins
+            .values()
+            .map(|x| x.1)
+            .reduce(|acc, item| acc + item)
+            .unwrap_or_default();
+
+        let amount_x = amount_x
+            .checked_round(divisibility_x, RoundingMode::ToPositiveInfinity)
+            .unwrap();
+        let amount_y = amount_y
+            .checked_round(divisibility_y, RoundingMode::ToPositiveInfinity)
+            .unwrap();
+
+        let active_amounts =
+            amount_in_bins.remove(&active_tick.unwrap()).unwrap();
+        let positions =
+            vec![(active_tick.unwrap(), active_amounts.0, active_amounts.1)]
+                .into_iter()
+                .chain(amount_in_bins.into_iter().map(|(k, v)| {
+                    (
+                        k,
+                        v.0.checked_round(divisibility_x, RoundingMode::ToZero)
+                            .unwrap(),
+                        v.1.checked_round(divisibility_y, RoundingMode::ToZero)
+                            .unwrap(),
+                    )
+                }))
+                .collect::<Vec<_>>();
+
+        let price_in_simulated_pool = test_runner
+            .execute_manifest_without_auth(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .mint_fungible(resource_x, amount_x)
+                    .mint_fungible(resource_y, amount_y)
+                    .take_all_from_worktop(resource_x, "resource_x")
+                    .take_all_from_worktop(resource_y, "resource_y")
+                    .with_bucket("resource_x", |builder, bucket_x| {
+                        builder.with_bucket(
+                            "resource_y",
+                            |builder, bucket_y| {
+                                builder.caviarnine_v1_pool_add_liquidity(
+                                    pool_address,
+                                    bucket_x,
+                                    bucket_y,
+                                    positions,
+                                )
+                            },
+                        )
+                    })
+                    .deposit_batch(account_address)
+                    .caviarnine_v1_pool_get_price(pool_address)
+                    .build(),
+            )
+            .expect_commit_success()
+            .output::<Option<Decimal>>(7)
+            .unwrap();
+
+        // If this assertion passes, then the pool we've created should be in
+        // the same state as the mainnet one.
+        assert_eq!(price_in_simulated_pool, price.unwrap());
+    }
+
+    // We're allowed to contribute to 200 bins. So, we will contribute to all of
+    // them. This ensures that the maximum amount of price range is covered by
+    // our liquidity.
+    {
+        let positions = vec![(27000u32, dec!(100_000_000), dec!(100_000_000))]
+            .into_iter()
+            .chain((1..=99).flat_map(|i| {
+                vec![
+                    (
+                        27000 - i * bin_span,
+                        dec!(0),
+                        dec!(100_000_000) - Decimal::from(i),
+                    ),
+                    (
+                        27000 + i * bin_span,
+                        dec!(100_000_000) + Decimal::from(i),
+                        dec!(0),
+                    ),
+                ]
+            }))
+            .collect::<Vec<_>>();
+        let x_amount_required = positions
+            .iter()
+            .map(|v| v.1)
+            .reduce(|acc, item| acc + item)
+            .unwrap_or_default();
+        let y_amount_required = positions
+            .iter()
+            .map(|v| v.2)
+            .reduce(|acc, item| acc + item)
+            .unwrap_or_default();
+
+        test_runner
+            .execute_manifest_with_enabled_modules(
+                ManifestBuilder::new()
+                    .mint_fungible(resource_x, x_amount_required)
+                    .mint_fungible(resource_y, y_amount_required)
+                    .take_all_from_worktop(resource_x, "resources_x")
+                    .take_all_from_worktop(resource_y, "resources_y")
+                    .with_name_lookup(|builder, namer| {
+                        let resources_x = namer.bucket("resources_x");
+                        let resources_y = namer.bucket("resources_y");
+
+                        builder.caviarnine_v1_pool_add_liquidity(
+                            pool_address,
+                            resources_x,
+                            resources_y,
+                            positions,
+                        )
+                    })
+                    .deposit_batch(account_address)
+                    .build(),
+                EnabledModules::for_notarized_transaction()
+                    & !EnabledModules::AUTH
+                    & !EnabledModules::COSTING,
+            )
+            .expect_commit_success();
+    }
+
+    // Adding this pool to Ignition.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.ignition,
+                    "add_allowed_pool",
+                    (pool_address,),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Adding this pool to Ignition.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.ignition,
+                    "add_allowed_pool",
+                    (pool_address,),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Updating the price in the Oracle component.
+    let price = test_runner
+        .execute_manifest(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .caviarnine_v1_pool_get_price(pool_address)
+                .build(),
+            vec![],
+        )
+        .expect_commit_success()
+        .output::<Option<Decimal>>(1)
+        .unwrap();
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_x, resource_y, price),
+                )
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_y, resource_x, 1 / price),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Minting some of the resource and depositing them into the user's
+    // account.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .mint_fungible(resource_y, dec!(100_000))
+                .deposit_batch(account_address)
+                .build(),
+        )
+        .expect_commit_success();
+
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
+        ManifestBuilder::new()
+            .lock_fee(account_address, dec!(10))
+            .withdraw_from_account(
+                account_address,
+                user_resource_address,
+                dec!(1000),
+            )
+            .take_all_from_worktop(user_resource_address, "bucket")
+            .with_bucket("bucket", |builder, bucket| {
+                builder.call_method(
+                    protocol.ignition,
+                    "open_liquidity_position",
+                    (
+                        bucket,
+                        pool_address,
+                        LockupPeriod::from_months(6).unwrap(),
+                    ),
+                )
+            })
+            .deposit_batch(account_address)
+            .build(),
+        &private_key,
+    );
+    receipt.expect_commit_success();
+    println!(
+        "Open - Multiplier = {}x, Bin Span = {}, Cost = {} XRD, Execution Cost = {} XRD",
+        multiplier,
+        bin_span,
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
+
+    // Set the current time to be 6 months from now.
+    {
+        let current_time =
+            test_runner.get_current_time(TimePrecisionV2::Minute);
+        let maturity_instant =
+            current_time
+                .add_seconds(
+                    *LockupPeriod::from_months(6).unwrap().seconds() as i64
+                )
+                .unwrap();
+        let db = test_runner.substate_db_mut();
+        let mut writer = SystemDatabaseWriter::new(db);
+
+        writer
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMilliTimestamp.field_index(),
+                ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
+                    ProposerMilliTimestampSubstate {
+                        epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
+                    },
+                ),
+            )
+            .unwrap();
+
+        writer
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
+                ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
+                    ProposerMinuteTimestampSubstate {
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
+                    },
+                ),
+            )
+            .unwrap();
+    }
+
+    // Move the price according to the specified multiplier
+    let new_price = if multiplier.is_positive() {
+        let target_price = price * multiplier;
+        let input_resource = resource_y;
+        let amount_in_each_swap = dec!(100_000_000);
+
+        let mut new_price = price;
+        while new_price < target_price {
+            let reported_price = test_runner
+                .execute_manifest_without_auth(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .mint_fungible(input_resource, amount_in_each_swap)
+                        .take_all_from_worktop(input_resource, "bucket")
+                        .with_bucket("bucket", |builder, bucket| {
+                            builder
+                                .caviarnine_v1_pool_swap(pool_address, bucket)
+                        })
+                        .deposit_batch(account_address)
+                        .caviarnine_v1_pool_get_price(pool_address)
+                        .build(),
+                )
+                .expect_commit_success()
+                .output::<Option<Decimal>>(5)
+                .unwrap();
+
+            if reported_price == new_price {
+                break;
+            } else {
+                new_price = reported_price
+            }
+        }
+
+        new_price
+    } else {
+        let target_price = price / multiplier * dec!(-1);
+        let input_resource = resource_x;
+        let amount_in_each_swap = dec!(1_000_000_000);
+
+        let mut new_price = price;
+        while new_price > target_price {
+            let reported_price = test_runner
+                .execute_manifest_without_auth(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .mint_fungible(input_resource, amount_in_each_swap)
+                        .take_all_from_worktop(input_resource, "bucket")
+                        .with_bucket("bucket", |builder, bucket| {
+                            builder
+                                .caviarnine_v1_pool_swap(pool_address, bucket)
+                        })
+                        .deposit_batch(account_address)
+                        .caviarnine_v1_pool_get_price(pool_address)
+                        .build(),
+                )
+                .expect_commit_success()
+                .output::<Option<Decimal>>(5)
+                .unwrap();
+
+            if reported_price == new_price {
+                break;
+            } else {
+                new_price = reported_price
+            }
+        }
+
+        new_price
+    };
+
+    // Submit the new price to the oracle
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_x, resource_y, new_price),
+                )
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_y, resource_x, 1 / new_price),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Close the position
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
+        ManifestBuilder::new()
+            .lock_fee(account_address, dec!(10))
+            .withdraw_from_account(
+                account_address,
+                caviarnine_v1.liquidity_receipt,
+                dec!(1),
+            )
+            .take_all_from_worktop(caviarnine_v1.liquidity_receipt, "bucket")
+            .with_bucket("bucket", |builder, bucket| {
+                builder.call_method(
+                    protocol.ignition,
+                    "close_liquidity_position",
+                    (bucket,),
+                )
+            })
+            .deposit_batch(account_address)
+            .build(),
+        &private_key,
+    );
+    receipt.expect_commit_success();
+    println!(
+        "Close - Multiplier = {}x, Bin Span = {}, Cost = {} XRD, Execution Cost = {} XRD",
+        multiplier,
+        bin_span,
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
+}
+
 mod mainnet_state {
     use super::*;
     use std::sync::*;
