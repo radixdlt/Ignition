@@ -1,3 +1,5 @@
+#![allow(clippy::arithmetic_side_effects)]
+
 use tests::prelude::*;
 
 #[test]
@@ -572,4 +574,356 @@ pub enum CloseLiquidityResult {
     GetFees,
     SameAmount,
     Reimbursement,
+}
+
+macro_rules! define_price_test {
+    (
+        $($multiplier: expr),* $(,)?
+    ) => {
+        paste::paste! {
+            $(
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease>](
+                ) {
+                    test_effect_of_price_action_on_fees(- $multiplier )
+                }
+
+                #[test]
+                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase>](
+                ) {
+                    test_effect_of_price_action_on_fees($multiplier )
+                }
+            )*
+        }
+    };
+}
+
+define_price_test! {
+    100,
+    90,
+    80,
+    70,
+    60,
+    50,
+    40,
+    30,
+    20,
+    10,
+}
+
+fn test_effect_of_price_action_on_fees(multiplier: i32) {
+    let ScryptoUnitEnv {
+        environment: mut test_runner,
+        protocol,
+        ociswap_v2,
+        resources,
+        ..
+    } = ScryptoUnitEnv::new();
+    let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
+
+    // We will be using the bitcoin pool for this test and the bitcoin resource.
+    let pool_address = ociswap_v2.pools.bitcoin;
+    let pool_resource = resources.bitcoin;
+
+    // Getting the address of the x and y asset to differentiate them from one
+    // another
+    let (resource_x, resource_y) = {
+        let commit_result = test_runner
+            .execute_manifest(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .ociswap_v2_pool_x_address(pool_address)
+                    .ociswap_v2_pool_y_address(pool_address)
+                    .build(),
+                vec![],
+            )
+            .expect_commit_success()
+            .clone();
+
+        (
+            commit_result.output::<ResourceAddress>(1),
+            commit_result.output::<ResourceAddress>(2),
+        )
+    };
+
+    // Adding liquidity between the smallest and largest ticks possible.
+    let price = test_runner
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .mint_fungible(resource_x, dec!(1_000_000_000_000))
+                .mint_fungible(resource_y, dec!(1_000_000_000_000))
+                .take_all_from_worktop(resource_x, "resource_x")
+                .take_all_from_worktop(resource_y, "resource_y")
+                .with_name_lookup(|builder, namer| {
+                    let resource_x = namer.bucket("resource_x");
+                    let resource_y = namer.bucket("resource_y");
+
+                    builder.ociswap_v2_pool_add_liquidity(
+                        pool_address,
+                        -887272,
+                        887272,
+                        resource_x,
+                        resource_y,
+                    )
+                })
+                .ociswap_v2_pool_price_sqrt(pool_address)
+                .deposit_batch(account_address)
+                .build(),
+            EnabledModules::for_notarized_transaction() & !EnabledModules::AUTH,
+        )
+        .expect_commit_success()
+        .output::<PreciseDecimal>(6)
+        .checked_powi(2)
+        .and_then(|value| Decimal::try_from(value).ok())
+        .unwrap();
+
+    // Adding this pool to Ignition.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.ignition,
+                    "add_allowed_pool",
+                    (pool_address,),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Adding this pool to Ignition.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.ignition,
+                    "add_allowed_pool",
+                    (pool_address,),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Updating the price in the Oracle component.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_x, resource_y, price),
+                )
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_y, resource_x, 1 / price),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Minting some of the resource and depositing them into the user's
+    // account.
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .mint_fungible(pool_resource, dec!(100_000))
+                .deposit_batch(account_address)
+                .build(),
+        )
+        .expect_commit_success();
+
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
+        ManifestBuilder::new()
+            .lock_fee(account_address, dec!(10))
+            .withdraw_from_account(account_address, pool_resource, dec!(1000))
+            .take_all_from_worktop(pool_resource, "bucket")
+            .with_bucket("bucket", |builder, bucket| {
+                builder.call_method(
+                    protocol.ignition,
+                    "open_liquidity_position",
+                    (
+                        bucket,
+                        pool_address,
+                        LockupPeriod::from_months(6).unwrap(),
+                    ),
+                )
+            })
+            .deposit_batch(account_address)
+            .build(),
+        &private_key,
+    );
+    receipt.expect_commit_success();
+    println!(
+        "Open - Multiplier = {}x, Cost = {} XRD, Execution Cost = {} XRD",
+        multiplier,
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
+
+    // Set the current time to be 6 months from now.
+    {
+        let current_time =
+            test_runner.get_current_time(TimePrecisionV2::Minute);
+        let maturity_instant =
+            current_time
+                .add_seconds(
+                    *LockupPeriod::from_months(6).unwrap().seconds() as i64
+                )
+                .unwrap();
+        let db = test_runner.substate_db_mut();
+        let mut writer = SystemDatabaseWriter::new(db);
+
+        writer
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMilliTimestamp.field_index(),
+                ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
+                    ProposerMilliTimestampSubstate {
+                        epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
+                    },
+                ),
+            )
+            .unwrap();
+
+        writer
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
+                ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
+                    ProposerMinuteTimestampSubstate {
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
+                    },
+                ),
+            )
+            .unwrap();
+    }
+
+    // Move the price according to the specified multiplier
+    let new_price = if multiplier.is_positive() {
+        let target_price = price * multiplier;
+        let input_resource = resource_y;
+        let amount_in_each_swap = dec!(100_000_000_000);
+
+        let mut new_price = price;
+        while new_price < target_price {
+            let reported_price = test_runner
+                .execute_manifest_without_auth(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .mint_fungible(input_resource, amount_in_each_swap)
+                        .take_all_from_worktop(input_resource, "bucket")
+                        .with_bucket("bucket", |builder, bucket| {
+                            builder.ociswap_v2_pool_swap(pool_address, bucket)
+                        })
+                        .deposit_batch(account_address)
+                        .ociswap_v2_pool_price_sqrt(pool_address)
+                        .build(),
+                )
+                .expect_commit_success()
+                .output::<PreciseDecimal>(5)
+                .checked_powi(2)
+                .and_then(|value| Decimal::try_from(value).ok())
+                .unwrap();
+
+            if reported_price == new_price {
+                break;
+            } else {
+                new_price = reported_price
+            }
+        }
+
+        new_price
+    } else {
+        let target_price = price / multiplier * dec!(-1);
+        let input_resource = resource_x;
+        let amount_in_each_swap = dec!(100_000_000_000);
+
+        let mut new_price = price;
+        while new_price > target_price {
+            let reported_price = test_runner
+                .execute_manifest_without_auth(
+                    ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .mint_fungible(input_resource, amount_in_each_swap)
+                        .take_all_from_worktop(input_resource, "bucket")
+                        .with_bucket("bucket", |builder, bucket| {
+                            builder.ociswap_v2_pool_swap(pool_address, bucket)
+                        })
+                        .deposit_batch(account_address)
+                        .ociswap_v2_pool_price_sqrt(pool_address)
+                        .build(),
+                )
+                .expect_commit_success()
+                .output::<PreciseDecimal>(5)
+                .checked_powi(2)
+                .and_then(|value| Decimal::try_from(value).ok())
+                .unwrap();
+
+            if reported_price == new_price {
+                break;
+            } else {
+                new_price = reported_price
+            }
+        }
+
+        new_price
+    };
+
+    // Submit the new price to the oracle
+    test_runner
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_x, resource_y, new_price),
+                )
+                .call_method(
+                    protocol.oracle,
+                    "set_price",
+                    (resource_y, resource_x, 1 / new_price),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
+    // Close the position
+    let receipt = test_runner.construct_and_execute_notarized_transaction(
+        ManifestBuilder::new()
+            .lock_fee(account_address, dec!(10))
+            .withdraw_from_account(
+                account_address,
+                ociswap_v2.liquidity_receipt,
+                dec!(1),
+            )
+            .take_all_from_worktop(ociswap_v2.liquidity_receipt, "bucket")
+            .with_bucket("bucket", |builder, bucket| {
+                builder.call_method(
+                    protocol.ignition,
+                    "close_liquidity_position",
+                    (bucket,),
+                )
+            })
+            .deposit_batch(account_address)
+            .build(),
+        &private_key,
+    );
+    receipt.expect_commit_success();
+    println!(
+        "Close - Multiplier = {}x, Cost = {} XRD, Execution Cost = {} XRD",
+        multiplier,
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
 }
