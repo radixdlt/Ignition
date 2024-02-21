@@ -16,11 +16,11 @@ pub struct Price {
 impl Price {
     /// Computes the difference ratio between `self` and `other`.
     ///
-    /// Attempts to compute the difference ratio between the two prices:
-    /// `self` and `other`. If the base and the quote are different then a
-    /// reciprocal of the price is used to calculate the difference. A [`None`]
-    /// is returned if `other` has a base or quote resource address that is
-    /// neither the base nor the quote of `self`.
+    /// Attempts to compute the difference ratio between the two prices: `self`
+    /// and `other`. If the base and the quote are different then a inverse of
+    /// the price is used to calculate the difference. A [`None`] is returned if
+    /// `other` has a base or quote resource address that is neither the base
+    /// nor the quote of `self`.
     ///
     /// The equation used for the ratio calculation is obtained from this
     /// [article] can is provided below:
@@ -50,10 +50,9 @@ impl Price {
                 .price
                 .checked_sub(self.price)
                 .and_then(|value| value.checked_abs())
-                .unwrap_or(Decimal::MAX)
-                .checked_div(self.price)
+                .and_then(|value| value.checked_div(self.price))
         } else if self.base == other.quote && self.quote == other.base {
-            self.relative_difference(&other.reciprocal())
+            self.relative_difference(&other.inverse())
         } else {
             None
         }
@@ -68,7 +67,7 @@ impl Price {
     ///
     /// In a price that is BASE/QUOTE the unit is QUOTE/BASE. Therefore, if the
     /// base tokens are passed, their amount is multiplied by the price and then
-    /// returned. If the quote tokens are passed, the reciprocal of the price is
+    /// returned. If the quote tokens are passed, the inverse of the price is
     /// multiplied by the passed amount. Otherwise, the resource does not belong
     /// to this price.
     ///
@@ -97,15 +96,15 @@ impl Price {
         }
     }
 
-    /// Computes the reciprocal of the address.
+    /// Computes the inverse of the address.
     ///
-    /// This method computes the price's reciprocal by exchanging the base with
+    /// This method computes the price's inverse by exchanging the base with
     /// the quote and diving 1 by the price.
     ///
     /// # Returns
     ///
-    /// [`Price`] - The reciprocal of the price.
-    pub fn reciprocal(&self) -> Price {
+    /// [`Price`] - The inverse of the price.
+    pub fn inverse(&self) -> Price {
         Price {
             base: self.quote,
             quote: self.base,
@@ -213,7 +212,7 @@ mod test {
     }
 
     #[test]
-    fn price_reciprocal_is_what_we_expect_it_to_be() {
+    fn price_inverse_is_what_we_expect_it_to_be() {
         // Arrange
         let btc = BITCOIN;
         let usd = USD;
@@ -225,11 +224,11 @@ mod test {
         };
 
         // Act
-        let reciprocal = price.reciprocal();
+        let inverse = price.inverse();
 
         // Assert
-        assert_eq!(reciprocal.base, price.quote);
-        assert_eq!(reciprocal.quote, price.base);
-        assert_eq!(reciprocal.price, dec!(1) / price.price);
+        assert_eq!(inverse.base, price.quote);
+        assert_eq!(inverse.quote, price.base);
+        assert_eq!(inverse.price, dec!(1) / price.price);
     }
 }
