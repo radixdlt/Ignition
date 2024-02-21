@@ -52,7 +52,7 @@ macro_rules! pool {
 /// the following:
 ///
 /// ```math
-/// bins_required = ceil(log(value = multiplier, base = 1.0005) / (2 * bin_span))
+/// bins_required = floor(log(value = multiplier, base = 1.0005) / (2 * bin_span))
 /// ```
 ///
 /// In the case of a bin span of 50, the amount of bins we want to contribute to
