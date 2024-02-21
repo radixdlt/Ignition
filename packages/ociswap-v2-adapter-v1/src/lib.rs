@@ -134,18 +134,30 @@ pub mod adapter {
             // a 20x upside and downside. We calculate this through a function
             // provided by Ociswap: offset = ln(multiplier) / ln(1.0001) and
             // then round up.
-            let active_tick = {
-                pool.price_sqrt()
-                    .checked_powi(2)
-                    .and_then(|value| {
-                        value.checked_div(
-                            dec!(1.0001).ln().expect(OVERFLOW_ERROR),
-                        )
-                    })
-                    .and_then(|value| value.0.checked_div(pdec!(1).0))
-                    .and_then(|value| i32::try_from(value).ok())
-                    .expect(OVERFLOW_ERROR)
-            };
+            //
+            // In Ociswap v2, prices can be calculated from ticks by using the
+            // equation p = 1.0001^t. The currently active tick can be found
+            // from the current price by ln(price) / ln(1.0001).
+            //
+            // The following calculation finds the currently active tick based
+            // on the equation above which all happens using the PreciseDecimal
+            // type. To use the active tick we must convert it to an i32 which
+            // is expected by the Ociswap interface so the I256 of the computed
+            // active tick is divided by PreciseDecimal::ONE.0 to remove all of
+            // the decimal places and just have the integral part which we then
+            // call i32::try_from on.
+            let active_tick = pool
+                .price_sqrt()
+                .checked_powi(2)
+                .and_then(|value| value.ln())
+                .and_then(|ln_price| {
+                    dec!(1.0001)
+                        .ln()
+                        .and_then(|ln_base| ln_price.checked_div(ln_base))
+                })
+                .and_then(|value| value.0.checked_div(PreciseDecimal::ONE.0))
+                .and_then(|value| i32::try_from(value).ok())
+                .expect(OVERFLOW_ERROR);
             let offset = 29959;
 
             let lower_tick =
