@@ -164,6 +164,12 @@ pub mod adapter {
             }
         }
 
+        // This function is here to optimize the adapter for fees. Previously,
+        // getting the price and the active tick were two separate invocations
+        // which proved to be rather costly. Therefore, since we typically need
+        // both pieces of data, this function makes an invocation for the price
+        // and then calculates the active tick from it. The relationship between
+        // the price and tick is: `p(t) = 1.0005 ^ (2*(t - 27000))`.
         pub fn price_and_active_tick(
             &mut self,
             pool_address: ComponentAddress,
@@ -173,6 +179,12 @@ pub mod adapter {
                 .unwrap_or(self.get_pool_information(pool_address));
             let pool = pool!(pool_address);
             let price = pool.get_price()?;
+            // The following division and multiplication by the bin span rounds
+            // the calculated tick down to the nearest multiple of the bin span.
+            // This is because in Caviarnine valid ticks depend on the pool's
+            // bin span and there only exist valid ticks at multiples of the bin
+            // span. Alternatively, you can think of the following bit of code
+            // as active_tick = active_tick - active_tick % bin_span.
             let active_tick = spot_to_tick(price)
                 .and_then(|value| value.checked_div(pool_information.bin_span))
                 .and_then(|value| {
