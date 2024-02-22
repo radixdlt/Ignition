@@ -136,7 +136,7 @@ pub mod adapter {
             // then round up.
             //
             // In Ociswap v2, prices can be calculated from ticks by using the
-            // equation p = 1.0001^t. The currently active tick can be found
+            // equation p(t) = 1.0001^t. The currently active tick can be found
             // from the current price by ln(price) / ln(1.0001).
             //
             // The following calculation finds the currently active tick based
@@ -220,8 +220,7 @@ pub mod adapter {
                 .checked_powi(2)
                 .and_then(|value| Decimal::try_from(value).ok())
                 .expect(OVERFLOW_ERROR);
-            let (resource_x, resource_y) =
-                self.resource_addresses(pool_address);
+            let (resource_x, resource_y) = (pool.x_address(), pool.y_address());
             Price {
                 base: resource_x,
                 quote: resource_y,
