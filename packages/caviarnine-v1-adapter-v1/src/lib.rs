@@ -365,10 +365,7 @@ pub mod adapter {
 
             OpenLiquidityPositionOutput {
                 pool_units: receipt,
-                change: indexmap! {
-                    change_x.resource_address() => change_x,
-                    change_y.resource_address() => change_y,
-                },
+                change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: vec![],
                 adapter_specific_information: adapter_specific_information
                     .into(),
@@ -446,10 +443,7 @@ pub mod adapter {
             };
 
             CloseLiquidityPositionOutput {
-                resources: indexmap! {
-                    resource_x => bucket_x,
-                    resource_y => bucket_y,
-                },
+                resources: IndexedBuckets::from_buckets([bucket_x, bucket_y]),
                 others: Default::default(),
                 fees,
             }

@@ -138,11 +138,7 @@ pub mod adapter {
             OpenLiquidityPositionOutput {
                 pool_units,
                 change: change
-                    .map(|bucket| {
-                        indexmap! {
-                            bucket.resource_address() => bucket
-                        }
-                    })
+                    .map(IndexedBuckets::from_bucket)
                     .unwrap_or_default(),
                 others: Default::default(),
                 adapter_specific_information:
@@ -265,10 +261,7 @@ pub mod adapter {
             };
 
             CloseLiquidityPositionOutput {
-                resources: indexmap! {
-                    bucket1.resource_address() => bucket1,
-                    bucket2.resource_address() => bucket2,
-                },
+                resources: IndexedBuckets::from_buckets([bucket1, bucket2]),
                 others: Default::default(),
                 fees,
             }

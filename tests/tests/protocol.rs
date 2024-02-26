@@ -1287,7 +1287,8 @@ fn user_gets_back_the_same_amount_they_put_in_when_user_resource_price_goes_down
         protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    let indexed_buckets =
+        IndexedBuckets::native_from_buckets(assets_back, env)?;
     assert_eq!(indexed_buckets.len(), 2);
 
     assert_eq!(
@@ -1359,7 +1360,8 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    let indexed_buckets =
+        IndexedBuckets::native_from_buckets(assets_back, env)?;
     assert_eq!(indexed_buckets.len(), 2);
 
     assert_eq!(
@@ -1430,7 +1432,8 @@ fn user_gets_enough_protocol_resource_to_purchase_back_user_assets_lost_due_to_i
         protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    let indexed_buckets =
+        IndexedBuckets::native_from_buckets(assets_back, env)?;
     assert_eq!(indexed_buckets.len(), 2);
 
     assert_eq!(
@@ -1501,7 +1504,8 @@ fn amount_of_protocol_resources_returned_to_user_has_an_upper_bound_of_the_amoun
         protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let indexed_buckets = IndexedBuckets::from_buckets(assets_back, env)?;
+    let indexed_buckets =
+        IndexedBuckets::native_from_buckets(assets_back, env)?;
     assert_eq!(indexed_buckets.len(), 2);
 
     assert_eq!(
@@ -1770,7 +1774,7 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
     let buckets = protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let buckets = IndexedBuckets::from_buckets(buckets, env)?;
+    let buckets = IndexedBuckets::native_from_buckets(buckets, env)?;
     let bitcoin_bucket = buckets.get(&resources.bitcoin).unwrap();
     let amount = bitcoin_bucket.amount(env)?;
     assert_eq!(amount, dec!(99.99999999));
@@ -1825,7 +1829,7 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
     let buckets = protocol.ignition.close_liquidity_position(receipt, env)?;
 
     // Assert
-    let buckets = IndexedBuckets::from_buckets(buckets, env)?;
+    let buckets = IndexedBuckets::native_from_buckets(buckets, env)?;
     let bitcoin_bucket = buckets.get(&resources.bitcoin).unwrap();
     let amount = bitcoin_bucket.amount(env)?;
     assert_eq!(amount, dec!(99.99999999));

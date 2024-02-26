@@ -29,6 +29,7 @@ description = "The implementation of project Ignition in Scrypto for the Radix L
 sbor = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 utils = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 scrypto = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
+native-sdk = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 transaction = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 radix-engine = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }
 radix-engine-common = { git = "https://github.com/radixdlt/radixdlt-scrypto", rev = "ef169b1e1348b8dbad977ba81d086ee1e80d6ff8" }

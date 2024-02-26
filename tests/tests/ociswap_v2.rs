@@ -520,7 +520,7 @@ fn non_strict_testing_of_fees(
         env,
     )?;
 
-    let buckets = IndexedBuckets::from_buckets(
+    let buckets = IndexedBuckets::native_from_buckets(
         protocol.ignition.close_liquidity_position(receipt, env)?,
         env,
     )?;

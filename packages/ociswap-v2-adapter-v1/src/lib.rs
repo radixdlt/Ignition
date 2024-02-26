@@ -170,10 +170,7 @@ pub mod adapter {
 
             OpenLiquidityPositionOutput {
                 pool_units: receipt,
-                change: indexmap! {
-                    change_x.resource_address() => change_x,
-                    change_y.resource_address() => change_y,
-                },
+                change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: Default::default(),
                 adapter_specific_information: AnyValue::from_typed(&())
                     .expect(UNEXPECTED_ERROR),
@@ -201,10 +198,9 @@ pub mod adapter {
                 pool.remove_liquidity(pool_units.as_non_fungible());
 
             CloseLiquidityPositionOutput {
-                resources: indexmap! {
-                    resource_x.resource_address() => resource_x,
-                    resource_y.resource_address() => resource_y,
-                },
+                resources: IndexedBuckets::from_buckets([
+                    resource_x, resource_y,
+                ]),
                 others: vec![],
                 fees: indexmap! {
                     resource_address_x => fees_x,

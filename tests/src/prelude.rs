@@ -3,7 +3,6 @@
 pub use crate::environment::*;
 pub use crate::errors::*;
 pub use crate::extensions::*;
-pub use crate::indexed_buckets::*;
 
 pub use radix_engine::system::system_db_reader::*;
 pub use radix_engine_common::prelude::*;
