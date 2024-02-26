@@ -34,6 +34,7 @@ define_error! {
     NO_ACTIVE_AMOUNTS_ERROR => "Pool has no active amounts.";
     NO_PRICE_ERROR => "Pool has no price.";
     OVERFLOW_ERROR => "Overflow error.";
+    INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
 }
 
 macro_rules! pool {
@@ -364,7 +365,7 @@ pub mod adapter {
                 };
 
             OpenLiquidityPositionOutput {
-                pool_units: receipt,
+                pool_units: IndexedBuckets::from_bucket(receipt),
                 change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: vec![],
                 adapter_specific_information: adapter_specific_information
@@ -375,10 +376,19 @@ pub mod adapter {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            pool_units: Bucket,
+            mut pool_units: Vec<Bucket>,
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
+            let pool_units = {
+                let pool_units_bucket =
+                    pool_units.pop().expect(INVALID_NUMBER_OF_BUCKETS);
+                if !pool_units.is_empty() {
+                    panic!("{}", INVALID_NUMBER_OF_BUCKETS)
+                }
+                pool_units_bucket
+            };
+
             let pool_information @ PoolInformation {
                 bin_span,
                 resources:

@@ -1,3 +1,5 @@
+#![allow(clippy::arithmetic_side_effects)]
+
 use crate::prelude::*;
 
 pub type ScryptoTestEnv = Environment<ScryptoTestEnvironmentSpecifier>;

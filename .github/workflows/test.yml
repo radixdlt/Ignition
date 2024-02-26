@@ -17,15 +17,10 @@ jobs:
         components: rustfmt, clippy
     - name: Add WASM target
       run: rustup target add wasm32-unknown-unknown
-    - name: Install cargo nextest
-      uses: baptiste0928/cargo-install@v1
-      with:
-        crate: cargo-nextest
-        locked: true
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.3
     - name: Run tests
-      run: cargo nextest run 
+      run: cargo test --features package-loader/build-time-blueprints
       env:
         # Enable sccache
         SCCACHE_GHA_ENABLED: "true"

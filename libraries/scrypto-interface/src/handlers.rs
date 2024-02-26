@@ -532,7 +532,7 @@ fn generate_manifest_builder_stub(
         }
 
         #(#attributes)*
-        #[allow(clippy::too_many_arguments)]
+        #[allow(clippy::too_many_arguments, unused_mut)]
         const _: () = {
             impl #trait_ident for ::transaction::builder::ManifestBuilder {
                 #(#implementations)*
@@ -668,11 +668,11 @@ pub fn handle_blueprint_with_traits(
             #[::scrypto::prelude::blueprint]
             #module
 
-            #[allow(clippy::too_many_arguments)]
+            #[allow(clippy::too_many_arguments, unused_mut)]
             const _: () = {
                 struct #blueprint_ident;
 
-                #[allow(unused_variables)]
+                #[allow(unused_variables, unused_mut)]
                 #(#unreachable_trait_impls)*
             };
         })
@@ -791,11 +791,11 @@ mod test {
             }
         }
 
-        #[allow(clippy::too_many_arguments)]
+        #[allow(clippy::too_many_arguments, unused_mut)]
         const _: () = {
             struct Blueprint;
 
-            #[allow (unused_variables)]
+            #[allow (unused_variables, unused_mut)]
             impl MyTrait for Blueprint {
                 fn func1() {
                     unreachable!()

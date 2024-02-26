@@ -460,7 +460,10 @@ fn non_strict_testing_of_fees(
             ),
             env,
         )?
-        .pool_units;
+        .pool_units
+        .into_values()
+        .next()
+        .unwrap();
 
     match price_of_user_asset {
         // User asset price goes down - i.e., we inject it into the pool.

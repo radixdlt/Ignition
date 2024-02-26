@@ -24,6 +24,7 @@ define_error! {
         => "One or more of the resources do not belong to pool.";
     OVERFLOW_ERROR => "Calculation overflowed.";
     UNEXPECTED_ERROR => "Unexpected error.";
+    INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
 }
 
 macro_rules! pool {
@@ -169,7 +170,7 @@ pub mod adapter {
                 pool.add_liquidity(lower_tick, upper_tick, bucket_x, bucket_y);
 
             OpenLiquidityPositionOutput {
-                pool_units: receipt,
+                pool_units: IndexedBuckets::from_bucket(receipt),
                 change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: Default::default(),
                 adapter_specific_information: AnyValue::from_typed(&())
@@ -180,10 +181,18 @@ pub mod adapter {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            pool_units: Bucket,
+            mut pool_units: Vec<Bucket>,
             _: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
+            let pool_units = {
+                let pool_units_bucket =
+                    pool_units.pop().expect(INVALID_NUMBER_OF_BUCKETS);
+                if !pool_units.is_empty() {
+                    panic!("{}", INVALID_NUMBER_OF_BUCKETS)
+                }
+                pool_units_bucket
+            };
 
             // Calculate how much fees were earned on the position while it was
             // opened.

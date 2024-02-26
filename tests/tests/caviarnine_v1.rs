@@ -497,7 +497,9 @@ pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
 
     let caviarnine_receipt = protocol
         .ignition
-        .withdraw_pool_units(ignition_receipt_global_id, env)?;
+        .withdraw_pool_units(ignition_receipt_global_id, env)?
+        .pop()
+        .unwrap();
 
     let mut caviarnine_reported_contributions =
         caviarnine_v1.pools.bitcoin.get_redemption_bin_values(
@@ -667,7 +669,10 @@ fn non_strict_testing_of_fees(
             ),
             env,
         )?
-        .pool_units;
+        .pool_units
+        .into_values()
+        .next()
+        .unwrap();
 
     match price_of_user_asset {
         // User asset price goes down - i.e., we inject it into the pool.

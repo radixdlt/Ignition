@@ -30,6 +30,7 @@ define_error! {
     FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR
         => "Failed to calculate the K value of the pool.";
     OVERFLOW_ERROR => "Calculation overflowed.";
+    INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
 }
 
 macro_rules! pool {
@@ -136,7 +137,7 @@ pub mod adapter {
                 .expect(FAILED_TO_CALCULATE_K_VALUE_OF_POOL_ERROR);
 
             OpenLiquidityPositionOutput {
-                pool_units,
+                pool_units: IndexedBuckets::from_bucket(pool_units),
                 change: change
                     .map(IndexedBuckets::from_bucket)
                     .unwrap_or_default(),
@@ -198,10 +199,19 @@ pub mod adapter {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            pool_units: Bucket,
+            mut pool_units: Vec<Bucket>,
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
+
+            let pool_units = {
+                let pool_units_bucket =
+                    pool_units.pop().expect(INVALID_NUMBER_OF_BUCKETS);
+                if !pool_units.is_empty() {
+                    panic!("{}", INVALID_NUMBER_OF_BUCKETS)
+                }
+                pool_units_bucket
+            };
 
             let (bucket1, bucket2) = pool.remove_liquidity(pool_units);
 
