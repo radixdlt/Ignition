@@ -1,7 +1,7 @@
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_an_ociswap_pool(
+fn can_open_a_simple_position_against_an_ociswap_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -30,7 +30,7 @@ pub fn can_open_a_simple_position_against_an_ociswap_pool(
 }
 
 #[test]
-pub fn price_reported_by_pool_is_equal_to_price_reported_by_adapter(
+fn price_reported_by_pool_is_equal_to_price_reported_by_adapter(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {

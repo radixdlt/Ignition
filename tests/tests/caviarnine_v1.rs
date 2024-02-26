@@ -1,7 +1,9 @@
+#![allow(clippy::arithmetic_side_effects)]
+
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_a_caviarnine_pool(
+fn can_open_a_simple_position_against_a_caviarnine_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -33,7 +35,7 @@ pub fn can_open_a_simple_position_against_a_caviarnine_pool(
 }
 
 #[test]
-pub fn liquidity_receipt_information_can_be_read_through_adapter(
+fn liquidity_receipt_information_can_be_read_through_adapter(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -446,7 +448,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
 }
 
 #[test]
-pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
+fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -793,7 +795,7 @@ fn approximately_equals(a: Decimal, b: Decimal) -> bool {
 }
 
 #[test]
-pub fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
+fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -1224,8 +1226,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
 // happens between calculations. Therefore, we test that the standard deviation
 // of the various `L` values is lower than 0.0001.
 #[test]
-pub fn k_is_equal_in_all_of_the_bins_contributed_to() -> Result<(), RuntimeError>
-{
+fn k_is_equal_in_all_of_the_bins_contributed_to() -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
         environment: ref mut env,

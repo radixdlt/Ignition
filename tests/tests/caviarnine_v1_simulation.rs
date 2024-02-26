@@ -10,6 +10,8 @@
 //! found to test the C9 pools in a "real environment" and ensuring that what
 //! we have works with C9.
 
+#![allow(clippy::arithmetic_side_effects)]
+
 use gateway_client::apis::configuration::Configuration as GatewayConfig;
 use gateway_client::apis::transaction_api::*;
 use gateway_client::models::*;
