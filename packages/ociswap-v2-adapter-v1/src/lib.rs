@@ -41,6 +41,8 @@ pub mod adapter {
 
     impl OciswapV2Adapter {
         pub fn instantiate(
+            _: AccessRule,
+            _: AccessRule,
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,

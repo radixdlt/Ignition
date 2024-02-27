@@ -504,6 +504,8 @@ impl ScryptoTestEnv {
             &mut env,
         )?;
         let ociswap_v1_adapter_v1 = OciswapV1Adapter::instantiate(
+            rule!(allow_all),
+            rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
@@ -511,6 +513,8 @@ impl ScryptoTestEnv {
             &mut env,
         )?;
         let ociswap_v2_adapter_v1 = OciswapV2Adapter::instantiate(
+            rule!(allow_all),
+            rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
@@ -518,6 +522,8 @@ impl ScryptoTestEnv {
             &mut env,
         )?;
         let defiplaza_v2_adapter_v1 = DefiPlazaV2Adapter::instantiate(
+            rule!(allow_all),
+            rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
@@ -525,6 +531,8 @@ impl ScryptoTestEnv {
             &mut env,
         )?;
         let caviarnine_v1_adapter_v1 = CaviarnineV1Adapter::instantiate(
+            rule!(allow_all),
+            rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
@@ -1257,6 +1265,8 @@ impl ScryptoUnitEnv {
                                 blueprint_name,
                                 "instantiate",
                                 (
+                                    rule!(allow_all),
+                                    rule!(allow_all),
                                     MetadataInit::default(),
                                     OwnerRole::None,
                                     None::<ManifestAddressReservation>,

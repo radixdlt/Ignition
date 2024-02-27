@@ -78,6 +78,8 @@ pub mod adapter {
 
     impl CaviarnineV1Adapter {
         pub fn instantiate(
+            _: AccessRule,
+            _: AccessRule,
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
