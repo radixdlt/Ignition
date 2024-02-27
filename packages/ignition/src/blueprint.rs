@@ -38,9 +38,9 @@
 //! changed at runtime after the component has been instantiated, it will be
 //! forever stuck with that protocol's asset. The user assets can be added and
 //! removed by adding and removing pools to the allowed pools list. In the case
-//! of the protocol officially run by RDX Works, the protocol's asset will be
-//! XRD and the user's asset will be BTC, ETH, USDC, and USDT. However, Ignition
-//! is actually general enough that it can be used by projects who would like to
+//! of the official protocol deployment, the protocol's asset will be XRD and
+//! the user's asset will be BTC, ETH, USDC, and USDT. However, Ignition is
+//! actually general enough that it can be used by projects who would like to
 //! improve their liquidity and who're willing to lose some tokens in the
 //! process.
 //!
