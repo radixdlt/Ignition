@@ -1378,7 +1378,7 @@ impl ScryptoUnitEnv {
                             defiplaza_v2_pools,
                             defiplaza_v2_liquidity_receipt_resource,
                             defiplaza_v2_package,
-                            "PlazaDex",
+                            "PlazaPair",
                         ),
                         (
                             caviarnine_v1_adapter_v1,

@@ -184,8 +184,18 @@ pub mod adapter {
             // Step 4: Contribute to the pool. The first bucket to provide the
             // pool is the bucket of the asset in shortage or the asset that we
             // now refer to as "first" and then followed by the "second" bucket.
-            let (first_pool_units, second_change) =
-                pool.add_liquidity(first_bucket, Some(second_bucket));
+            //
+            // In the case of equilibrium we do not contribute the second bucket
+            // and instead just the first bucket.
+            let (first_pool_units, second_change) = match shortage_state {
+                ShortageState::Equilibrium => (
+                    pool.add_liquidity(first_bucket, None).0,
+                    Some(second_bucket),
+                ),
+                ShortageState::Shortage(_) => {
+                    pool.add_liquidity(first_bucket, Some(second_bucket))
+                }
+            };
 
             // Step 5: Calculate and store the original target of the second
             // liquidity position. This is calculated as the amount of assets
