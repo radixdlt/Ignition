@@ -257,19 +257,41 @@ pub mod adapter {
                 PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
             );
 
-            // Calculating the value of liquidity of the left side (all Y) and
-            // the value of liquidity of the right side (all X). Note that the
-            // equations used below are all derived from the following quadric
-            // equation:
+            // This function does not dictate the exact shape that the liquidity
+            // should be in. The invariant that this function ensures is that
+            // the L (L = sqrt(k)) is equal in all of the bins we contribute to
+            // and we don't care what shape of liquidity that corresponds to.
+            // It turns out that the shape of liquidity in this case is a
+            // triangle. As in, a graph whose X axis is the bins and Y axis is
+            // the amounts would be triangular and a graph whose X axis is the
+            // bins and Y axis is the L would be flat.
+            //
+            // We do this for one main reason. We would like liquidity provided
+            // through Caviarnine to be modeled in the same was as Uniswap v2.
+            // In Uniswap v2 the K is the same at all price points. Therefore,
+            // we can say that to model liquidity in the same manner as Uniswap
+            // v2 in Caviarnine then we would need to have an equal K in all of
+            // the bins, this is the invariant described in the paragraph above.
+            //
+            // Recall that all bins below the current price contain only Y and
+            // all bins above the current price contain only X and the bin where
+            // the current price lies contains a mixture of both.
+            //
+            // The code that follows calculates the value of liquidity of the
+            // left side (all Y) and the value of liquidity of the right side
+            // (all X). Note that the equations used below are all derived from
+            // the following quadric equation:
+            //
             // (sqrt(pa) / sqrt(pb) - 1) * L^2 + (x*sqrt(pa) + y / sqrt(pb)) * L + xy = 0
+            //
             // The equation for the left side can be derived by using the
             // knowledge that it is entirely made up of Y and therefore X is
             // zero. Similarly, we can derive the equation for the right side of
             // liquidity by setting Y to zero.
             //
-            // We can also find the equations used below in the paper
+            // The equations we derive match the equations derived in the paper
+            // linked below in equations 5 and 9.
             // https://atiselsts.github.io/pdfs/uniswap-v3-liquidity-math.pdf
-            // which are equations 5 and 9.
             //
             // Lets refer to the equation that finds the left side of liquidity
             // as Ly and to the one that finds the right side of liquidity as
@@ -391,7 +413,8 @@ pub mod adapter {
 
                 // Calculating the amount - we use min here so that if any loss
                 // of precision happens we do not end up exceeding the amount
-                // that we have in total.
+                // that we have in total. The equation used here is derived from
+                // the equation we named as Ly above.
                 let amount = min(
                     bin_higher_price_sqrt
                         .checked_sub(bin_lower_price_sqrt)
@@ -425,7 +448,8 @@ pub mod adapter {
 
                 // Calculating the amount - we use min here so that if any loss
                 // of precision happens we do not end up exceeding the amount
-                // that we have in total.
+                // that we have in total. The equation used here is derived from
+                // the equation we named as Lx above.
                 let amount = min(
                     bin_higher_price_sqrt
                         .checked_sub(bin_lower_price_sqrt)
@@ -748,7 +772,6 @@ pub fn calculate_liquidity(
 
     let reserves_x = PreciseDecimal::from(reserves_x);
     let reserves_y = PreciseDecimal::from(reserves_y);
-    // TODO: Consider caching the the sqrt.
     let lower_price_sqrt = PreciseDecimal::from(lower_price).checked_sqrt()?;
     let upper_price_sqrt = PreciseDecimal::from(upper_price).checked_sqrt()?;
 
