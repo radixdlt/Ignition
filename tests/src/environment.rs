@@ -14,10 +14,12 @@ pub trait EnvironmentSpecifier {
     type SimpleOracle;
     type OciswapV1Pool;
     type OciswapV2Pool;
+    type DefiPlazaV2Pool;
     type CaviarnineV1Pool;
 
     type OciswapV1Adapter;
     type OciswapV2Adapter;
+    type DefiPlazaV2Adapter;
     type CaviarnineV1Adapter;
 
     // Badges
@@ -35,10 +37,12 @@ impl EnvironmentSpecifier for ScryptoTestEnvironmentSpecifier {
     type SimpleOracle = SimpleOracle;
     type OciswapV1Pool = OciswapV1PoolInterfaceScryptoTestStub;
     type OciswapV2Pool = OciswapV2PoolInterfaceScryptoTestStub;
+    type DefiPlazaV2Pool = DefiPlazaV2PoolInterfaceScryptoTestStub;
     type CaviarnineV1Pool = CaviarnineV1PoolInterfaceScryptoTestStub;
 
     type OciswapV1Adapter = OciswapV1Adapter;
     type OciswapV2Adapter = OciswapV2Adapter;
+    type DefiPlazaV2Adapter = DefiPlazaV2Adapter;
     type CaviarnineV1Adapter = CaviarnineV1Adapter;
 
     // Badges
@@ -56,10 +60,12 @@ impl EnvironmentSpecifier for ScryptoUnitEnvironmentSpecifier {
     type SimpleOracle = ComponentAddress;
     type OciswapV1Pool = ComponentAddress;
     type OciswapV2Pool = ComponentAddress;
+    type DefiPlazaV2Pool = ComponentAddress;
     type CaviarnineV1Pool = ComponentAddress;
 
     type OciswapV1Adapter = ComponentAddress;
     type OciswapV2Adapter = ComponentAddress;
+    type DefiPlazaV2Adapter = ComponentAddress;
     type CaviarnineV1Adapter = ComponentAddress;
 
     // Badges
@@ -80,6 +86,12 @@ impl EnvironmentSpecifier for ScryptoUnitEnvironmentSpecifier {
 /// returned back to the caller. Additionally, the auth module will be disabled
 /// by default for the created test environment. If it needs to be enabled then
 /// that must happen after the creation of the environment.  
+// Not quite a todo but more of a thought for the future. We publish all of the
+// packages and create pools for all of the dexes when we realistically will not
+// be using more than a single dex in a test (and if we do then its weird.). It
+// would have been better for this to only be initialized with the state of the
+// dex that we want instead of all of them. That would make it much faster to
+// run.
 pub struct Environment<S>
 where
     S: EnvironmentSpecifier,
@@ -92,6 +104,7 @@ where
     /* Supported Dexes */
     pub ociswap_v1: DexEntities<S::OciswapV1Pool, S::OciswapV1Adapter>,
     pub ociswap_v2: DexEntities<S::OciswapV2Pool, S::OciswapV2Adapter>,
+    pub defiplaza_v2: DexEntities<S::DefiPlazaV2Pool, S::DefiPlazaV2Adapter>,
     pub caviarnine_v1: DexEntities<S::CaviarnineV1Pool, S::CaviarnineV1Adapter>,
 }
 
@@ -144,6 +157,7 @@ impl ScryptoTestEnv {
         // environment. If somebody want it, they can enable it after they
         // instantiate the environment.
         env.disable_auth_module();
+        env.disable_limits_module();
 
         // Creating the badges and their access rules
         let protocol_manager_badge =
@@ -188,7 +202,7 @@ impl ScryptoTestEnv {
 
         // Creating the liquidity receipt resource that each of the exchanges
         // will use.
-        let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
+        let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, defiplaza_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
                 ResourceBuilder::new_ruid_non_fungible::<
                     LiquidityReceipt<AnyValue>,
@@ -383,6 +397,89 @@ impl ScryptoTestEnv {
             )
         };
 
+        let (
+            defiplaza_v2_package,
+            defiplaza_v2_adapter_v1_package,
+            defiplaza_v2_pools,
+        ) = {
+            let defiplaza_v2_pool_package = {
+                let defiplaza_v2_package_wasm =
+                    include_bytes!("../assets/defiplaza_v2.wasm");
+                let defiplaza_v2_package_rpd =
+                    include_bytes!("../assets/defiplaza_v2.rpd");
+                let defiplaza_v2_package_definition =
+                    manifest_decode::<PackageDefinition>(
+                        defiplaza_v2_package_rpd,
+                    )
+                    .unwrap();
+
+                env.call_function_typed::<_, PackagePublishWasmOutput>(
+                    PACKAGE_PACKAGE,
+                    PACKAGE_BLUEPRINT,
+                    PACKAGE_PUBLISH_WASM_IDENT,
+                    &PackagePublishWasmInput {
+                        code: defiplaza_v2_package_wasm.to_vec(),
+                        definition: defiplaza_v2_package_definition,
+                        metadata: Default::default(),
+                    },
+                )?
+                .0
+            };
+
+            let defiplaza_v2_adapter_v1_package =
+                Self::publish_package("defiplaza-v2-adapter-v1", &mut env)?;
+
+            let defiplaza_v2_pools = resource_addresses.try_map(|resource_address| {
+                let (resource_x, resource_y) = if XRD < *resource_address {
+                    (XRD, *resource_address)
+                } else {
+                    (*resource_address, XRD)
+                };
+
+                let mut defiplaza_pool = DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
+                    OwnerRole::None,
+                    resource_x,
+                    resource_y,
+                    // This pair config is obtained from DefiPlaza's
+                    // repo.
+                    PairConfig {
+                        k_in: dec!("0.4"),
+                        k_out: dec!("1"),
+                        fee: dec!("0"),
+                        decay_factor: dec!("0.9512"),
+                    },
+                    dec!(1),
+                    defiplaza_v2_pool_package,
+                    &mut env,
+                )?;
+
+                let resource_x =
+                    ResourceManager(resource_x).mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_y =
+                    ResourceManager(resource_y).mint_fungible(dec!(100_000_000), &mut env)?;
+
+                let (_, change1) =
+                    defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
+                let (_, change2) = defiplaza_pool.add_liquidity(resource_y, None, &mut env)?;
+                let change_amount1 = change1
+                    .map(|bucket| bucket.amount(&mut env).unwrap())
+                    .unwrap_or_default();
+                assert_eq!(change_amount1, dec!(0));
+                let change_amount2 = change2
+                    .map(|bucket| bucket.amount(&mut env).unwrap())
+                    .unwrap_or_default();
+                assert_eq!(change_amount2, dec!(0));
+
+                Ok::<_, RuntimeError>(defiplaza_pool)
+            })?;
+
+            (
+                defiplaza_v2_pool_package,
+                defiplaza_v2_adapter_v1_package,
+                defiplaza_v2_pools,
+            )
+        };
+
         // Instantiating the components.
         let mut simple_oracle = SimpleOracle::instantiate(
             protocol_manager_rule.clone(),
@@ -418,6 +515,13 @@ impl ScryptoTestEnv {
             OwnerRole::None,
             None,
             ociswap_v2_adapter_v1_package,
+            &mut env,
+        )?;
+        let defiplaza_v2_adapter_v1 = DefiPlazaV2Adapter::instantiate(
+            Default::default(),
+            OwnerRole::None,
+            None,
+            defiplaza_v2_adapter_v1_package,
             &mut env,
         )?;
         let caviarnine_v1_adapter_v1 = CaviarnineV1Adapter::instantiate(
@@ -525,6 +629,21 @@ impl ScryptoTestEnv {
             )?;
 
             ignition.insert_pool_information(
+                DefiPlazaV2PoolInterfaceScryptoTestStub::blueprint_id(
+                    defiplaza_v2_package,
+                ),
+                PoolBlueprintInformation {
+                    adapter: defiplaza_v2_adapter_v1.try_into().unwrap(),
+                    allowed_pools: defiplaza_v2_pools
+                        .iter()
+                        .map(|pool| pool.try_into().unwrap())
+                        .collect(),
+                    liquidity_receipt: defiplaza_v2_liquidity_receipt_resource,
+                },
+                &mut env,
+            )?;
+
+            ignition.insert_pool_information(
                 CaviarnineV1PoolInterfaceScryptoTestStub::blueprint_id(
                     caviarnine_v1_package,
                 ),
@@ -564,6 +683,13 @@ impl ScryptoTestEnv {
                 adapter_package: ociswap_v2_adapter_v1_package,
                 adapter: ociswap_v2_adapter_v1,
                 liquidity_receipt: ociswap_v2_liquidity_receipt_resource,
+            },
+            defiplaza_v2: DexEntities {
+                package: defiplaza_v2_package,
+                pools: defiplaza_v2_pools,
+                adapter_package: defiplaza_v2_adapter_v1_package,
+                adapter: defiplaza_v2_adapter_v1,
+                liquidity_receipt: defiplaza_v2_liquidity_receipt_resource,
             },
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,
@@ -670,7 +796,7 @@ impl ScryptoUnitEnv {
                 )
             });
 
-        let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
+        let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, defiplaza_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
                 test_runner
                 .execute_manifest(
@@ -937,6 +1063,110 @@ impl ScryptoUnitEnv {
             )
         };
 
+        let (
+            defiplaza_v2_package,
+            defiplaza_v2_adapter_v1_package,
+            defiplaza_v2_pools,
+        ) = {
+            let defiplaza_v2_pool_package = {
+                let defiplaza_v2_package_wasm =
+                    include_bytes!("../assets/defiplaza_v2.wasm");
+                let defiplaza_v2_package_rpd =
+                    include_bytes!("../assets/defiplaza_v2.rpd");
+                let defiplaza_v2_package_definition =
+                    manifest_decode::<PackageDefinition>(
+                        defiplaza_v2_package_rpd,
+                    )
+                    .unwrap();
+
+                test_runner.publish_package(
+                    (
+                        defiplaza_v2_package_wasm.to_vec(),
+                        defiplaza_v2_package_definition,
+                    ),
+                    Default::default(),
+                    Default::default(),
+                )
+            };
+
+            let (code, definition) =
+                package_loader::PackageLoader::get("defiplaza-v2-adapter-v1");
+            let defiplaza_v2_adapter_v1_package = test_runner.publish_package(
+                (code, definition),
+                Default::default(),
+                OwnerRole::None,
+            );
+
+            let defiplaza_v2_pools =
+                resource_addresses.map(|resource_address| {
+                    let (resource_x, resource_y) = if XRD < *resource_address {
+                        (XRD, *resource_address)
+                    } else {
+                        (*resource_address, XRD)
+                    };
+
+                    let manifest = ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .defi_plaza_v2_pool_instantiate_pair(
+                            defiplaza_v2_pool_package,
+                            OwnerRole::None,
+                            resource_x,
+                            resource_y,
+                            PairConfig {
+                                k_in: dec!("0.4"),
+                                k_out: dec!("1"),
+                                fee: dec!("0"),
+                                decay_factor: dec!("0.9512"),
+                            },
+                            dec!(1),
+                        )
+                        .build();
+                    let component_address = *test_runner
+                        .execute_manifest(manifest, vec![])
+                        .expect_commit_success()
+                        .new_component_addresses()
+                        .first()
+                        .unwrap();
+
+                    let manifest = ManifestBuilder::new()
+                        .lock_fee_from_faucet()
+                        .mint_fungible(XRD, dec!(100_000_000))
+                        .mint_fungible(*resource_address, dec!(100_000_000))
+                        .take_all_from_worktop(resource_x, "resource_x_bucket")
+                        .take_all_from_worktop(resource_y, "resource_y_bucket")
+                        .with_name_lookup(|builder, _| {
+                            let resource_x_bucket =
+                                builder.bucket("resource_x_bucket");
+                            let resource_y_bucket =
+                                builder.bucket("resource_y_bucket");
+                            builder
+                                .defi_plaza_v2_pool_add_liquidity(
+                                    component_address,
+                                    resource_x_bucket,
+                                    None,
+                                )
+                                .defi_plaza_v2_pool_add_liquidity(
+                                    component_address,
+                                    resource_y_bucket,
+                                    None,
+                                )
+                        })
+                        .try_deposit_entire_worktop_or_abort(account, None)
+                        .build();
+                    test_runner
+                        .execute_manifest_without_auth(manifest)
+                        .expect_commit_success();
+
+                    component_address
+                });
+
+            (
+                defiplaza_v2_pool_package,
+                defiplaza_v2_adapter_v1_package,
+                defiplaza_v2_pools,
+            )
+        };
+
         let simple_oracle = test_runner
             .execute_manifest(
                 ManifestBuilder::new()
@@ -1010,10 +1240,11 @@ impl ScryptoUnitEnv {
             .copied()
             .unwrap();
 
-        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, caviarnine_v1_adapter_v1] =
+        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter_v1] =
             [
                 (ociswap_v1_adapter_v1_package, "OciswapV1Adapter"),
                 (ociswap_v2_adapter_v1_package, "OciswapV2Adapter"),
+                (defiplaza_v2_adapter_v1_package, "DefiPlazaV2Adapter"),
                 (caviarnine_v1_adapter_v1_package, "CaviarnineV1Adapter"),
             ]
             .map(|(package_address, blueprint_name)| {
@@ -1143,6 +1374,13 @@ impl ScryptoUnitEnv {
                             "LiquidityPool",
                         ),
                         (
+                            defiplaza_v2_adapter_v1,
+                            defiplaza_v2_pools,
+                            defiplaza_v2_liquidity_receipt_resource,
+                            defiplaza_v2_package,
+                            "PlazaDex",
+                        ),
+                        (
                             caviarnine_v1_adapter_v1,
                             caviarnine_v1_pools,
                             caviarnine_v1_liquidity_receipt_resource,
@@ -1216,6 +1454,13 @@ impl ScryptoUnitEnv {
                 adapter_package: ociswap_v2_adapter_v1_package,
                 adapter: ociswap_v2_adapter_v1,
                 liquidity_receipt: ociswap_v2_liquidity_receipt_resource,
+            },
+            defiplaza_v2: DexEntities {
+                package: defiplaza_v2_package,
+                pools: defiplaza_v2_pools,
+                adapter_package: defiplaza_v2_adapter_v1_package,
+                adapter: defiplaza_v2_adapter_v1,
+                liquidity_receipt: defiplaza_v2_liquidity_receipt_resource,
             },
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,

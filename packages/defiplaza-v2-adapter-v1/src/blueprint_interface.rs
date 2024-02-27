@@ -2,7 +2,7 @@ use scrypto::prelude::*;
 use scrypto_interface::*;
 
 define_interface! {
-    PlazaDex as DefiPlazaV2Pool impl [
+    PlazaPair as DefiPlazaV2Pool impl [
         ScryptoStub,
         ScryptoTestStub,
         #[cfg(feature = "manifest-builder-stubs")]
@@ -47,7 +47,16 @@ define_interface! {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub struct PairConfig {
     pub k_in: Decimal,
@@ -57,7 +66,16 @@ pub struct PairConfig {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub struct TradeAllocation {
     pub base_base: Decimal,
@@ -67,7 +85,16 @@ pub struct TradeAllocation {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub struct PairState {
     pub p0: Decimal,
@@ -78,7 +105,16 @@ pub struct PairState {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub enum Shortage {
     BaseShortage,
@@ -87,7 +123,16 @@ pub enum Shortage {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub enum ShortageState {
     Equilibrium,
@@ -95,7 +140,16 @@ pub enum ShortageState {
 }
 
 #[derive(
-    ScryptoSbor, Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash,
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
 )]
 pub enum Asset {
     Base,
