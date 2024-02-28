@@ -267,3 +267,136 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
 
     assert!(total_execution_cost_in_xrd <= dec!(4.8))
 }
+
+#[test]
+fn fees_are_zero_when_no_swaps_take_place() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let [bitcoin_bucket, xrd_bucket] = [resources.bitcoin, XRD]
+        .map(ResourceManager)
+        .map(|mut resource_manager| {
+            resource_manager.mint_fungible(dec!(100), env).unwrap()
+        });
+
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = defiplaza_v2.adapter.open_liquidity_position(
+        defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+        (bitcoin_bucket, xrd_bucket),
+        env,
+    )?;
+
+    // Act
+    let CloseLiquidityPositionOutput { fees, .. } =
+        defiplaza_v2.adapter.close_liquidity_position(
+            defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+            pool_units.into_values().collect(),
+            adapter_specific_information,
+            env,
+        )?;
+
+    // Assert
+    assert!(fees.values().all(|value| *value == Decimal::ZERO));
+
+    Ok(())
+}
+
+#[test]
+fn a_swap_with_xrd_input_produces_xrd_fees() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let [bitcoin_bucket, xrd_bucket] = [resources.bitcoin, XRD]
+        .map(ResourceManager)
+        .map(|mut resource_manager| {
+            resource_manager.mint_fungible(dec!(100), env).unwrap()
+        });
+
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = defiplaza_v2.adapter.open_liquidity_position(
+        defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+        (bitcoin_bucket, xrd_bucket),
+        env,
+    )?;
+
+    let _ = ResourceManager(XRD)
+        .mint_fungible(dec!(100_000), env)
+        .and_then(|bucket| defiplaza_v2.pools.bitcoin.swap(bucket, env))?;
+
+    // Act
+    let CloseLiquidityPositionOutput { fees, .. } =
+        defiplaza_v2.adapter.close_liquidity_position(
+            defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+            pool_units.into_values().collect(),
+            adapter_specific_information,
+            env,
+        )?;
+
+    // Assert
+    assert_eq!(*fees.get(&resources.bitcoin).unwrap(), dec!(0));
+    assert_ne!(*fees.get(&XRD).unwrap(), dec!(0));
+
+    Ok(())
+}
+
+#[test]
+fn a_swap_with_btc_input_produces_btc_fees() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let [bitcoin_bucket, xrd_bucket] = [resources.bitcoin, XRD]
+        .map(ResourceManager)
+        .map(|mut resource_manager| {
+            resource_manager.mint_fungible(dec!(100), env).unwrap()
+        });
+
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = defiplaza_v2.adapter.open_liquidity_position(
+        defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+        (bitcoin_bucket, xrd_bucket),
+        env,
+    )?;
+
+    let _ = ResourceManager(resources.bitcoin)
+        .mint_fungible(dec!(100_000), env)
+        .and_then(|bucket| defiplaza_v2.pools.bitcoin.swap(bucket, env))?;
+
+    // Act
+    let CloseLiquidityPositionOutput { fees, .. } =
+        defiplaza_v2.adapter.close_liquidity_position(
+            defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+            pool_units.into_values().collect(),
+            adapter_specific_information,
+            env,
+        )?;
+
+    // Assert
+    assert_ne!(*fees.get(&resources.bitcoin).unwrap(), dec!(0));
+    assert_eq!(*fees.get(&XRD).unwrap(), dec!(0));
+
+    Ok(())
+}

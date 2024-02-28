@@ -380,13 +380,13 @@ pub mod adapter {
             };
 
             // Steps 4 and 5
-            let base_fees = std::cmp::min(
+            let base_fees = std::cmp::max(
                 new_base_target
                     .checked_sub(old_base_target)
                     .expect(OVERFLOW_ERROR),
                 Decimal::ZERO,
             );
-            let quote_fees = std::cmp::min(
+            let quote_fees = std::cmp::max(
                 new_quote_target
                     .checked_sub(old_quote_target)
                     .expect(OVERFLOW_ERROR),
