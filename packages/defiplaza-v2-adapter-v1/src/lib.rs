@@ -23,6 +23,7 @@ define_error! {
     OVERFLOW_ERROR => "Calculation overflowed.";
     UNEXPECTED_ERROR => "Unexpected Error.";
     INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
+    NO_PAIR_CONFIG => "The pair config of the provided pool is not known.";
 }
 
 macro_rules! pool {
@@ -34,13 +35,36 @@ macro_rules! pool {
 }
 
 #[blueprint_with_traits]
+#[types(ComponentAddress, PairConfig)]
 pub mod adapter {
-    struct DefiPlazaV2Adapter;
+    enable_method_auth! {
+        roles {
+            protocol_owner => updatable_by: [protocol_owner];
+            protocol_manager => updatable_by: [protocol_manager, protocol_owner];
+        },
+        methods {
+            add_pair_config => restrict_to: [protocol_manager, protocol_owner];
+            /* User methods */
+            price => PUBLIC;
+            resource_addresses => PUBLIC;
+            liquidity_receipt_data => PUBLIC;
+            open_liquidity_position => PUBLIC;
+            close_liquidity_position => PUBLIC;
+        }
+    }
+
+    struct DefiPlazaV2Adapter {
+        /// The pair config of the various pools is constant but there is no
+        /// getter function that can be used to get it on ledger. As such, the
+        /// protocol owner or manager must submit this information to the
+        /// adapter for its operation.
+        pair_config: KeyValueStore<ComponentAddress, PairConfig>,
+    }
 
     impl DefiPlazaV2Adapter {
         pub fn instantiate(
-            _: AccessRule,
-            _: AccessRule,
+            protocol_manager_rule: AccessRule,
+            protocol_owner_rule: AccessRule,
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
@@ -54,15 +78,30 @@ pub mod adapter {
                     .0
                 });
 
-            Self {}
-                .instantiate()
-                .prepare_to_globalize(owner_role)
-                .metadata(ModuleConfig {
-                    init: metadata_init,
-                    roles: Default::default(),
-                })
-                .with_address(address_reservation)
-                .globalize()
+            Self {
+                pair_config: KeyValueStore::new_with_registered_type(),
+            }
+            .instantiate()
+            .prepare_to_globalize(owner_role)
+            .metadata(ModuleConfig {
+                init: metadata_init,
+                roles: Default::default(),
+            })
+            .roles(roles! {
+                protocol_manager => protocol_manager_rule;
+                protocol_owner => protocol_owner_rule;
+            })
+            .with_address(address_reservation)
+            .globalize()
+        }
+
+        pub fn add_pair_config(
+            &mut self,
+            pair_config: IndexMap<ComponentAddress, PairConfig>,
+        ) {
+            for (address, config) in pair_config.into_iter() {
+                self.pair_config.insert(address, config);
+            }
         }
 
         pub fn liquidity_receipt_data(

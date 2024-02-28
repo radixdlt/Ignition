@@ -521,7 +521,7 @@ impl ScryptoTestEnv {
             ociswap_v2_adapter_v1_package,
             &mut env,
         )?;
-        let defiplaza_v2_adapter_v1 = DefiPlazaV2Adapter::instantiate(
+        let mut defiplaza_v2_adapter_v1 = DefiPlazaV2Adapter::instantiate(
             rule!(allow_all),
             rule!(allow_all),
             Default::default(),
@@ -537,6 +537,26 @@ impl ScryptoTestEnv {
             OwnerRole::None,
             None,
             caviarnine_v1_adapter_v1_package,
+            &mut env,
+        )?;
+
+        // Registering all of pair configs to the adapter.
+        defiplaza_v2_adapter_v1.add_pair_config(
+            defiplaza_v2_pools
+                .iter()
+                .map(|pool| ComponentAddress::try_from(pool).unwrap())
+                .map(|address| {
+                    (
+                        address,
+                        PairConfig {
+                            k_in: dec!("0.4"),
+                            k_out: dec!("1"),
+                            fee: dec!("0"),
+                            decay_factor: dec!("0.9512"),
+                        },
+                    )
+                })
+                .collect::<IndexMap<_, _>>(),
             &mut env,
         )?;
 
@@ -1281,6 +1301,33 @@ impl ScryptoUnitEnv {
                     .copied()
                     .unwrap()
             });
+
+        test_runner
+            .execute_manifest(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .call_method(
+                        defiplaza_v2_adapter_v1,
+                        "add_pair_config",
+                        (defiplaza_v2_pools
+                            .iter()
+                            .map(|address| {
+                                (
+                                    address,
+                                    PairConfig {
+                                        k_in: dec!("0.4"),
+                                        k_out: dec!("1"),
+                                        fee: dec!("0"),
+                                        decay_factor: dec!("0.9512"),
+                                    },
+                                )
+                            })
+                            .collect::<IndexMap<_, _>>(),),
+                    )
+                    .build(),
+                vec![],
+            )
+            .expect_commit_success();
 
         // Cache the addresses of the various Caviarnine pools.
         test_runner
