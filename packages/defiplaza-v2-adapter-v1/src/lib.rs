@@ -6,6 +6,8 @@ use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
+// TODO: Remove all logging.
+
 macro_rules! define_error {
     (
         $(
@@ -402,21 +404,34 @@ pub mod adapter {
         }
 
         fn price(&mut self, pool_address: ComponentAddress) -> Price {
-            // TODO: Still not sure how to find the price of assets in DefiPlaza
-            // and I'm working with them on that. For now, I will just say that
-            // the price is one. WE MUST CHANGE THIS BEFORE GOING LIVE!
-            //
-            // More information: The price for selling and buying the asset is
-            // different in DefiPlaza just like an order book (they're not an
-            // order book though). So, there is no current price that you can
-            // buy and sell at but two prices depending on what resource the
-            // input is.
+            // In DefiPlaza there is no concept of a current pool price. Instead
+            // there is a bid and ask kind of like an order book but they're not
+            // one. The price is different depending on whether a given trade
+            // would improve or worsen IL. We say that the current pool price is
+            // the arithmetic mean of the bid and ask prices of the pool.
             let pool = pool!(pool_address);
-            let (base_asset, quote_asset) = pool.get_tokens();
+            let (base_pool, quote_pool) = pool.get_pools();
+            let (base_resource_address, quote_resource_address) =
+                pool.get_tokens();
+            let bid_ask = price_math::calculate_pair_prices(
+                pool.get_state(),
+                *self.pair_config.get(&pool_address).expect(NO_PAIR_CONFIG),
+                Global::<TwoResourcePool>::from(base_pool),
+                Global::<TwoResourcePool>::from(quote_pool),
+            );
+            info!("bid ask = {bid_ask:?}");
+
+            let average_price = bid_ask
+                .bid
+                .checked_add(bid_ask.ask)
+                .and_then(|value| value.checked_div(dec!(2)))
+                .expect(OVERFLOW_ERROR);
+
+            info!("average_price = {average_price}");
             Price {
-                base: base_asset,
-                quote: quote_asset,
-                price: dec!(1),
+                base: base_resource_address,
+                quote: quote_resource_address,
+                price: average_price,
             }
         }
 
@@ -449,5 +464,176 @@ pub struct DefiPlazaV2AdapterSpecificInformation {
 impl From<DefiPlazaV2AdapterSpecificInformation> for AnyValue {
     fn from(value: DefiPlazaV2AdapterSpecificInformation) -> Self {
         AnyValue::from_typed(&value).unwrap()
+    }
+}
+
+// The following functions are copied from the DefiPlaza repository (link:
+// https://github.com/OmegaSyndicate/RadixPlaza) and have been slightly modified
+// so that they're pure functions that require no state. The commit hash that
+// is used here is `574acb12fef95d8040c449dce4d01cfc4115bd35`. DefiPlaza's
+// source code is licensed under the MIT license which allows us to do such
+// copies and modification of code.
+//
+// This module exposes two main functions which are the entrypoints into this
+// module's functionality which calculate the incoming and outgoing spot prices.
+#[allow(clippy::arithmetic_side_effects)]
+mod price_math {
+    use super::*;
+
+    #[derive(
+        ScryptoSbor,
+        ManifestSbor,
+        Copy,
+        Clone,
+        Debug,
+        PartialEq,
+        Eq,
+        PartialOrd,
+        Ord,
+        Hash,
+    )]
+    pub struct PairPrices {
+        pub bid: Decimal,
+        pub ask: Decimal,
+    }
+
+    pub fn calculate_pair_prices(
+        pair_state: PairState,
+        pair_config: PairConfig,
+        base_pool: Global<TwoResourcePool>,
+        quote_pool: Global<TwoResourcePool>,
+    ) -> PairPrices {
+        let input_is_quote = false;
+
+        // Check which pool we're workings with and extract relevant values
+        let (pool, old_pref, _) =
+            select_pool(pair_state, input_is_quote, base_pool, quote_pool);
+        let (actual, surplus, shortfall) =
+            assess_pool(pool, pair_state.target_ratio);
+
+        // Compute time since previous trade and resulting decay factor for the
+        // filter
+        let t =
+            Clock::current_time_rounded_to_minutes().seconds_since_unix_epoch;
+        let delta_t = (t - pair_state.last_outgoing).max(0);
+        let factor =
+            Decimal::checked_powi(&pair_config.decay_factor, delta_t / 60)
+                .unwrap();
+
+        // Calculate the filtered reference price
+        let p_ref_ss = match shortfall > Decimal::ZERO {
+            true => calc_p0_from_curve(
+                shortfall,
+                surplus,
+                pair_state.target_ratio,
+                pair_config.k_in,
+            ),
+            false => old_pref,
+        };
+        let p_ref = factor * old_pref + (Decimal::ONE - factor) * p_ref_ss;
+
+        let adjusted_target_ratio = match actual > Decimal::ZERO {
+            true => calc_target_ratio(p_ref, actual, surplus, pair_config.k_in),
+            false => Decimal::ZERO,
+        };
+        let bid = calc_spot(p_ref, adjusted_target_ratio, pair_config.k_in);
+
+        let last_outgoing_spot = match pool == base_pool {
+            true => pair_state.last_out_spot,
+            false => Decimal::ONE / pair_state.last_out_spot,
+        };
+
+        let incoming_spot =
+            calc_spot(p_ref_ss, pair_state.target_ratio, pair_config.k_in);
+        let outgoing_spot = factor * last_outgoing_spot
+            + (Decimal::ONE - factor) * incoming_spot;
+
+        let ask = outgoing_spot;
+
+        info!("Shortage = {:?}", pair_state.shortage);
+
+        // TODO: What to do at equilibrium?
+        match pair_state.shortage {
+            Shortage::Equilibrium | Shortage::BaseShortage => {
+                PairPrices { bid, ask }
+            }
+            Shortage::QuoteShortage => PairPrices {
+                bid: 1 / ask,
+                ask: 1 / bid,
+            },
+        }
+    }
+
+    const MIN_K_IN: Decimal = dec!(0.001);
+
+    fn select_pool(
+        state: PairState,
+        input_is_quote: bool,
+        base_pool: Global<TwoResourcePool>,
+        quote_pool: Global<TwoResourcePool>,
+    ) -> (Global<TwoResourcePool>, Decimal, bool) {
+        let p_ref = state.p0;
+        let p_ref_inv = Decimal::ONE / p_ref;
+        match (state.shortage, input_is_quote) {
+            (Shortage::BaseShortage, true) => (base_pool, p_ref, false),
+            (Shortage::BaseShortage, false) => (base_pool, p_ref, true),
+            (Shortage::Equilibrium, true) => (base_pool, p_ref, false),
+            (Shortage::Equilibrium, false) => (quote_pool, p_ref_inv, false),
+            (Shortage::QuoteShortage, true) => (quote_pool, p_ref_inv, true),
+            (Shortage::QuoteShortage, false) => (quote_pool, p_ref_inv, false),
+        }
+    }
+
+    fn assess_pool(
+        pool: Global<TwoResourcePool>,
+        target_ratio: Decimal,
+    ) -> (Decimal, Decimal, Decimal) {
+        let reserves = pool.get_vault_amounts();
+        let actual =
+            *reserves.get_index(0).map(|(_addr, amount)| amount).unwrap();
+        let surplus =
+            *reserves.get_index(1).map(|(_addr, amount)| amount).unwrap();
+        let shortfall = target_ratio * actual - actual;
+        (actual, surplus, shortfall)
+    }
+
+    fn calc_p0_from_curve(
+        shortfall: Decimal,
+        surplus: Decimal,
+        target_ratio: Decimal,
+        k: Decimal,
+    ) -> Decimal {
+        assert!(shortfall > Decimal::ZERO, "Invalid shortfall");
+        assert!(surplus > Decimal::ZERO, "Invalid surplus");
+        assert!(target_ratio >= Decimal::ONE, "Invalid target ratio");
+        assert!(k >= MIN_K_IN, "Invalid k");
+
+        // Calculate the price at equilibrium (p0) using the given formula
+        surplus / shortfall / (Decimal::ONE + k * (target_ratio - Decimal::ONE))
+    }
+
+    fn calc_spot(p0: Decimal, target_ratio: Decimal, k: Decimal) -> Decimal {
+        assert!(p0 > Decimal::ZERO, "Invalid p0");
+        assert!(target_ratio >= Decimal::ONE, "Invalid target ratio");
+        assert!(k >= MIN_K_IN, "Invalid k");
+
+        let ratio2 = target_ratio * target_ratio;
+        (Decimal::ONE + k * (ratio2 - Decimal::ONE)) * p0
+    }
+
+    fn calc_target_ratio(
+        p0: Decimal,
+        actual: Decimal,
+        surplus: Decimal,
+        k: Decimal,
+    ) -> Decimal {
+        assert!(p0 > Decimal::ZERO, "Invalid p0");
+        assert!(actual > Decimal::ZERO, "Invalid actual reserves");
+        assert!(surplus >= Decimal::ZERO, "Invalid surplus amount");
+        assert!(k >= MIN_K_IN, "Invalid k");
+
+        let radicand = Decimal::ONE + dec!(4) * k * surplus / p0 / actual;
+        let num = dec!(2) * k - Decimal::ONE + radicand.checked_sqrt().unwrap();
+        num / k / dec!(2)
     }
 }

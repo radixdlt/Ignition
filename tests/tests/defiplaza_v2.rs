@@ -3,7 +3,7 @@
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_a_defiplaza_pool(
+fn can_open_a_simple_position_against_a_defiplaza_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
