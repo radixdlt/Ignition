@@ -400,3 +400,296 @@ fn a_swap_with_btc_input_produces_btc_fees() -> Result<(), RuntimeError> {
 
     Ok(())
 }
+
+#[test]
+fn contributions_to_defiplaza_through_adapter_dont_fail_due_to_bucket_ordering(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let mut results = Vec::<bool>::new();
+    for order in [true, false] {
+        // Arrange
+        let Environment {
+            environment: ref mut env,
+            resources,
+            mut defiplaza_v2,
+            ..
+        } = ScryptoTestEnv::new()?;
+
+        let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
+        let bitcoin_bucket =
+            ResourceManager(resources.bitcoin).mint_fungible(dec!(1), env)?;
+        let buckets = if order {
+            (xrd_bucket, bitcoin_bucket)
+        } else {
+            (bitcoin_bucket, xrd_bucket)
+        };
+
+        // Act
+        let result = defiplaza_v2.adapter.open_liquidity_position(
+            defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+            buckets,
+            env,
+        );
+        results.push(result.is_ok());
+    }
+
+    // Assert
+    assert_eq!(results.len(), 2);
+    assert_eq!(results.iter().filter(|item| **item).count(), 2);
+
+    Ok(())
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_stays_the_same_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_down_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_stays_the_same_and_k_goes_up_the_output_is_the_same_amount_as_the_input(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Same,
+        CloseLiquidityResult::SameAmount,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_stays_the_same_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_down_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_down_and_k_goes_up_the_user_gets_fees(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Down,
+        CloseLiquidityResult::GetFees,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_stays_the_same_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Same,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_down_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Down,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+#[test]
+fn when_price_of_user_asset_goes_up_and_k_goes_up_the_user_gets_reimbursed(
+) -> Result<(), RuntimeError> {
+    non_strict_testing_of_fees(
+        Movement::Up,
+        Movement::Up,
+        CloseLiquidityResult::Reimbursement,
+    )
+}
+
+fn non_strict_testing_of_fees(
+    protocol_coefficient: Movement,
+    price_of_user_asset: Movement,
+    result: CloseLiquidityResult,
+) -> Result<(), RuntimeError> {
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(defiplaza_v2.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
+
+    let bitcoin_amount_in = dec!(100);
+
+    let bitcoin_bucket = ResourceManager(resources.bitcoin)
+        .mint_fungible(bitcoin_amount_in, env)?;
+    let (receipt, _, _) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = defiplaza_v2.adapter.open_liquidity_position(
+        defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+        (
+            ResourceManager(resources.bitcoin)
+                .mint_fungible(dec!(100_000), env)?,
+            ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
+        ),
+        env,
+    )?;
+
+    match price_of_user_asset {
+        // User asset price goes down - i.e., we inject it into the pool.
+        Movement::Down => {
+            let bitcoin_bucket = ResourceManager(resources.bitcoin)
+                .mint_fungible(dec!(450_000_000), env)?;
+            let _ = defiplaza_v2.pools.bitcoin.swap(bitcoin_bucket, env)?;
+        }
+        // The user asset price stays the same. We do not do anything.
+        Movement::Same => {}
+        // User asset price goes up - i.e., we reduce it in the pool.
+        Movement::Up => {
+            let xrd_bucket =
+                ResourceManager(XRD).mint_fungible(dec!(450_000_000), env)?;
+            let _ = defiplaza_v2.pools.bitcoin.swap(xrd_bucket, env)?;
+        }
+    }
+
+    match protocol_coefficient {
+        // Somebody claimed some portion of the pool
+        Movement::Down => {
+            defiplaza_v2.adapter.close_liquidity_position(
+                defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+                pool_units.into_values().collect(),
+                adapter_specific_information,
+                env,
+            )?;
+        }
+        // Nothing
+        Movement::Same => {}
+        // Somebody contributed to the pool some amount
+        Movement::Up => {
+            let _ = defiplaza_v2
+                .adapter
+                .open_liquidity_position(
+                    defiplaza_v2.pools.bitcoin.try_into().unwrap(),
+                    (
+                        ResourceManager(resources.bitcoin)
+                            .mint_fungible(dec!(100_000), env)?,
+                        ResourceManager(XRD)
+                            .mint_fungible(dec!(100_000), env)?,
+                    ),
+                    env,
+                )?
+                .pool_units;
+        }
+    }
+
+    env.set_current_time(Instant::new(
+        *LockupPeriod::from_months(12).unwrap().seconds() as i64,
+    ));
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(defiplaza_v2.pools.bitcoin.try_into().unwrap(), env)?;
+    protocol.oracle.set_price(
+        pool_reported_price.base,
+        pool_reported_price.quote,
+        pool_reported_price.price,
+        env,
+    )?;
+
+    let buckets = IndexedBuckets::native_from_buckets(
+        protocol.ignition.close_liquidity_position(receipt, env)?,
+        env,
+    )?;
+
+    let bitcoin_amount_out = buckets
+        .get(&resources.bitcoin)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToPositiveInfinity)
+        .unwrap();
+    let xrd_amount_out = buckets
+        .get(&XRD)
+        .map(|bucket| bucket.amount(env).unwrap())
+        .unwrap_or_default()
+        .checked_round(5, RoundingMode::ToZero)
+        .unwrap();
+
+    match result {
+        CloseLiquidityResult::GetFees => {
+            // Bitcoin we get back must be strictly greater than what we put in.
+            assert!(bitcoin_amount_out > bitcoin_amount_in);
+            // When we get back fees we MUST not get back any XRD
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::SameAmount => {
+            // Bitcoin we get back must be strictly equal to what we put in.
+            assert_eq!(bitcoin_amount_out, bitcoin_amount_in);
+            // If we get back the same amount then we must NOT get back any XRD.
+            assert_eq!(xrd_amount_out, Decimal::ZERO)
+        }
+        CloseLiquidityResult::Reimbursement => {
+            // Bitcoin we get back must be less than what we put in.
+            assert!(bitcoin_amount_out < bitcoin_amount_in);
+            // We must get back SOME xrd.
+            assert_ne!(xrd_amount_out, Decimal::ZERO);
+        }
+    }
+
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Movement {
+    Down,
+    Same,
+    Up,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CloseLiquidityResult {
+    GetFees,
+    SameAmount,
+    Reimbursement,
+}

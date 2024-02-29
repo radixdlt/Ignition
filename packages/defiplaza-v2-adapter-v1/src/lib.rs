@@ -230,6 +230,11 @@ pub mod adapter {
             //
             // In the case of equilibrium we do not contribute the second bucket
             // and instead just the first bucket.
+            info!("Doing the first one");
+            info!(
+                "Shortage before first contribution: {:?}",
+                pool.get_state().shortage
+            );
             let (first_pool_units, second_change) = match shortage_state {
                 ShortageState::Equilibrium => (
                     pool.add_liquidity(first_bucket, None).0,
@@ -239,6 +244,10 @@ pub mod adapter {
                     pool.add_liquidity(first_bucket, Some(second_bucket))
                 }
             };
+            info!(
+                "Shortage after first contribution: {:?}",
+                pool.get_state().shortage
+            );
 
             // Step 5: Calculate and store the original target of the second
             // liquidity position. This is calculated as the amount of assets
@@ -247,8 +256,13 @@ pub mod adapter {
             let second_original_target = second_bucket.amount();
 
             // Step 6: Add liquidity with the second resource & no co-liquidity.
+            info!("Doing the second one");
             let (second_pool_units, change) =
                 pool.add_liquidity(second_bucket, None);
+            info!(
+                "Shortage after second contribution: {:?}",
+                pool.get_state().shortage
+            );
 
             // TODO: Should we subtract the change from the second original
             // target? Seems like we should if the price if not the same in
@@ -536,7 +550,6 @@ mod price_math {
             true => calc_target_ratio(p_ref, actual, surplus, pair_config.k_in),
             false => Decimal::ZERO,
         };
-        let bid = calc_spot(p_ref, adjusted_target_ratio, pair_config.k_in);
 
         let last_outgoing_spot = match pool == base_pool {
             true => pair_state.last_out_spot,
@@ -544,10 +557,11 @@ mod price_math {
         };
 
         let incoming_spot =
-            calc_spot(p_ref_ss, pair_state.target_ratio, pair_config.k_in);
+            calc_spot(p_ref, adjusted_target_ratio, pair_config.k_in);
         let outgoing_spot = factor * last_outgoing_spot
             + (Decimal::ONE - factor) * incoming_spot;
 
+        let bid = incoming_spot;
         let ask = outgoing_spot;
 
         info!("Shortage = {:?}", pair_state.shortage);
