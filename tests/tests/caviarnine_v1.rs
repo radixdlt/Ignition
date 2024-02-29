@@ -1225,3 +1225,249 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
         receipt.fee_summary.total_execution_cost_in_xrd
     );
 }
+
+// Tests that the k in each of the bins we've contributed to is equal. We cant
+// test for strict equality between them because of the loss of precision that
+// happens between calculations. Therefore, we test that the standard deviation
+// of the various `L` values is lower than 0.0001.
+#[test]
+fn k_is_equal_in_all_of_the_bins_contributed_to() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let pool = caviarnine_v1.pools.bitcoin;
+    let bin_span = pool.get_bin_span(env)?;
+
+    // Act
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        pool.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    let data = caviarnine_v1.adapter.liquidity_receipt_data(
+        NonFungibleGlobalId::new(
+            receipt.0.resource_address(env)?,
+            receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+        ),
+        env,
+    )?;
+
+    let bin_contributions_and_liquidity = data
+        .adapter_specific_information
+        .bin_contributions
+        .into_iter()
+        .map(|(tick, amount)| {
+            let l = calculate_liquidity(
+                amount,
+                tick_to_spot(tick).unwrap(),
+                tick_to_spot(tick + bin_span).unwrap(),
+            )
+            .unwrap();
+
+            (tick, (amount, l))
+        })
+        .collect::<IndexMap<_, _>>();
+
+    let average_liquidity = bin_contributions_and_liquidity
+        .iter()
+        .map(|(_, (_, liquidity))| *liquidity)
+        .reduce(|acc, item| acc + item)
+        .and_then(|value| {
+            value.checked_div(bin_contributions_and_liquidity.len() as u32)
+        })
+        .unwrap();
+
+    let standard_deviation = bin_contributions_and_liquidity
+        .iter()
+        .map(|(_, (_, liquidity))| *liquidity)
+        .map(|liquidity| {
+            (liquidity - average_liquidity).checked_powi(2).unwrap()
+        })
+        .reduce(|acc, item| acc + item)
+        .and_then(|value| {
+            value.checked_div(bin_contributions_and_liquidity.len() as u32)
+        })
+        .and_then(|value| value.checked_sqrt())
+        .unwrap();
+
+    assert!(standard_deviation <= dec!(0.0001));
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = caviarnine_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price,
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = caviarnine_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(1.05),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = caviarnine_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(0.96),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}

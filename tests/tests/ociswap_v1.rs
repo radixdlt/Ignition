@@ -1,3 +1,5 @@
+#![allow(clippy::arithmetic_side_effects)]
+
 use tests::prelude::*;
 
 #[test]
@@ -607,4 +609,130 @@ pub enum CloseLiquidityResult {
     GetFees,
     SameAmount,
     Reimbursement,
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool = ComponentAddress::try_from(ociswap_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price,
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(ociswap_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(1.05),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(ociswap_v1.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v1.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(0.96),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
 }

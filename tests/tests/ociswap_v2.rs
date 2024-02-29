@@ -930,3 +930,162 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         receipt.fee_summary.total_execution_cost_in_xrd
     );
 }
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool = ComponentAddress::try_from(ociswap_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price,
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(ociswap_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(1.05),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut ociswap_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(ociswap_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = ociswap_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(0.96),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, mut change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 1);
+    let change = change.pop().unwrap();
+
+    let change_resource_address = change.resource_address(env)?;
+    let change_amount = change.amount(env)?;
+    assert_eq!(change_resource_address, user_resource);
+    assert_eq!(
+        change_amount,
+        dec!(0),
+        "Change != 0, Change is {}",
+        change_amount
+    );
+
+    Ok(())
+}

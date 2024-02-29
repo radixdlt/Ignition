@@ -283,6 +283,99 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             receipt.fee_summary.total_execution_cost_in_xrd
         );
 
+        let liquidity_receipt_local_id = receipt
+            .expect_commit_success()
+            .application_events
+            .clone()
+            .into_iter()
+            .rev()
+            .filter_map(|(identifier, event)| {
+                if test_runner.event_name(&identifier)
+                    == MintNonFungibleResourceEvent::EVENT_NAME
+                {
+                    Some(
+                        scrypto_decode::<MintNonFungibleResourceEvent>(&event)
+                            .unwrap()
+                            .ids
+                            .first()
+                            .unwrap()
+                            .clone(),
+                    )
+                } else {
+                    None
+                }
+            })
+            .next()
+            .unwrap();
+
+        // Getting the liquidity position receipt information.
+        let liquidity_receipt_data = test_runner
+            .execute_manifest(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .call_method(
+                        caviarnine_v1.adapter,
+                        "liquidity_receipt_data",
+                        (NonFungibleGlobalId::new(
+                            caviarnine_v1.liquidity_receipt,
+                            liquidity_receipt_local_id,
+                        ),),
+                    )
+                    .build(),
+                vec![],
+            )
+            .expect_commit_success()
+            .output::<LiquidityReceipt<CaviarnineV1AdapterSpecificInformation>>(
+                1,
+            );
+
+        // Assert that the K is equal in all of the bins.
+        {
+            let bin_contributions_and_liquidity = liquidity_receipt_data
+                .adapter_specific_information
+                .bin_contributions
+                .into_iter()
+                .map(|(tick, amount)| {
+                    let l = calculate_liquidity(
+                        amount,
+                        tick_to_spot(tick).unwrap(),
+                        tick_to_spot(tick + bin_span).unwrap(),
+                    )
+                    .unwrap();
+
+                    (tick, (amount, l))
+                })
+                .collect::<IndexMap<_, _>>();
+
+            let average_liquidity = bin_contributions_and_liquidity
+                .iter()
+                .map(|(_, (_, liquidity))| *liquidity)
+                .reduce(|acc, item| acc + item)
+                .and_then(|value| {
+                    value.checked_div(
+                        bin_contributions_and_liquidity.len() as u32
+                    )
+                })
+                .unwrap();
+
+            let standard_deviation = bin_contributions_and_liquidity
+                .iter()
+                .map(|(_, (_, liquidity))| *liquidity)
+                .map(|liquidity| {
+                    (liquidity - average_liquidity).checked_powi(2).unwrap()
+                })
+                .reduce(|acc, item| acc + item)
+                .and_then(|value| {
+                    value.checked_div(
+                        bin_contributions_and_liquidity.len() as u32
+                    )
+                })
+                .and_then(|value| value.checked_sqrt())
+                .unwrap();
+
+            assert!(standard_deviation <= dec!(0.0001));
+        }
+
         // Set the current time to be 6 months from now.
         {
             let current_time =
@@ -828,6 +921,93 @@ fn test_effect_of_price_action_on_fees(
         receipt.fee_summary.total_cost(),
         receipt.fee_summary.total_execution_cost_in_xrd
     );
+
+    let liquidity_receipt_local_id = receipt
+        .expect_commit_success()
+        .application_events
+        .clone()
+        .into_iter()
+        .rev()
+        .filter_map(|(identifier, event)| {
+            if test_runner.event_name(&identifier)
+                == MintNonFungibleResourceEvent::EVENT_NAME
+            {
+                Some(
+                    scrypto_decode::<MintNonFungibleResourceEvent>(&event)
+                        .unwrap()
+                        .ids
+                        .first()
+                        .unwrap()
+                        .clone(),
+                )
+            } else {
+                None
+            }
+        })
+        .next()
+        .unwrap();
+
+    // Getting the liquidity position receipt information.
+    let liquidity_receipt_data = test_runner
+        .execute_manifest(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    caviarnine_v1.adapter,
+                    "liquidity_receipt_data",
+                    (NonFungibleGlobalId::new(
+                        caviarnine_v1.liquidity_receipt,
+                        liquidity_receipt_local_id,
+                    ),),
+                )
+                .build(),
+            vec![],
+        )
+        .expect_commit_success()
+        .output::<LiquidityReceipt<CaviarnineV1AdapterSpecificInformation>>(1);
+
+    // Assert that the K is equal in all of the bins.
+    {
+        let bin_contributions_and_liquidity = liquidity_receipt_data
+            .adapter_specific_information
+            .bin_contributions
+            .into_iter()
+            .map(|(tick, amount)| {
+                let l = calculate_liquidity(
+                    amount,
+                    tick_to_spot(tick).unwrap(),
+                    tick_to_spot(tick + bin_span).unwrap(),
+                )
+                .unwrap();
+
+                (tick, (amount, l))
+            })
+            .collect::<IndexMap<_, _>>();
+
+        let average_liquidity = bin_contributions_and_liquidity
+            .iter()
+            .map(|(_, (_, liquidity))| *liquidity)
+            .reduce(|acc, item| acc + item)
+            .and_then(|value| {
+                value.checked_div(bin_contributions_and_liquidity.len() as u32)
+            })
+            .unwrap();
+
+        let standard_deviation = bin_contributions_and_liquidity
+            .iter()
+            .map(|(_, (_, liquidity))| *liquidity)
+            .map(|liquidity| {
+                (liquidity - average_liquidity).checked_powi(2).unwrap()
+            })
+            .reduce(|acc, item| acc + item)
+            .and_then(|value| {
+                value.checked_div(bin_contributions_and_liquidity.len() as u32)
+            })
+            .and_then(|value| value.checked_sqrt())
+            .unwrap();
+
+        assert!(standard_deviation <= dec!(0.0001));
+    }
 
     // Set the current time to be 6 months from now.
     {

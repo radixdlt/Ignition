@@ -320,9 +320,8 @@ mod ignition {
             // If no address reservation is provided then reserve an address to
             // globalize the component to - this is to provide us with a non
             // branching way of globalizing the component.
-            let address_reservation = address_reservation.unwrap_or_else(||
-                Runtime::allocate_component_address(Ignition::blueprint_id()).0,
-            );
+            let address_reservation = address_reservation
+                .unwrap_or_else(|| Runtime::allocate_component_address(Ignition::blueprint_id()).0);
 
             let ignition = {
                 let InitializationParameters {
@@ -468,7 +467,9 @@ mod ignition {
         /// * [`NonFungibleBucket`] - A non-fungible bucket of the liquidity
         /// position resource that gives the holder the right to close their
         /// liquidity position when the lockup period is up.
-        /// * [`FungibleBucket`] - A bucket of the change.
+        /// * [`FungibleBucket`] - A bucket of the upfront reward provided to
+        /// the user based on how long they've locked up their liquidity to
+        /// Ignition.
         /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
         /// return upon contribution, this can be their rewards tokens or
         /// anything else.
@@ -552,11 +553,19 @@ mod ignition {
                     .exchange(user_resource_address, user_resource_amount)
                     .expect(UNEXPECTED_ERROR)
                     .1;
+            let oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding =
+                Decimal::ONE
+                    .checked_add(self.maximum_allowed_price_difference_percentage)
+                    .and_then(|multiplier| {
+                        oracle_reported_value_of_user_resource_in_protocol_resource
+                            .checked_mul(multiplier)
+                    })
+                    .expect(OVERFLOW_ERROR);
 
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
             let protocol_side_of_liquidity = self.withdraw_protocol_resources(
-                oracle_reported_value_of_user_resource_in_protocol_resource,
+                oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding,
                 WithdrawStrategy::Rounded(RoundingMode::ToZero),
                 volatility,
             );
@@ -585,7 +594,7 @@ mod ignition {
                 // underflow.
                 .expect(OVERFLOW_ERROR);
             let amount_of_protocol_tokens_contributed =
-                oracle_reported_value_of_user_resource_in_protocol_resource
+                oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding
                     .checked_sub(
                         change
                             .get(&self.protocol_resource.address())

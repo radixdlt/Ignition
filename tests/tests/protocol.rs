@@ -1,3 +1,5 @@
+#![allow(clippy::arithmetic_side_effects)]
+
 use tests::prelude::*;
 use Volatility::*;
 
