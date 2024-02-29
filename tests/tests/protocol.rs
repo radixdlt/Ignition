@@ -902,7 +902,7 @@ fn liquidity_receipt_data_matches_component_state() -> Result<(), RuntimeError>
         .set_price(resources.bitcoin, XRD, ORACLE_PRICE, env)?;
     protocol
         .ignition
-        .set_maximum_allowed_price_difference_percentage(Decimal::MAX, env)?;
+        .set_maximum_allowed_price_difference_percentage(dec!(0.5), env)?;
 
     let bitcoin_bucket = ResourceManager(resources.bitcoin)
         .mint_fungible(BITCOIN_CONTRIBUTION, env)?;
