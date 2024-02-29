@@ -582,7 +582,7 @@ fn non_strict_testing_of_fees(
         // User asset price goes down - i.e., we inject it into the pool.
         Movement::Down => {
             let bitcoin_bucket = ResourceManager(resources.bitcoin)
-                .mint_fungible(dec!(450_000_000), env)?;
+                .mint_fungible(dec!(10_000_000), env)?;
             let _ = defiplaza_v2.pools.bitcoin.swap(bitcoin_bucket, env)?;
         }
         // The user asset price stays the same. We do not do anything.
@@ -590,7 +590,7 @@ fn non_strict_testing_of_fees(
         // User asset price goes up - i.e., we reduce it in the pool.
         Movement::Up => {
             let xrd_bucket =
-                ResourceManager(XRD).mint_fungible(dec!(450_000_000), env)?;
+                ResourceManager(XRD).mint_fungible(dec!(10_000_000), env)?;
             let _ = defiplaza_v2.pools.bitcoin.swap(xrd_bucket, env)?;
         }
     }
@@ -692,4 +692,130 @@ pub enum CloseLiquidityResult {
     GetFees,
     SameAmount,
     Reimbursement,
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    let pool = ComponentAddress::try_from(defiplaza_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = defiplaza_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price,
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(defiplaza_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = defiplaza_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(1.05),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
+}
+
+#[test]
+fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_price(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut defiplaza_v2,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = ComponentAddress::try_from(defiplaza_v2.pools.bitcoin).unwrap();
+    let user_resource = resources.bitcoin;
+
+    let pool_price = defiplaza_v2.adapter.price(pool, env)?;
+    protocol.oracle.set_price(
+        pool_price.base,
+        pool_price.quote,
+        pool_price.price * dec!(0.96),
+        env,
+    )?;
+
+    let user_resource_bucket =
+        ResourceManager(user_resource).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (_, _, change) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(user_resource_bucket),
+        pool,
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    assert_eq!(change.len(), 0);
+
+    Ok(())
 }
