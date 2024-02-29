@@ -3,7 +3,7 @@
 use tests::prelude::*;
 
 #[test]
-pub fn can_open_a_simple_position_against_a_caviarnine_pool(
+fn can_open_a_simple_position_against_a_caviarnine_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -35,7 +35,7 @@ pub fn can_open_a_simple_position_against_a_caviarnine_pool(
 }
 
 #[test]
-pub fn liquidity_receipt_information_can_be_read_through_adapter(
+fn liquidity_receipt_information_can_be_read_through_adapter(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -448,7 +448,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
 }
 
 #[test]
-pub fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
+fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -795,7 +795,7 @@ fn approximately_equals(a: Decimal, b: Decimal) -> bool {
 }
 
 #[test]
-pub fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
+fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -1219,6 +1219,93 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
         receipt.fee_summary.total_cost(),
         receipt.fee_summary.total_execution_cost_in_xrd
     );
+}
+
+// Tests that the k in each of the bins we've contributed to is equal. We cant
+// test for strict equality between them because of the loss of precision that
+// happens between calculations. Therefore, we test that the standard deviation
+// of the various `L` values is lower than 0.0001.
+#[test]
+fn k_is_equal_in_all_of_the_bins_contributed_to() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new()?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+    let pool = caviarnine_v1.pools.bitcoin;
+    let bin_span = pool.get_bin_span(env)?;
+
+    // Act
+    let (receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        pool.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    let data = caviarnine_v1.adapter.liquidity_receipt_data(
+        NonFungibleGlobalId::new(
+            receipt.0.resource_address(env)?,
+            receipt
+                .0
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+        ),
+        env,
+    )?;
+
+    let bin_contributions_and_liquidity = data
+        .adapter_specific_information
+        .bin_contributions
+        .into_iter()
+        .map(|(tick, amount)| {
+            let l = calculate_liquidity(
+                amount,
+                tick_to_spot(tick).unwrap(),
+                tick_to_spot(tick + bin_span).unwrap(),
+            )
+            .unwrap();
+
+            (tick, (amount, l))
+        })
+        .collect::<IndexMap<_, _>>();
+
+    let average_liquidity = bin_contributions_and_liquidity
+        .iter()
+        .map(|(_, (_, liquidity))| *liquidity)
+        .reduce(|acc, item| acc + item)
+        .and_then(|value| {
+            value.checked_div(bin_contributions_and_liquidity.len() as u32)
+        })
+        .unwrap();
+
+    let standard_deviation = bin_contributions_and_liquidity
+        .iter()
+        .map(|(_, (_, liquidity))| *liquidity)
+        .map(|liquidity| {
+            (liquidity - average_liquidity).checked_powi(2).unwrap()
+        })
+        .reduce(|acc, item| acc + item)
+        .and_then(|value| {
+            value.checked_div(bin_contributions_and_liquidity.len() as u32)
+        })
+        .and_then(|value| value.checked_sqrt())
+        .unwrap();
+
+    assert!(standard_deviation <= dec!(0.0001));
+    Ok(())
 }
 
 #[test]

@@ -31,7 +31,6 @@ macro_rules! define_error {
 define_error! {
     RESOURCE_DOES_NOT_BELONG_ERROR
         => "One or more of the resources do not belong to pool.";
-    NO_ACTIVE_AMOUNTS_ERROR => "Pool has no active amounts.";
     NO_PRICE_ERROR => "Pool has no price.";
     OVERFLOW_ERROR => "Overflow error.";
 }
@@ -249,6 +248,8 @@ pub mod adapter {
             let SelectedTicks {
                 higher_ticks,
                 lower_ticks,
+                lowest_tick,
+                highest_tick,
                 ..
             } = SelectedTicks::select(
                 active_tick,
@@ -256,81 +257,219 @@ pub mod adapter {
                 PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
             );
 
-            // This comment was quickly going out of sync with the constant that
-            // is defined above of the number of bins to contribute to. Thus, to
-            // make this simple, let's say that the number of bins to contribute
-            // to is defined as `m` such that we're contributing to `m` bins to
-            // the left and `m` to the right.
+            // This function does not dictate the exact shape that the liquidity
+            // should be in. The invariant that this function ensures is that
+            // the L (L = sqrt(k)) is equal in all of the bins we contribute to
+            // and we don't care what shape of liquidity that corresponds to.
+            // It turns out that the shape of liquidity in this case is a
+            // triangle. As in, a graph whose X axis is the bins and Y axis is
+            // the amounts would be triangular and a graph whose X axis is the
+            // bins and Y axis is the L would be flat.
             //
-            // Determine the amount of resources that we will add to each of the
-            // bins. We have m on the left and m on the right. But, we also
-            // have the active bin that is composed of both x and y. So, this
-            // be like contributing to m.x and m.y bins where x = 1-y. X here
-            // is the percentage of resources x in the active bin.
-            let (amount_in_active_bin_x, amount_in_active_bin_y) =
-                pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS_ERROR);
-
-            let percentage_in_active_bin_x = amount_in_active_bin_x
-                .checked_mul(price)
-                .and_then(|value| {
-                    value.checked_div(
-                        amount_in_active_bin_x
-                            .checked_mul(price)?
-                            .checked_add(amount_in_active_bin_y)?,
-                    )
-                })
+            // We do this for one main reason. We would like liquidity provided
+            // through Caviarnine to be modeled in the same was as Uniswap v2.
+            // In Uniswap v2 the K is the same at all price points. Therefore,
+            // we can say that to model liquidity in the same manner as Uniswap
+            // v2 in Caviarnine then we would need to have an equal K in all of
+            // the bins, this is the invariant described in the paragraph above.
+            //
+            // Recall that all bins below the current price contain only Y and
+            // all bins above the current price contain only X and the bin where
+            // the current price lies contains a mixture of both.
+            //
+            // The code that follows calculates the value of liquidity of the
+            // left side (all Y) and the value of liquidity of the right side
+            // (all X). Note that the equations used below are all derived from
+            // the following quadric equation:
+            //
+            // (sqrt(pa) / sqrt(pb) - 1) * L^2 + (x*sqrt(pa) + y / sqrt(pb)) * L + xy = 0
+            //
+            // The equation for the left side can be derived by using the
+            // knowledge that it is entirely made up of Y and therefore X is
+            // zero. Similarly, we can derive the equation for the right side of
+            // liquidity by setting Y to zero.
+            //
+            // The equations we derive match the equations derived in the paper
+            // linked below in equations 5 and 9.
+            // https://atiselsts.github.io/pdfs/uniswap-v3-liquidity-math.pdf
+            //
+            // Lets refer to the equation that finds the left side of liquidity
+            // as Ly and to the one that finds the right side of liquidity as
+            // Lx. We will use those named in some of the comments that follow.
+            let current_price = price;
+            let lowest_price = tick_to_spot(lowest_tick).expect(OVERFLOW_ERROR);
+            let highest_price = highest_tick
+                .checked_add(bin_span)
+                .and_then(tick_to_spot)
                 .expect(OVERFLOW_ERROR);
-            let percentage_in_active_bin_y = Decimal::one()
-                .checked_sub(percentage_in_active_bin_x)
-                .expect(OVERFLOW_ERROR);
 
-            // In here, we decide the amount x by the number of higher bins plus
-            // the percentage of the x in the currently active bin since the
-            // pool starting from the current price and upward is
-            // entirely composed of X. Similarly, we divide amount_y
-            // by the number of lower positions plus the percentage
-            // of y in the active bin since the pool starting from
-            // the current price and downward is composed just of y.
-            let position_amount_x = Decimal::from(higher_ticks.len() as u32)
-                .checked_add(percentage_in_active_bin_x)
-                .and_then(|value| amount_x.checked_div(value))
-                .expect(OVERFLOW_ERROR);
-            let position_amount_y = Decimal::from(lower_ticks.len() as u32)
-                .checked_add(percentage_in_active_bin_y)
-                .and_then(|value| amount_y.checked_div(value))
-                .expect(OVERFLOW_ERROR);
+            let current_price_sqrt =
+                current_price.checked_sqrt().expect(OVERFLOW_ERROR);
+            let lowest_price_sqrt =
+                lowest_price.checked_sqrt().expect(OVERFLOW_ERROR);
+            let highest_price_sqrt =
+                highest_price.checked_sqrt().expect(OVERFLOW_ERROR);
 
-            let position_amount_x_in_y =
-                position_amount_x.checked_mul(price).expect(OVERFLOW_ERROR);
-            let (position_amount_x, position_amount_y) =
-                if position_amount_x_in_y > position_amount_y {
-                    let position_amount_y_in_x = position_amount_y
-                        .checked_div(price)
-                        .expect(OVERFLOW_ERROR);
-                    (position_amount_y_in_x, position_amount_y)
-                } else {
-                    (position_amount_x, position_amount_x_in_y)
-                };
+            let liquidity = {
+                // This is equation 9 from the paper I shared above. Applied
+                // between the current price and the lowest price which is the
+                // range in which there is only Y.
+                let liquidity_y = current_price_sqrt
+                    .checked_sub(lowest_price_sqrt)
+                    .and_then(|sqrt_difference| {
+                        amount_y.checked_div(sqrt_difference)
+                    })
+                    .expect(OVERFLOW_ERROR);
 
-            let mut positions = vec![(
-                active_tick,
-                position_amount_x
-                    .checked_mul(percentage_in_active_bin_x)
-                    .expect(OVERFLOW_ERROR),
-                position_amount_y
-                    .checked_mul(percentage_in_active_bin_y)
-                    .expect(OVERFLOW_ERROR),
-            )];
-            positions.extend(
-                lower_ticks
-                    .into_iter()
-                    .map(|bin_id| (bin_id, dec!(0), position_amount_y)),
-            );
-            positions.extend(
-                higher_ticks
-                    .into_iter()
-                    .map(|bin_id| (bin_id, position_amount_x, dec!(0))),
-            );
+                // This is equation 5 from the paper I shared above. Applied
+                // between the current price and the highest price which is the
+                // range in which there is only X.
+                let liquidity_x = amount_x
+                    .checked_mul(current_price_sqrt)
+                    .and_then(|value| value.checked_mul(highest_price_sqrt))
+                    .and_then(|nominator| {
+                        let denominator = highest_price_sqrt
+                            .checked_sub(current_price_sqrt)?;
+
+                        nominator.checked_div(denominator)
+                    })
+                    .expect(OVERFLOW_ERROR);
+
+                // We define the liquidity as the minimum of the X and Y
+                // liquidity such that the position is always balanced.
+                min(liquidity_x, liquidity_y)
+            };
+
+            // At this point, we have found the Lx and the Ly. This tells the
+            // liquidity value that should be in each of the bins. We now
+            // compute the exact amount that should go into each of the bins
+            // based on what's been calculated above. For this, we will derive
+            // an equation for x from Lx and an equation for y from Ly.
+
+            // The first one that we compute is how much should add to the
+            // currently active bin.
+            let (active_bin_amount_x, active_bin_amount_y) = {
+                let bin_lower_tick = active_tick;
+                let bin_higher_tick =
+                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price =
+                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
+                let bin_higher_price =
+                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price_sqrt =
+                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
+                let bin_higher_price_sqrt =
+                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
+
+                let amount_y = current_price_sqrt
+                    .checked_sub(bin_lower_price_sqrt)
+                    .and_then(|price_sqrt_difference| {
+                        price_sqrt_difference.checked_mul(liquidity)
+                    })
+                    .expect(OVERFLOW_ERROR);
+
+                let amount_x = bin_higher_price_sqrt
+                    .checked_sub(current_price_sqrt)
+                    .and_then(|price_sqrt_difference| {
+                        price_sqrt_difference.checked_mul(liquidity)
+                    })
+                    .and_then(|nominator| {
+                        let denominator = current_price_sqrt
+                            .checked_mul(bin_higher_price_sqrt)?;
+
+                        nominator.checked_div(denominator)
+                    })
+                    .expect(OVERFLOW_ERROR);
+
+                (amount_x, amount_y)
+            };
+
+            let mut remaining_x = amount_x
+                .checked_sub(active_bin_amount_x)
+                .expect(OVERFLOW_ERROR);
+            let mut remaining_y = amount_y
+                .checked_sub(active_bin_amount_y)
+                .expect(OVERFLOW_ERROR);
+            let mut positions =
+                vec![(active_tick, active_bin_amount_x, active_bin_amount_y)];
+
+            // Finding the amount of Y to contribute to each one of the lower
+            // bins (contain only Y).
+            for bin_lower_tick in lower_ticks.iter().copied() {
+                let bin_higher_tick =
+                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price =
+                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
+                let bin_higher_price =
+                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price_sqrt =
+                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
+                let bin_higher_price_sqrt =
+                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
+
+                // Calculating the amount - we use min here so that if any loss
+                // of precision happens we do not end up exceeding the amount
+                // that we have in total. The equation used here is derived from
+                // the equation we named as Ly above.
+                let amount = min(
+                    bin_higher_price_sqrt
+                        .checked_sub(bin_lower_price_sqrt)
+                        .and_then(|price_sqrt_difference| {
+                            price_sqrt_difference.checked_mul(liquidity)
+                        })
+                        .expect(OVERFLOW_ERROR),
+                    remaining_y,
+                );
+                remaining_y =
+                    remaining_y.checked_sub(amount).expect(OVERFLOW_ERROR);
+
+                positions.push((bin_lower_tick, dec!(0), amount));
+            }
+
+            // Finding the amount of X to contribute to each one of the higher
+            // bins (contain only X).
+            for bin_lower_tick in higher_ticks.iter().copied() {
+                let bin_higher_tick =
+                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price =
+                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
+                let bin_higher_price =
+                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
+
+                let bin_lower_price_sqrt =
+                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
+                let bin_higher_price_sqrt =
+                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
+
+                // Calculating the amount - we use min here so that if any loss
+                // of precision happens we do not end up exceeding the amount
+                // that we have in total. The equation used here is derived from
+                // the equation we named as Lx above.
+                let amount = min(
+                    bin_higher_price_sqrt
+                        .checked_sub(bin_lower_price_sqrt)
+                        .and_then(|price_sqrt_difference| {
+                            price_sqrt_difference.checked_mul(liquidity)
+                        })
+                        .and_then(|nominator| {
+                            let denominator = bin_lower_price_sqrt
+                                .checked_mul(bin_higher_price_sqrt)?;
+
+                            nominator.checked_div(denominator)
+                        })
+                        .expect(OVERFLOW_ERROR),
+                    remaining_x,
+                );
+                remaining_x =
+                    remaining_x.checked_sub(amount).expect(OVERFLOW_ERROR);
+
+                positions.push((bin_lower_tick, amount, dec!(0)));
+            }
 
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(bucket_x, bucket_y, positions);
@@ -633,7 +772,6 @@ pub fn calculate_liquidity(
 
     let reserves_x = PreciseDecimal::from(reserves_x);
     let reserves_y = PreciseDecimal::from(reserves_y);
-    // TODO: Consider caching the the sqrt.
     let lower_price_sqrt = PreciseDecimal::from(lower_price).checked_sqrt()?;
     let upper_price_sqrt = PreciseDecimal::from(upper_price).checked_sqrt()?;
 
