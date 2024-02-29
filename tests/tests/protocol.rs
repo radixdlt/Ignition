@@ -196,7 +196,7 @@ fn cant_open_a_liquidity_position_by_providing_the_protocol_resource(
 }
 
 #[test]
-pub fn can_open_a_liquidity_position_before_the_price_is_stale(
+fn can_open_a_liquidity_position_before_the_price_is_stale(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -229,7 +229,7 @@ pub fn can_open_a_liquidity_position_before_the_price_is_stale(
 }
 
 #[test]
-pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
+fn can_open_a_liquidity_position_right_before_price_goes_stale(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -265,7 +265,7 @@ pub fn can_open_a_liquidity_position_right_before_price_goes_stale(
 }
 
 #[test]
-pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
+fn cant_open_a_liquidity_position_right_after_price_goes_stale(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -301,7 +301,7 @@ pub fn cant_open_a_liquidity_position_right_after_price_goes_stale(
 }
 
 #[test]
-pub fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_within_allowed_relative_difference(
+fn can_open_liquidity_position_when_oracle_price_is_lower_than_pool_but_within_allowed_relative_difference(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {

@@ -9,6 +9,8 @@ const MAXIMUM_TICK_VALUE: usize = 54000;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SelectedTicks {
     pub active_tick: u32,
+    pub lowest_tick: u32,
+    pub highest_tick: u32,
     pub lower_ticks: Vec<u32>,
     pub higher_ticks: Vec<u32>,
 }
@@ -147,6 +149,8 @@ impl SelectedTicks {
             active_tick,
             higher_ticks: vec![],
             lower_ticks: vec![],
+            lowest_tick: active_tick,
+            highest_tick: active_tick,
         };
 
         let mut remaining = preferred_total_number_of_higher_and_lower_ticks;
@@ -181,6 +185,9 @@ impl SelectedTicks {
                 break;
             }
         }
+
+        selected_ticks.highest_tick = forward_counter.0;
+        selected_ticks.lowest_tick = backward_counter.0;
 
         selected_ticks
     }
