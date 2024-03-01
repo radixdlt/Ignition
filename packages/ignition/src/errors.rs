@@ -54,4 +54,8 @@ define_error! {
     BOTH_POOL_ASSETS_ARE_THE_PROTOCOL_RESOURCE
         => "The user resource can not be the protocol resource.";
     OVERFLOW_ERROR => "Overflow error";
+    INVALID_MAXIMUM_PRICE_STALENESS
+        => "Price staleness must be a positive or zero integer";
+    INVALID_UPFRONT_REWARD_PERCENTAGE
+        => "Upfront rewards must be positive or zero decimals";
 }

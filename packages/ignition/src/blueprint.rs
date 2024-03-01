@@ -1545,6 +1545,7 @@ mod ignition {
         /// * `value`: [`i64`] - The maximum allowed staleness period in
         /// seconds.
         pub fn set_maximum_allowed_price_staleness(&mut self, value: i64) {
+            assert!(value >= 0, "{}", INVALID_MAXIMUM_PRICE_STALENESS);
             self.maximum_allowed_price_staleness = value
         }
 
@@ -1576,6 +1577,11 @@ mod ignition {
             lockup_period: LockupPeriod,
             percentage: Decimal,
         ) {
+            assert!(
+                percentage >= Decimal::ZERO,
+                "{}",
+                INVALID_UPFRONT_REWARD_PERCENTAGE
+            );
             self.reward_rates.insert(lockup_period, percentage)
         }
 
