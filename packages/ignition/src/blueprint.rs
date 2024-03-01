@@ -528,7 +528,7 @@ mod ignition {
             // Compare the price difference between the oracle reported price
             // and the pool reported price - ensure that it is within the
             // allowed price difference range.
-            let oracle_reported_price = {
+            let (oracle_reported_price, pool_reported_price) = {
                 let oracle_reported_price = self.checked_get_price(
                     user_resource_address,
                     self.protocol_resource.address(),
@@ -545,27 +545,54 @@ mod ignition {
                     RELATIVE_PRICE_DIFFERENCE_LARGER_THAN_ALLOWED_ERROR
                 );
 
-                oracle_reported_price
+                (oracle_reported_price, pool_reported_price)
             };
 
-            let oracle_reported_value_of_user_resource_in_protocol_resource =
-                oracle_reported_price
+            let pool_reported_value_of_user_resource_in_protocol_resource =
+                pool_reported_price
                     .exchange(user_resource_address, user_resource_amount)
                     .expect(UNEXPECTED_ERROR)
                     .1;
-            let oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding =
-                Decimal::ONE
-                    .checked_add(self.maximum_allowed_price_difference_percentage)
-                    .and_then(|multiplier| {
-                        oracle_reported_value_of_user_resource_in_protocol_resource
-                            .checked_mul(multiplier)
+
+            // An assertion added for safety - the pool reported value of the
+            // resources must be less than (1 + padding_percentage) * oracle
+            // price.
+            {
+                let maximum_amount = Decimal::ONE
+                    .checked_add(
+                        self.maximum_allowed_price_difference_percentage,
+                    )
+                    .and_then(|padding| {
+                        oracle_reported_price
+                            .exchange(
+                                user_resource_address,
+                                user_resource_amount,
+                            )
+                            .expect(UNEXPECTED_ERROR)
+                            .1
+                            .checked_mul(padding)
+                    })
+                    .and_then(|value| {
+                        // 17 decimal places so that 9.99 (with 18 nines) rounds
+                        // to 10. Essentially fixing for any small loss of
+                        // precision.
+                        value
+                            .checked_round(17, RoundingMode::ToPositiveInfinity)
                     })
                     .expect(OVERFLOW_ERROR);
+                assert!(
+                    pool_reported_value_of_user_resource_in_protocol_resource
+                        <= maximum_amount,
+                    "Amount provided by Ignition exceeds the maximum allowed at the current price. Provided: {}, Maximum allowed: {}",
+                    pool_reported_value_of_user_resource_in_protocol_resource,
+                    maximum_amount
+                );
+            }
 
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
             let protocol_side_of_liquidity = self.withdraw_protocol_resources(
-                oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding,
+                pool_reported_value_of_user_resource_in_protocol_resource,
                 WithdrawStrategy::Rounded(RoundingMode::ToZero),
                 volatility,
             );
@@ -594,7 +621,7 @@ mod ignition {
                 // underflow.
                 .expect(OVERFLOW_ERROR);
             let amount_of_protocol_tokens_contributed =
-                oracle_reported_value_of_user_resource_in_protocol_resource_plus_padding
+                pool_reported_value_of_user_resource_in_protocol_resource
                     .checked_sub(
                         change
                             .get(&self.protocol_resource.address())
