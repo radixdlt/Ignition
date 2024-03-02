@@ -27,6 +27,7 @@ caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", f
 state-manager = { git = "https://github.com/radixdlt/babylon-node", rev = "63a8267196995fef0830e4fbf0271bea65c90ab1" }
 
 hex = { version = "0.4.3" }
+rand = "0.8.5"
 
 [lints]
 workspace = true

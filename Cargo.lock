@@ -2028,6 +2028,7 @@ dependencies = [
  "radix-engine-common",
  "radix-engine-interface",
  "radix-engine-store-interface",
+ "rand 0.8.5",
  "sbor",
  "scrypto-unit",
  "state-manager",

@@ -251,6 +251,12 @@ impl Executor for GatewayExecutor {
                 .epoch as u64,
         ))
     }
+
+    fn get_network_definition(
+        &mut self,
+    ) -> Result<NetworkDefinition, Self::Error> {
+        Ok(self.network_definition.clone())
+    }
 }
 
 fn native_public_key_to_gateway_public_key(

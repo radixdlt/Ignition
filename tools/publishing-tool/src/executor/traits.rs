@@ -20,6 +20,10 @@ pub trait Executor {
     ) -> Result<TransactionReceiptV1, Self::Error>;
 
     fn get_current_epoch(&mut self) -> Result<Epoch, Self::Error>;
+
+    fn get_network_definition(
+        &mut self,
+    ) -> Result<NetworkDefinition, Self::Error>;
 }
 
 /// A simplified transaction receipt containing the key pieces of information

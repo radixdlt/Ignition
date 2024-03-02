@@ -90,6 +90,12 @@ impl<'s> Executor for MainnetSimulatorExecutor<'s> {
     fn get_current_epoch(&mut self) -> Result<Epoch, Self::Error> {
         Ok(self.0.get_current_epoch())
     }
+
+    fn get_network_definition(
+        &mut self,
+    ) -> Result<NetworkDefinition, Self::Error> {
+        Ok(NetworkDefinition::mainnet())
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
