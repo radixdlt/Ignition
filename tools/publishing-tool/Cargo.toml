@@ -1,0 +1,32 @@
+[package]
+name = "publishing-tool"
+description = "A configurable tool used to publish Ignition to various networks."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sbor = { workspace = true }
+transaction = { workspace = true }
+scrypto-unit = { workspace = true }
+radix-engine = { workspace = true }
+radix-engine-common = { workspace = true }
+radix-engine-interface = { workspace = true }
+radix-engine-store-interface = { workspace = true }
+
+common = { path = "../../libraries/common" }
+ignition = { path = "../../packages/ignition" }
+package-loader = { path = "../../libraries/package-loader" }
+gateway-client = { path = "../../libraries/gateway-client" }
+ociswap-v1-adapter-v1 = { path = "../../packages/ociswap-v1-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+
+state-manager = { git = "https://github.com/radixdlt/babylon-node", rev = "63a8267196995fef0830e4fbf0271bea65c90ab1" }
+
+hex = { version = "0.4.3" }
+
+[lints]
+workspace = true
