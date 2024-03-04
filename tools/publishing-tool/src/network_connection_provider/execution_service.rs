@@ -1,6 +1,8 @@
+use itertools::*;
 use radix_engine::transaction::*;
 use radix_engine_common::prelude::*;
 use radix_engine_interface::blueprints::account::*;
+use transaction::manifest::*;
 use transaction::model::*;
 use transaction::prelude::*;
 
@@ -8,7 +10,7 @@ use super::*;
 
 /// A simple execution service whose main responsibilities is to construct,
 /// submit, and return the result of transactions.
-pub struct ExecutionService<'e, E: Executor> {
+pub struct ExecutionService<'e, E: NetworkConnectionProvider> {
     /// The executor that the service will use to execute transactions.
     executor: &'e mut E,
     /// The account to use for the payment of fees.
@@ -16,37 +18,50 @@ pub struct ExecutionService<'e, E: Executor> {
     /// The notary of the transaction
     notary_private_key: &'e PrivateKey,
     /// The set of private keys that should sign the transaction.
-    signers_private_keys: &'e [PrivateKey],
+    signers_private_keys: &'e [&'e PrivateKey],
 }
 
-impl<'e, E: Executor> ExecutionService<'e, E> {
+impl<'e, E: NetworkConnectionProvider> ExecutionService<'e, E> {
     pub fn new(
         executor: &'e mut E,
         fee_payer_account_address: ComponentAddress,
         notary_private_key: &'e PrivateKey,
-        additional_signatures: &'e [PrivateKey],
+        signers_private_keys: &'e [&'e PrivateKey],
     ) -> Self {
         Self {
             executor,
             fee_payer_account_address,
             notary_private_key,
-            signers_private_keys: additional_signatures,
+            signers_private_keys,
         }
     }
 
     pub fn execute_manifest(
         &mut self,
         mut manifest: TransactionManifestV1,
-    ) -> Result<ExecutionReceipt, ExecutionServiceError<E>> {
+    ) -> Result<
+        ExecutionReceiptSuccessContents,
+        ExecutionServiceError<<E as NetworkConnectionProvider>::Error>,
+    > {
+        // If the manifest is empty (has no instructions) do no work
+        if manifest.instructions.is_empty() {
+            return Ok(ExecutionReceiptSuccessContents {
+                new_entities: Default::default(),
+            });
+        }
+
         // The signers for the transaction
         let notary_is_signatory =
             self.signers_private_keys.iter().any(|private_key| {
                 private_key.public_key() == self.notary_private_key.public_key()
             });
-        let signer_private_keys =
-            self.signers_private_keys.iter().filter(|private_key| {
+        let signer_private_keys = self
+            .signers_private_keys
+            .iter()
+            .filter(|private_key| {
                 private_key.public_key() != self.notary_private_key.public_key()
-            });
+            })
+            .unique_by(|private_key| private_key.public_key());
 
         // Getting the current network definition
         let network_definition = self
@@ -88,12 +103,14 @@ impl<'e, E: Executor> ExecutionService<'e, E> {
                     },
                     message: MessageV1::None,
                 },
-                signer_public_keys: signer_private_keys
-                    .clone()
+                signer_public_keys: self
+                    .signers_private_keys
+                    .iter()
                     .map(|private_key| private_key.public_key())
+                    .unique()
                     .collect(),
                 flags: PreviewFlags {
-                    use_free_credit: false,
+                    use_free_credit: true,
                     assume_all_signature_proofs: false,
                     skip_epoch_check: false,
                 },
@@ -109,7 +126,9 @@ impl<'e, E: Executor> ExecutionService<'e, E> {
             );
         }
         let total_fees = preview_receipt.fee_summary.total_cost();
-        let total_fees_plus_padding = total_fees * dec!(1.20);
+        let total_fees_plus_padding =
+            total_fees + self.signers_private_keys.len() * dec!(0.5);
+        let total_fees_plus_padding = total_fees_plus_padding * dec!(1.10);
 
         // Adding a lock fee instruction to the manifest.
         manifest.instructions.insert(
@@ -125,10 +144,11 @@ impl<'e, E: Executor> ExecutionService<'e, E> {
         );
 
         // Constructing the transaction.
-        let mut transaction_builder =
-            TransactionBuilder::new().header(header).manifest(manifest);
+        let mut transaction_builder = TransactionBuilder::new()
+            .header(header)
+            .manifest(manifest.clone());
         for signer_private_key in signer_private_keys {
-            transaction_builder = transaction_builder.sign(signer_private_key)
+            transaction_builder = transaction_builder.sign(*signer_private_key)
         }
         let transaction = transaction_builder
             .notarize(self.notary_private_key)
@@ -140,13 +160,46 @@ impl<'e, E: Executor> ExecutionService<'e, E> {
             .execute_transaction(&transaction)
             .map_err(ExecutionServiceError::ExecutorError)?;
 
-        Ok(receipt)
+        // Do a match on the receipt and error out if execution failed. If it
+        // did not, then return the success contents.
+        match receipt {
+            ExecutionReceipt::CommitSuccess(success_contents) => {
+                Ok(success_contents)
+            }
+            ExecutionReceipt::CommitFailure { reason }
+            | ExecutionReceipt::Rejection { reason }
+            | ExecutionReceipt::Abort { reason } => {
+                let decompiled_manifest =
+                    decompile(&manifest.instructions, &network_definition)
+                        .map_err(
+                            ExecutionServiceError::ManifestDecompilationFailed,
+                        )?;
+                Err(
+                    ExecutionServiceError::TransactionExecutionWasNotSuccessful {
+                        manifest: decompiled_manifest,
+                        reason,
+                    },
+                )
+            }
+        }
+    }
+
+    pub fn with_network_connection_provider<F, O>(&mut self, callback: F) -> O
+    where
+        F: Fn(&mut E) -> O,
+    {
+        callback(self.executor)
     }
 }
 
 #[derive(Debug)]
-pub enum ExecutionServiceError<E: Executor> {
-    ExecutorError(<E as Executor>::Error),
+pub enum ExecutionServiceError<E> {
+    ExecutorError(E),
+    ManifestDecompilationFailed(DecompileError),
+    TransactionExecutionWasNotSuccessful {
+        manifest: String,
+        reason: String,
+    },
     TransactionPreviewWasNotSuccessful(
         TransactionManifestV1,
         TransactionReceipt,

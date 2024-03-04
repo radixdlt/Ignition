@@ -458,8 +458,7 @@ impl ScryptoTestEnv {
                 let resource_y =
                     ResourceManager(resource_y).mint_fungible(dec!(100_000_000), &mut env)?;
 
-                let (_, change1) =
-                    defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
+                let (_, change1) = defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
                 let (_, change2) = defiplaza_pool.add_liquidity(resource_y, None, &mut env)?;
                 let change_amount1 = change1
                     .map(|bucket| bucket.amount(&mut env).unwrap())

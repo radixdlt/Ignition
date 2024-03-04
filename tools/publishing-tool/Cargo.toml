@@ -17,7 +17,14 @@ common = { path = "../../libraries/common" }
 ignition = { path = "../../packages/ignition" }
 package-loader = { path = "../../libraries/package-loader" }
 gateway-client = { path = "../../libraries/gateway-client" }
+
 ociswap-v1-adapter-v1 = { path = "../../packages/ociswap-v1-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+ociswap-v2-adapter-v1 = { path = "../../packages/ociswap-v2-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+defiplaza-v2-adapter-v1 = { path = "../../packages/defiplaza-v2-adapter-v1", features = [
     "manifest-builder-stubs",
 ] }
 caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
@@ -25,9 +32,17 @@ caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", f
 ] }
 
 state-manager = { git = "https://github.com/radixdlt/babylon-node", rev = "63a8267196995fef0830e4fbf0271bea65c90ab1" }
+sbor-json = { git = "https://github.com/radixdlt/radix-engine-toolkit", rev = "1cfe879c7370cfa497857ada7a8973f8a3388abc" }
 
 hex = { version = "0.4.3" }
-rand = "0.8.5"
+rand = { version = "0.8.5" }
+macro_rules_attribute = { version = "0.2.0" }
+log = "0.4.21"
+env_logger = "0.11.2"
+hex-literal = "0.4.1"
+itertools = "0.12.1"
+serde_json = "1.0.114"
+clap = { version = "4.5.1", features = ["derive"] }
 
 [lints]
 workspace = true

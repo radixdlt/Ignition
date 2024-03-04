@@ -1,7 +1,8 @@
 use super::*;
 use gateway_client::apis::configuration::*;
-use gateway_client::apis::status_api::gateway_status;
+use gateway_client::apis::state_api::*;
 use gateway_client::apis::status_api::GatewayStatusError;
+use gateway_client::apis::status_api::*;
 use gateway_client::apis::transaction_api::*;
 use gateway_client::apis::Error as GatewayClientError;
 use gateway_client::models::*;
@@ -9,7 +10,7 @@ use radix_engine::transaction::*;
 use transaction::manifest::*;
 use transaction::prelude::*;
 
-pub struct GatewayExecutor {
+pub struct GatewayNetworkConnector {
     /// The configuration to use when making gateway HTTP requests.
     pub configuration: Configuration,
     /// The network definition of the network that the gateway talks to.
@@ -18,7 +19,7 @@ pub struct GatewayExecutor {
     pub polling_configuration: PollingConfiguration,
 }
 
-impl GatewayExecutor {
+impl GatewayNetworkConnector {
     pub fn new(
         base_url: impl ToOwned<Owned = String>,
         network_definition: NetworkDefinition,
@@ -35,7 +36,7 @@ impl GatewayExecutor {
     }
 }
 
-impl Executor for GatewayExecutor {
+impl NetworkConnectionProvider for GatewayNetworkConnector {
     type Error = GatewayExecutorError;
 
     fn execute_transaction(
@@ -83,6 +84,11 @@ impl Executor for GatewayExecutor {
                 | TransactionIntentStatus::CommitPendingOutcomeUnknown
                 | TransactionIntentStatus::Pending => {}
                 TransactionIntentStatus::CommittedSuccess => {
+                    // We must wait for some time before requesting the commit
+                    // details as I've observed that doing this too quickly can
+                    // result in us not getting commit results back.
+                    std::thread::sleep(std::time::Duration::from_secs(5));
+
                     let transaction_committed_result_response = transaction_committed_details(
                         &self.configuration,
                         TransactionCommittedDetailsRequest {
@@ -154,9 +160,9 @@ impl Executor for GatewayExecutor {
                         new_entities
                     };
 
-                    return Ok(ExecutionReceipt::CommitSuccess {
-                        new_entities,
-                    });
+                    return Ok(ExecutionReceipt::CommitSuccess(
+                        ExecutionReceiptSuccessContents { new_entities },
+                    ));
                 }
                 TransactionIntentStatus::CommittedFailure => {
                     return Ok(ExecutionReceipt::CommitFailure {
@@ -257,6 +263,53 @@ impl Executor for GatewayExecutor {
     ) -> Result<NetworkDefinition, Self::Error> {
         Ok(self.network_definition.clone())
     }
+
+    fn read_component_state<V: ScryptoDecode>(
+        &mut self,
+        component_address: ComponentAddress,
+    ) -> Result<V, Self::Error> {
+        let encoder = AddressBech32Encoder::new(&self.network_definition);
+        let encoded_component_address = encoder
+            .encode(&component_address.as_node_id().0)
+            .expect("Can't fail!");
+
+        let request = StateEntityDetailsRequest {
+            at_ledger_state: None,
+            opt_ins: Some(Box::new(StateEntityDetailsOptIns {
+                ancestor_identities: Some(true),
+                component_royalty_vault_balance: Some(true),
+                package_royalty_vault_balance: Some(true),
+                non_fungible_include_nfids: Some(true),
+                explicit_metadata: None,
+            })),
+            addresses: vec![encoded_component_address],
+            aggregation_level: None,
+        };
+
+        let response = state_entity_details(&self.configuration, request)
+            .map_err(GatewayExecutorError::StateEntityDetailsError)?;
+
+        let details = serde_json::from_value::<
+            sbor_json::scrypto::programmatic::value::ProgrammaticScryptoValue,
+        >(
+            response
+                .items
+                .first()
+                .unwrap()
+                .clone()
+                .details
+                .unwrap()
+                .get("state")
+                .unwrap()
+                .clone(),
+        )
+        .unwrap();
+        let encoded_details =
+            scrypto_encode(&details.to_scrypto_value()).unwrap();
+
+        scrypto_decode(&encoded_details)
+            .map_err(GatewayExecutorError::StateScryptoDecodeError)
+    }
 }
 
 fn native_public_key_to_gateway_public_key(
@@ -292,10 +345,12 @@ pub enum GatewayExecutorError {
     GatewayStatusError(GatewayClientError<GatewayStatusError>),
     TransactionStatusError(GatewayClientError<TransactionStatusError>),
     TransactionPreviewError(GatewayClientError<TransactionPreviewError>),
+    StateEntityDetailsError(GatewayClientError<StateEntityDetailsError>),
     TransactionCommittedDetailsError(
         GatewayClientError<TransactionCommittedDetailsError>,
     ),
     TransactionSubmissionError(GatewayClientError<TransactionSubmitError>),
+    StateScryptoDecodeError(DecodeError),
     AddressBech32mDecodeError,
     Timeout,
 }

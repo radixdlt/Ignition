@@ -579,7 +579,7 @@ mod ignition {
                         value
                             .checked_round(17, RoundingMode::ToPositiveInfinity)
                     })
-                    .expect(OVERFLOW_ERROR);
+                    .unwrap_or(Decimal::MAX);
                 assert!(
                     pool_reported_value_of_user_resource_in_protocol_resource
                         <= maximum_amount,
@@ -1483,10 +1483,12 @@ mod ignition {
                 }
             } else {
                 drop(entry);
-                self.pool_units
-                    .insert(global_id, indexmap! {
+                self.pool_units.insert(
+                    global_id,
+                    indexmap! {
                         pool_units_resource_address => Vault::with_bucket(pool_units)
-                    })
+                    },
+                )
             }
         }
 

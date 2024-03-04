@@ -1,12 +1,14 @@
 use radix_engine::transaction::TransactionReceiptV1;
 use transaction::prelude::*;
 
-/// A trait that can be implemented by various structs to execute transactions
-/// and produce execution receipts. The executor could be object doing the
-/// execution itself in case of a node or could delegate the execution to
-/// another object like in the case of the gateway. This detail does not matter
-/// for the executor.
-pub trait Executor {
+/// A standardized interface for objects that provide connection to the network
+/// regardless of how these objects are implemented and how they provide such
+/// connection. One implementation could choose to provide network connection
+/// through the core-api, another might do it over the gateway-api, and another
+/// might talk directly to a node. The implementation details are abstracted
+/// away in the interface. The interface has a number of getter functions and
+/// functions for executing transactions.
+pub trait NetworkConnectionProvider {
     type Error: Debug;
 
     fn execute_transaction(
@@ -24,6 +26,11 @@ pub trait Executor {
     fn get_network_definition(
         &mut self,
     ) -> Result<NetworkDefinition, Self::Error>;
+
+    fn read_component_state<V: ScryptoDecode>(
+        &mut self,
+        component_address: ComponentAddress,
+    ) -> Result<V, Self::Error>;
 }
 
 /// A simplified transaction receipt containing the key pieces of information
@@ -31,7 +38,7 @@ pub trait Executor {
 /// that the node can give us.
 #[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
 pub enum ExecutionReceipt {
-    CommitSuccess { new_entities: NewEntities },
+    CommitSuccess(ExecutionReceiptSuccessContents),
     CommitFailure { reason: String },
     Rejection { reason: String },
     Abort { reason: String },
@@ -42,4 +49,9 @@ pub struct NewEntities {
     pub new_component_addresses: IndexSet<ComponentAddress>,
     pub new_resource_addresses: IndexSet<ResourceAddress>,
     pub new_package_addresses: IndexSet<PackageAddress>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
+pub struct ExecutionReceiptSuccessContents {
+    pub new_entities: NewEntities,
 }
