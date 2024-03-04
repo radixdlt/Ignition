@@ -39,6 +39,135 @@ fn cant_open_a_liquidity_position_when_opening_is_disabled(
 }
 
 #[test]
+fn cant_add_a_negative_upfront_reward_percentage() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol.ignition.add_reward_rate(
+        LockupPeriod::from_seconds(1),
+        dec!(-1),
+        env,
+    );
+
+    // Assert
+    assert_is_ignition_invalid_upfront_reward_percentage(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn can_add_a_zero_upfront_reward_percentage() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol.ignition.add_reward_rate(
+        LockupPeriod::from_seconds(1),
+        dec!(0),
+        env,
+    );
+
+    // Assert
+    assert!(rtn.is_ok());
+
+    Ok(())
+}
+
+#[test]
+fn can_add_a_positive_upfront_reward_percentage() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol.ignition.add_reward_rate(
+        LockupPeriod::from_seconds(1),
+        dec!(1),
+        env,
+    );
+
+    // Assert
+    assert!(rtn.is_ok());
+
+    Ok(())
+}
+
+#[test]
+fn cant_set_the_maximum_allowed_price_staleness_to_a_negative_number(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .set_maximum_allowed_price_staleness(-1, env);
+
+    // Assert
+    assert_is_ignition_invalid_maximum_price_staleness(&rtn);
+
+    Ok(())
+}
+
+#[test]
+fn can_set_the_maximum_allowed_price_staleness_to_zero(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .set_maximum_allowed_price_staleness(0, env);
+
+    // Assert
+    assert!(rtn.is_ok());
+
+    Ok(())
+}
+
+#[test]
+fn can_set_the_maximum_allowed_price_staleness_to_a_positive_number(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ..
+    } = ScryptoTestEnv::new()?;
+
+    // Act
+    let rtn = protocol
+        .ignition
+        .set_maximum_allowed_price_staleness(1, env);
+
+    // Assert
+    assert!(rtn.is_ok());
+
+    Ok(())
+}
+
+#[test]
 fn cant_open_a_liquidity_position_on_a_pool_that_has_no_adapter(
 ) -> Result<(), RuntimeError> {
     // Arrange
