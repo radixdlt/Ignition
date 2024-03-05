@@ -171,12 +171,22 @@ pub mod adapter {
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(lower_tick, upper_tick, bucket_x, bucket_y);
 
+            let non_fungible_global_id = NonFungibleGlobalId::new(
+                receipt.as_non_fungible().resource_address(),
+                receipt.as_non_fungible().non_fungible_local_id(),
+            );
+
             OpenLiquidityPositionOutput {
                 pool_units: IndexedBuckets::from_bucket(receipt),
                 change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: Default::default(),
-                adapter_specific_information: AnyValue::from_typed(&())
-                    .expect(UNEXPECTED_ERROR),
+                adapter_specific_information: AnyValue::from_typed(
+                    &OciswapV2AdapterSpecificInformation {
+                        liquidity_receipt_non_fungible_global_id:
+                            non_fungible_global_id.clone(),
+                    },
+                )
+                .expect(UNEXPECTED_ERROR),
             }
         }
 
@@ -246,7 +256,10 @@ pub mod adapter {
 }
 
 #[derive(ScryptoSbor, Debug, Clone)]
-pub struct OciswapV2AdapterSpecificInformation {}
+pub struct OciswapV2AdapterSpecificInformation {
+    /// Stores the non-fungible global id of the liquidity receipt.
+    pub liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
+}
 
 impl From<OciswapV2AdapterSpecificInformation> for AnyValue {
     fn from(value: OciswapV2AdapterSpecificInformation) -> Self {
