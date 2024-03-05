@@ -13,7 +13,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            pub const $name: &'static str = concat!("[DefiPlaza v2 Adapter v2]", " ", $item);
+            pub const $name: &'static str = concat!("[DefiPlaza v2 Adapter v1]", " ", $item);
         )*
     };
 }
