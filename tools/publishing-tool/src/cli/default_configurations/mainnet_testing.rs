@@ -75,9 +75,9 @@ pub fn mainnet_testing(
             "icon_url".to_owned() => MetadataValue::Url(UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"))
         },
         transaction_configuration: TransactionConfiguration {
-            notary: clone_private_key(&notary_private_key),
+            notary: clone_private_key(notary_private_key),
             fee_payer_information: AccountAndControllingKey::new_virtual_account(
-                clone_private_key(&notary_private_key),
+                clone_private_key(notary_private_key),
             ),
         },
         // TODO: Determine where they should be sent to.

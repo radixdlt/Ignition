@@ -1,4 +1,4 @@
-#![allow(dead_code, clippy::enum_variant_names)]
+#![allow(dead_code, clippy::enum_variant_names, clippy::wrong_self_convention)]
 
 mod cli;
 mod database_overlay;

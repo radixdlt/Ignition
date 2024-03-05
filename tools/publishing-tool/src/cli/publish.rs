@@ -2,8 +2,6 @@ use super::default_configurations::*;
 use crate::utils::*;
 use crate::*;
 use clap::Parser;
-use common::prelude::LockupPeriod;
-use defiplaza_v2_adapter_v1::DefiPlazaV2PoolInterfaceManifestBuilderExtensionTrait;
 use radix_engine_common::prelude::*;
 use state_manager::RocksDBStore;
 use std::path::*;
