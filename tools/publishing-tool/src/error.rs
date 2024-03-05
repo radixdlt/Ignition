@@ -1,10 +1,13 @@
 use crate::*;
+use state_manager::traits::*;
 
 #[derive(Debug)]
 pub enum Error {
     PrivateKeyError,
     GatewayExecutorError(PublishingError<GatewayExecutorError>),
     SimulatorExecutorError(PublishingError<MainnetSimulatorError>),
+    IoError(std::io::Error),
+    RocksDbOpenError(DatabaseConfigValidationError),
 }
 
 impl From<PublishingError<GatewayExecutorError>> for Error {

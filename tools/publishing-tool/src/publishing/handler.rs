@@ -927,6 +927,55 @@ pub fn publish<N: NetworkConnectionProvider>(
         execution_service.execute_manifest(manifest)?;
     }
 
+    // Processing the additional operations specified in the publishing config
+    {
+        // Submitting prices to the oracle with (user_asset, protocol_asset)
+        // and (protocol_asset, user_asset) where the price of both is equal
+        // to one.
+        if configuration
+            .additional_operation_flags
+            .contains(AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE)
+        {
+            let price_updates = resolved_user_resources
+                .iter()
+                .copied()
+                .flat_map(|address| {
+                    [
+                        (
+                            address,
+                            configuration
+                                .protocol_configuration
+                                .protocol_resource,
+                        ),
+                        (
+                            configuration
+                                .protocol_configuration
+                                .protocol_resource,
+                            address,
+                        ),
+                    ]
+                })
+                .map(|address_pair| (address_pair, dec!(1)))
+                .collect::<IndexMap<_, _>>();
+
+            let manifest = ManifestBuilder::new()
+                .create_proof_from_account_of_amount(
+                    resolved_badges.oracle_manager_badge.0,
+                    resolved_badges.oracle_manager_badge.1,
+                    dec!(1),
+                )
+                .call_method(
+                    resolved_entity_component_addresses
+                        .protocol_entities
+                        .simple_oracle,
+                    "set_price_batch",
+                    (price_updates,),
+                )
+                .build();
+            execution_service.execute_manifest(manifest)?;
+        }
+    }
+
     // Depositing the created badges into their accounts.
     {
         let mut manifest_builder = ManifestBuilder::new();
@@ -993,6 +1042,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                 information.as_ref().map(|information| information.pools)
             }),
         },
+        badges: resolved_badges.map(|(_, address)| *address),
     })
 }
 

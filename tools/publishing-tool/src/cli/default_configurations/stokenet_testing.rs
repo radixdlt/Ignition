@@ -3,7 +3,7 @@ use common::prelude::*;
 use self::utils::*;
 use crate::*;
 
-pub fn mainnet_testing(
+pub fn stokenet_testing(
     notary_private_key: &PrivateKey,
 ) -> PublishingConfiguration {
     let notary_account_address =
@@ -14,9 +14,7 @@ pub fn mainnet_testing(
     // cSpell:disable
     PublishingConfiguration {
         protocol_configuration: ProtocolConfiguration {
-            protocol_resource: resource_address!(
-                "resource_rdx1t4dekrf58h0r28s3c93z92w3jt5ngx87jzd63mgc597zmf3534rxfv"
-            ),
+            protocol_resource: XRD,
             user_resource_volatility: UserResourceIndexedData {
                 bitcoin: Volatility::Volatile,
                 ethereum: Volatility::Volatile,
@@ -83,9 +81,7 @@ pub fn mainnet_testing(
         // TODO: Determine where they should be sent to.
         badges: BadgeIndexedData {
             oracle_manager_badge: BadgeHandling::CreateAndSend {
-                account_address: component_address!(
-                    "account_rdx168nr5dwmll4k2x5apegw5dhrpejf3xac7khjhgjqyg4qddj9tg9v4d"
-                ),
+                account_address: notary_account_address,
                 metadata_init: metadata_init! {
                     "name" => "Ignition Oracle Manager", updatable;
                     "symbol" => "IGNOM", updatable;
@@ -122,22 +118,22 @@ pub fn mainnet_testing(
         user_resources: UserResourceIndexedData {
             bitcoin: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_rdx1t58dla7ykxzxe5es89wlhgzatqla0gceukg0eeduzvtj4cxd55etn8"
+                    "resource_tdx_2_1thltk578jr4v7axqpu5ceznhlha6ca2qtzcflqdmytgtf37xncu7l9"
                 ),
             },
             ethereum: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_rdx1tkscrlztcyn82ej5z3n232f0qqp0qur69arjf279ppmg5usa3xhnsm"
+                    "resource_tdx_2_1t59gx963vzd6u6fz63h5de2zh9nmgwxc8y832edmr6pxvz98wg6zu3"
                 ),
             },
             usdc: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_rdx1th7nx2hy0cf6aea6mz7zhkdmy4p45s488xutltnp7296zxj8hwchpf"
+                    "resource_tdx_2_1thfv477eqwlh8x4wt6xsc62myt4z0zxmdpr4ea74fa8jnxh243y60r"
                 ),
             },
             usdt: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_rdx1tkafx32lu72mcxr85gjx0rh3rx9q89zqffg4phmv5rxdqg5fnd0w7s"
+                    "resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8"
                 ),
             },
         },
@@ -204,35 +200,18 @@ pub fn mainnet_testing(
         },
         exchange_information: ExchangeIndexedData {
             // No ociswap v2 currently on mainnet.
-            ociswap_v2: None,
-            defiplaza_v2: Some(ExchangeInformation {
+            ociswap_v2: Some(ExchangeInformation {
                 blueprint_id: BlueprintId {
                     package_address: package_address!(
-                        "package_rdx1p4dhfl7qwthqqu6p2267m5nedlqnzdvfxdl6q7h8g85dflx8n06p93"
+                        "package_tdx_2_1phgf5er6zx60wu4jjhtps97akqjpv787f6k7rjqkxgdpacng89a4uz"
                     ),
-                    blueprint_name: "PlazaPair".to_owned(),
+                    blueprint_name: "LiquidityPool".to_owned(),
                 },
                 pools: UserResourceIndexedData {
-                    bitcoin: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cpgyq8809z4mnc5rw2pvru3xdcjftjv45a5cgcwyqdqtg2xs35r58r"
-                        ),
-                    },
-                    ethereum: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cpzf8pygechpgat29phu72nzn4gn6shu7x0fdjydjky6g683sl0azk"
-                        ),
-                    },
-                    usdc: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cq32fjfp8gu3hh8jau9m6syfaargxagmvcakwwx966ejy6cwczghw4"
-                        ),
-                    },
-                    usdt: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1crx4h8dljzufy9m3g5ez49d5ge2q0vwysfc77vxrp8x480rqq3qpre"
-                        ),
-                    },
+                    bitcoin: PoolHandling::Create,
+                    ethereum: PoolHandling::Create,
+                    usdc: PoolHandling::Create,
+                    usdt: PoolHandling::Create,
                 },
                 liquidity_receipt: LiquidityReceiptHandling::CreateNew {
                     non_fungible_schema:
@@ -240,66 +219,25 @@ pub fn mainnet_testing(
                             LiquidityReceipt<AnyValue>,
                         >(),
                     metadata: metadata_init! {
-                        "name" => "Ignition LP: DefiPlaza", updatable;
-                        "description" => "Represents a particular contribution of liquidity to DefiPlaza through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
+                        "name" => "Ignition LP: Ociswap", updatable;
+                        "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
                         "tags" => vec!["lp token"], updatable;
                         "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
-                        "DEX" => "DefiPlaza", updatable;
+                        "DEX" => "Ociswap", updatable;
                         // TODO: Must get this from the DEX
                         "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
                     },
                 },
             }),
-            caviarnine_v1: Some(ExchangeInformation {
-                blueprint_id: BlueprintId {
-                    package_address: package_address!(
-                        "package_rdx1p4r9rkp0cq67wmlve544zgy0l45mswn6h798qdqm47x4762h383wa3"
-                    ),
-                    blueprint_name: "QuantaSwap".to_owned(),
-                },
-                pools: UserResourceIndexedData {
-                    bitcoin: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1crzl2c39m83lpe6fv62epgp3phqunxhc264ys23qz8xeemjcu8lln3"
-                        ),
-                    },
-                    ethereum: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cqk2ufmdq6pkcu7ed7r6u9hmdsht9gyd8y8wwtd7w5znefz9k54a7d"
-                        ),
-                    },
-                    usdc: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cq9q8umlpmngff6y4e534htz0n37te4m7vsj50u9zc58ys65zl6jv9"
-                        ),
-                    },
-                    usdt: PoolHandling::UseExisting {
-                        pool_address: component_address!(
-                            "component_rdx1cpl0v3lndt9d7g7uuepztxs9m7m24ly0yfhvcum2y7tm0vlzst0l5y"
-                        ),
-                    },
-                },
-                liquidity_receipt: LiquidityReceiptHandling::CreateNew {
-                    non_fungible_schema:
-                        NonFungibleDataSchema::new_local_without_self_package_replacement::<
-                            LiquidityReceipt<AnyValue>,
-                        >(),
-                    metadata: metadata_init! {
-                        "name" => "Ignition LP: Caviarnine", updatable;
-                        "description" => "Represents a particular contribution of liquidity to Caviarnine through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
-                        "tags" => vec!["lp token"], updatable;
-                        "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
-                        "DEX" => "Caviarnine", updatable;
-                        // TODO: Must get this from the DEX
-                        "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
-                    },
-                },
-            }),
+            caviarnine_v1: None,
+            defiplaza_v2: None,
         },
         additional_information: AdditionalInformation {
-            ociswap_v2_registry_component: None,
+            ociswap_v2_registry_component: Some(component_address!(
+                "component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"
+            )),
         },
-        additional_operation_flags: AdditionalOperationFlags::empty()
+        additional_operation_flags: AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
         // cSpell:enable
     }
 }
