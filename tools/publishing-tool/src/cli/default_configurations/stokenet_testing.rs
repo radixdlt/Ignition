@@ -1,7 +1,9 @@
 use common::prelude::*;
-
-use self::utils::*;
-use crate::*;
+use publishing_tool::publishing::*;
+use publishing_tool::utils::*;
+use publishing_tool::*;
+use radix_engine_interface::prelude::*;
+use transaction::prelude::*;
 
 pub fn stokenet_testing(
     notary_private_key: &PrivateKey,
@@ -233,11 +235,21 @@ pub fn stokenet_testing(
             defiplaza_v2: None,
         },
         additional_information: AdditionalInformation {
-            ociswap_v2_registry_component: Some(component_address!(
-                "component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"
+            ociswap_v2_registry_component_and_dapp_definition: Some((
+                component_address!(
+                    "component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"
+                ),
+                component_address!(
+                    "account_tdx_2_12yhfrtak5j0pmaju5l3p752wpye4z4nzua679ypns0094hmu66p2yk"
+                ),
             )),
         },
-        additional_operation_flags: AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
-        // cSpell:enable
+        additional_operation_flags:
+            AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
+            .union(AdditionalOperationFlags::PROVIDE_INITIAL_IGNITION_LIQUIDITY)
+            .union(
+                AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE
+            )
     }
+    // cSpell:enable
 }

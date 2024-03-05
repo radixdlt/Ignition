@@ -3,6 +3,7 @@
 use defiplaza_v2_adapter_v1::*;
 use ignition::{InitializationParametersManifest, PoolBlueprintInformation};
 use itertools::*;
+use ociswap_v2_adapter_v1::OciswapV2PoolInterfaceManifestBuilderExtensionTrait;
 use package_loader::*;
 use radix_engine::blueprints::package::*;
 use radix_engine::types::node_modules::*;
@@ -974,6 +975,119 @@ pub fn publish<N: NetworkConnectionProvider>(
                 .build();
             execution_service.execute_manifest(manifest)?;
         }
+
+        // Seeding Ignition with the initial set of XRD if requested.
+        if configuration.additional_operation_flags.contains(
+            AdditionalOperationFlags::PROVIDE_INITIAL_IGNITION_LIQUIDITY,
+        ) {
+            let total_amount_of_protocol_resource = dec!(10_000);
+            let mut manifest_builder = ManifestBuilder::new()
+                .create_proof_from_account_of_amount(
+                    resolved_badges.protocol_owner_badge.0,
+                    resolved_badges.protocol_owner_badge.1,
+                    dec!(1),
+                );
+            if configuration.protocol_configuration.protocol_resource == XRD {
+                manifest_builder = manifest_builder.get_free_xrd_from_faucet()
+            } else {
+                manifest_builder = manifest_builder.mint_fungible(
+                    configuration.protocol_configuration.protocol_resource,
+                    total_amount_of_protocol_resource,
+                )
+            }
+
+            let manifest = manifest_builder
+                .take_from_worktop(
+                    XRD,
+                    total_amount_of_protocol_resource / 2,
+                    "volatile",
+                )
+                .take_from_worktop(
+                    XRD,
+                    total_amount_of_protocol_resource / 2,
+                    "non_volatile",
+                )
+                .with_name_lookup(|builder, _| {
+                    let volatile = builder.bucket("volatile");
+                    let non_volatile = builder.bucket("non_volatile");
+
+                    builder
+                        .call_method(
+                            resolved_entity_component_addresses
+                                .protocol_entities
+                                .ignition,
+                            "deposit_protocol_resources",
+                            (volatile, common::prelude::Volatility::Volatile),
+                        )
+                        .call_method(
+                            resolved_entity_component_addresses
+                                .protocol_entities
+                                .ignition,
+                            "deposit_protocol_resources",
+                            (
+                                non_volatile,
+                                common::prelude::Volatility::NonVolatile,
+                            ),
+                        )
+                })
+                .build();
+            execution_service.execute_manifest(manifest)?;
+        }
+
+        // Contributing initial liquidity to Ociswap if requested
+        if configuration.additional_operation_flags.contains(
+            AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE,
+        ) {
+            if let Some(ExchangeInformation { pools, .. }) = resolved_exchange_data.ociswap_v2 {
+                for (pool_address, user_resource_address) in
+                    pools.zip_borrowed(&resolved_user_resources).iter()
+                {
+                    let (pool_address, user_resource_address) =
+                        (*pool_address, **user_resource_address);
+
+                    let mut manifest_builder = ManifestBuilder::new();
+                    if configuration.protocol_configuration.protocol_resource == XRD {
+                        manifest_builder = manifest_builder.get_free_xrd_from_faucet()
+                    } else {
+                        manifest_builder = manifest_builder.mint_fungible(
+                            configuration.protocol_configuration.protocol_resource,
+                            dec!(10_000),
+                        )
+                    }
+                    let manifest = manifest_builder
+                        .mint_fungible(user_resource_address, dec!(10_000))
+                        .take_all_from_worktop(
+                            configuration.protocol_configuration.protocol_resource,
+                            "protocol",
+                        )
+                        .take_all_from_worktop(user_resource_address, "user")
+                        .then(|builder| {
+                            let protocol_resource = builder.bucket("protocol");
+                            let user_resource = builder.bucket("user");
+
+                            let (x_bucket, y_bucket) =
+                                if configuration.protocol_configuration.protocol_resource
+                                    < user_resource_address
+                                {
+                                    (protocol_resource, user_resource)
+                                } else {
+                                    (user_resource, protocol_resource)
+                                };
+
+                            builder.ociswap_v2_pool_add_liquidity(
+                                pool_address,
+                                -3921i32,
+                                9942i32,
+                                x_bucket,
+                                y_bucket,
+                            )
+                        })
+                        .try_deposit_entire_worktop_or_abort(ephemeral_account, None)
+                        .build();
+                    execution_service.execute_manifest(manifest)?;
+                }
+            }
+        }
     }
 
     // Depositing the created badges into their accounts.
@@ -1063,7 +1177,11 @@ fn handle_ociswap_v2_exchange_information<N: NetworkConnectionProvider>(
 > {
     // No ociswap registry component is passed even through it is needed.
     let AdditionalInformation {
-        ociswap_v2_registry_component: Some(ociswap_v2_registry_component),
+        ociswap_v2_registry_component_and_dapp_definition:
+            Some((
+                ociswap_v2_registry_component,
+                ociswap_v2_dapp_definition_account,
+            )),
     } = additional_information
     else {
         return Ok(None);
@@ -1130,8 +1248,7 @@ fn handle_ociswap_v2_exchange_information<N: NetworkConnectionProvider>(
                                                 ManifestBucket,
                                             )>::new(
                                             ),
-                                            // TODO: Specify their dapp definition?
-                                            FAUCET,
+                                            ociswap_v2_dapp_definition_account,
                                         ),
                                     )
                                     .build();

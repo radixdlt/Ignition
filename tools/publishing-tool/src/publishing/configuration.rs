@@ -76,6 +76,11 @@ bitflags::bitflags! {
         /// attempt to get the XRD from the faucet. If otherwise then it will
         /// attempt to mint it.
         const PROVIDE_INITIAL_IGNITION_LIQUIDITY = 0b00000010;
+
+        /// Provides initial liquidity to ociswap v2 pools by minting the user
+        /// asset. If the protocol asset is mintable then it mints them in the
+        /// process and if they're not then it gets them from the faucet.
+        const PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE = 0b00000100;
     }
 }
 
@@ -94,7 +99,8 @@ pub struct ProtocolConfigurationReceipt {
 }
 
 pub struct AdditionalInformation {
-    pub ociswap_v2_registry_component: Option<ComponentAddress>,
+    pub ociswap_v2_registry_component_and_dapp_definition:
+        Option<(ComponentAddress, ComponentAddress)>,
 }
 
 pub struct ProtocolConfiguration {

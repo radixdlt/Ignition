@@ -47,3 +47,10 @@ bitflags = "2.4.2"
 
 [lints]
 workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "publishing-tool"
+path = "src/cli/bin.rs"

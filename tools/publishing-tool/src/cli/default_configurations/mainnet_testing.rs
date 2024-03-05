@@ -1,7 +1,9 @@
 use common::prelude::*;
-
-use self::utils::*;
-use crate::*;
+use publishing_tool::publishing::*;
+use publishing_tool::utils::*;
+use publishing_tool::*;
+use radix_engine_interface::prelude::*;
+use transaction::prelude::*;
 
 pub fn mainnet_testing(
     notary_private_key: &PrivateKey,
@@ -297,9 +299,8 @@ pub fn mainnet_testing(
             }),
         },
         additional_information: AdditionalInformation {
-            ociswap_v2_registry_component: None,
+            ociswap_v2_registry_component_and_dapp_definition: None,
         },
-        additional_operation_flags: AdditionalOperationFlags::empty()
-        // cSpell:enable
+        additional_operation_flags: AdditionalOperationFlags::empty(), // cSpell:enable
     }
 }
