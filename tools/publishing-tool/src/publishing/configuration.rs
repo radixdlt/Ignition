@@ -44,6 +44,10 @@ pub struct PublishingConfiguration {
     /// Additional information that doesn't quite fit into any of the above
     /// categories nicely.
     pub additional_information: AdditionalInformation,
+
+    /// Bit flags for additional operations that can be done by the publishing
+    /// logic during the publishing process.
+    pub additional_operation_flags: AdditionalOperationFlags,
 }
 
 #[derive(Debug, Clone, ScryptoSbor)]
@@ -54,6 +58,30 @@ pub struct PublishingReceipt {
         Option<ExchangeInformation<ComponentAddress, ResourceAddress>>,
     >,
     pub protocol_configuration: ProtocolConfigurationReceipt,
+    pub badges: BadgeIndexedData<ResourceAddress>,
+}
+
+bitflags::bitflags! {
+    /// Additional operations that the publishing process can be instructed to
+    /// perform.
+    #[repr(transparent)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct AdditionalOperationFlags: u8 {
+        /// Submits prices to the oracle that are just one for all of the assets
+        /// supported in the deployment.
+        const SUBMIT_ORACLE_PRICES_OF_ONE = 0b00000001;
+
+        /// Provide initial liquidity to Ignition. How this is done depends on
+        /// the selected protocol resource. If it is XRD then the publisher will
+        /// attempt to get the XRD from the faucet. If otherwise then it will
+        /// attempt to mint it.
+        const PROVIDE_INITIAL_IGNITION_LIQUIDITY = 0b00000010;
+
+        /// Provides initial liquidity to ociswap v2 pools by minting the user
+        /// asset. If the protocol asset is mintable then it mints them in the
+        /// process and if they're not then it gets them from the faucet.
+        const PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE = 0b00000100;
+    }
 }
 
 #[derive(Debug, Clone, ScryptoSbor)]
@@ -71,7 +99,8 @@ pub struct ProtocolConfigurationReceipt {
 }
 
 pub struct AdditionalInformation {
-    pub ociswap_v2_registry_component: Option<ComponentAddress>,
+    pub ociswap_v2_registry_component_and_dapp_definition:
+        Option<(ComponentAddress, ComponentAddress)>,
 }
 
 pub struct ProtocolConfiguration {
