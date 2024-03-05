@@ -1,10 +1,14 @@
-use crate::*;
+use crate::network_connection_provider::*;
+use crate::publishing::*;
+use state_manager::traits::*;
 
 #[derive(Debug)]
 pub enum Error {
     PrivateKeyError,
     GatewayExecutorError(PublishingError<GatewayExecutorError>),
     SimulatorExecutorError(PublishingError<MainnetSimulatorError>),
+    IoError(std::io::Error),
+    RocksDbOpenError(DatabaseConfigValidationError),
 }
 
 impl From<PublishingError<GatewayExecutorError>> for Error {
