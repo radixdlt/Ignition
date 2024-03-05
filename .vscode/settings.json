@@ -19,5 +19,12 @@
     // to different files. Thus, we execlude it from search.
     "search.exclude": {        
         "libraries/gateway-client/**/*.rs": true
-    }
+    },
+    // Passign the build-time-blueprints flag whenever anything is compiled. 
+    // This makes tests run faster when they're run from the GUI instead of 
+    // command line.
+    "rust-analyzer.runnables.extraArgs": [
+        "--features",
+        "package-loader/build-time-blueprints"
+    ]
 }

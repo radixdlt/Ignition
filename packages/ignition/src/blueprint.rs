@@ -304,9 +304,8 @@ mod ignition {
             // If no address reservation is provided then reserve an address to
             // globalize the component to - this is to provide us with a non
             // branching way of globalizing the component.
-            let address_reservation = address_reservation.unwrap_or_else(||
-                Runtime::allocate_component_address(Ignition::blueprint_id()).0,
-            );
+            let address_reservation = address_reservation
+                .unwrap_or_else(|| Runtime::allocate_component_address(Ignition::blueprint_id()).0);
 
             let ignition = {
                 let InitializationParameters {
@@ -452,7 +451,9 @@ mod ignition {
         /// * [`NonFungibleBucket`] - A non-fungible bucket of the liquidity
         /// position resource that gives the holder the right to close their
         /// liquidity position when the lockup period is up.
-        /// * [`FungibleBucket`] - A bucket of the change.
+        /// * [`FungibleBucket`] - A bucket of the upfront reward provided to
+        /// the user based on how long they've locked up their liquidity to
+        /// Ignition.
         /// * [`Vec<Bucket>`] - A vector of other buckets that the pools can
         /// return upon contribution, this can be their rewards tokens or
         /// anything else.
@@ -511,7 +512,7 @@ mod ignition {
             // Compare the price difference between the oracle reported price
             // and the pool reported price - ensure that it is within the
             // allowed price difference range.
-            let oracle_reported_price = {
+            let (oracle_reported_price, pool_reported_price) = {
                 let oracle_reported_price = self.checked_get_price(
                     user_resource_address,
                     self.protocol_resource.address(),
@@ -528,19 +529,54 @@ mod ignition {
                     RELATIVE_PRICE_DIFFERENCE_LARGER_THAN_ALLOWED_ERROR
                 );
 
-                oracle_reported_price
+                (oracle_reported_price, pool_reported_price)
             };
 
-            let oracle_reported_value_of_user_resource_in_protocol_resource =
-                oracle_reported_price
+            let pool_reported_value_of_user_resource_in_protocol_resource =
+                pool_reported_price
                     .exchange(user_resource_address, user_resource_amount)
                     .expect(UNEXPECTED_ERROR)
                     .1;
 
+            // An assertion added for safety - the pool reported value of the
+            // resources must be less than (1 + padding_percentage) * oracle
+            // price.
+            {
+                let maximum_amount = Decimal::ONE
+                    .checked_add(
+                        self.maximum_allowed_price_difference_percentage,
+                    )
+                    .and_then(|padding| {
+                        oracle_reported_price
+                            .exchange(
+                                user_resource_address,
+                                user_resource_amount,
+                            )
+                            .expect(UNEXPECTED_ERROR)
+                            .1
+                            .checked_mul(padding)
+                    })
+                    .and_then(|value| {
+                        // 17 decimal places so that 9.99 (with 18 nines) rounds
+                        // to 10. Essentially fixing for any small loss of
+                        // precision.
+                        value
+                            .checked_round(17, RoundingMode::ToPositiveInfinity)
+                    })
+                    .expect(OVERFLOW_ERROR);
+                assert!(
+                    pool_reported_value_of_user_resource_in_protocol_resource
+                        <= maximum_amount,
+                    "Amount provided by Ignition exceeds the maximum allowed at the current price. Provided: {}, Maximum allowed: {}",
+                    pool_reported_value_of_user_resource_in_protocol_resource,
+                    maximum_amount
+                );
+            }
+
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
             let protocol_side_of_liquidity = self.withdraw_protocol_resources(
-                oracle_reported_value_of_user_resource_in_protocol_resource,
+                pool_reported_value_of_user_resource_in_protocol_resource,
                 WithdrawStrategy::Rounded(RoundingMode::ToZero),
                 volatility,
             );
@@ -569,7 +605,7 @@ mod ignition {
                 // underflow.
                 .expect(OVERFLOW_ERROR);
             let amount_of_protocol_tokens_contributed =
-                oracle_reported_value_of_user_resource_in_protocol_resource
+                pool_reported_value_of_user_resource_in_protocol_resource
                     .checked_sub(
                         change
                             .get(&self.protocol_resource.address())
