@@ -579,7 +579,7 @@ mod ignition {
                         value
                             .checked_round(17, RoundingMode::ToPositiveInfinity)
                     })
-                    .expect(OVERFLOW_ERROR);
+                    .unwrap_or(Decimal::MAX);
                 assert!(
                     pool_reported_value_of_user_resource_in_protocol_resource
                         <= maximum_amount,

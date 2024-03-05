@@ -6,8 +6,6 @@ use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
-// TODO: Remove all logging.
-
 macro_rules! define_error {
     (
         $(
@@ -59,7 +57,8 @@ pub mod adapter {
         /// The pair config of the various pools is constant but there is no
         /// getter function that can be used to get it on ledger. As such, the
         /// protocol owner or manager must submit this information to the
-        /// adapter for its operation.
+        /// adapter for its operation. This does not change, so, once set we
+        /// do not expect to remove it again.
         pair_config: KeyValueStore<ComponentAddress, PairConfig>,
     }
 
@@ -230,11 +229,6 @@ pub mod adapter {
             //
             // In the case of equilibrium we do not contribute the second bucket
             // and instead just the first bucket.
-            info!("Doing the first one");
-            info!(
-                "Shortage before first contribution: {:?}",
-                pool.get_state().shortage
-            );
             let (first_pool_units, second_change) = match shortage_state {
                 ShortageState::Equilibrium => (
                     pool.add_liquidity(first_bucket, None).0,
@@ -244,10 +238,6 @@ pub mod adapter {
                     pool.add_liquidity(first_bucket, Some(second_bucket))
                 }
             };
-            info!(
-                "Shortage after first contribution: {:?}",
-                pool.get_state().shortage
-            );
 
             // Step 5: Calculate and store the original target of the second
             // liquidity position. This is calculated as the amount of assets
@@ -256,17 +246,19 @@ pub mod adapter {
             let second_original_target = second_bucket.amount();
 
             // Step 6: Add liquidity with the second resource & no co-liquidity.
-            info!("Doing the second one");
             let (second_pool_units, change) =
                 pool.add_liquidity(second_bucket, None);
-            info!(
-                "Shortage after second contribution: {:?}",
-                pool.get_state().shortage
-            );
 
-            // TODO: Should we subtract the change from the second original
-            // target? Seems like we should if the price if not the same in
-            // some way?
+            // We've been told that the change should be zero. Therefore, we
+            // assert for it to make sure that everything is as we expect it
+            // to be.
+            assert_eq!(
+                change
+                    .as_ref()
+                    .map(|bucket| bucket.amount())
+                    .unwrap_or(Decimal::ZERO),
+                Decimal::ZERO
+            );
 
             // A sanity check to make sure that everything is correct. The pool
             // units obtained from the first contribution should be different
@@ -433,7 +425,6 @@ pub mod adapter {
                 Global::<TwoResourcePool>::from(base_pool),
                 Global::<TwoResourcePool>::from(quote_pool),
             );
-            info!("bid ask = {bid_ask:?}");
 
             let average_price = bid_ask
                 .bid
@@ -441,7 +432,6 @@ pub mod adapter {
                 .and_then(|value| value.checked_div(dec!(2)))
                 .expect(OVERFLOW_ERROR);
 
-            info!("average_price = {average_price}");
             Price {
                 base: base_resource_address,
                 quote: quote_resource_address,
@@ -488,8 +478,8 @@ impl From<DefiPlazaV2AdapterSpecificInformation> for AnyValue {
 // source code is licensed under the MIT license which allows us to do such
 // copies and modification of code.
 //
-// This module exposes two main functions which are the entrypoints into this
-// module's functionality which calculate the incoming and outgoing spot prices.
+// The `calculate_pair_prices` function is the entrypoint into the module and is
+// the function to calculate the current bid and ask prices of the pairs.
 #[allow(clippy::arithmetic_side_effects)]
 mod price_math {
     use super::*;
@@ -563,8 +553,6 @@ mod price_math {
 
         let bid = incoming_spot;
         let ask = outgoing_spot;
-
-        info!("Shortage = {:?}", pair_state.shortage);
 
         // TODO: What to do at equilibrium?
         match pair_state.shortage {
