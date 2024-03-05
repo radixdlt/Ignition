@@ -670,6 +670,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "defiplaza-v2-adapter-v1"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "ports-interface",
+ "radix-engine-interface",
+ "sbor",
+ "scrypto",
+ "scrypto-interface",
+ "transaction",
+]
+
+[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"

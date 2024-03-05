@@ -822,3 +822,97 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_p
 
     Ok(())
 }
+
+#[test]
+fn pool_reported_price_and_quote_reported_price_are_similar_with_base_resource_as_input(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = defiplaza_v2.pools.bitcoin;
+    let (base_resource, quote_resource) = pool.get_tokens(env)?;
+    let input_amount = dec!(100);
+    let input_resource = base_resource;
+    let output_resource = if input_resource == base_resource {
+        quote_resource
+    } else {
+        base_resource
+    };
+
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(ComponentAddress::try_from(pool).unwrap(), env)?;
+
+    // Act
+    let (output_amount, remainder, ..) =
+        pool.quote(input_amount, input_resource == quote_resource, env)?;
+
+    // Assert
+    let input_amount = input_amount - remainder;
+    let quote_reported_price = Price {
+        price: output_amount / input_amount,
+        base: input_resource,
+        quote: output_resource,
+    };
+    let relative_difference = pool_reported_price
+        .relative_difference(&quote_reported_price)
+        .unwrap();
+
+    assert!(relative_difference <= dec!(0.0001));
+
+    Ok(())
+}
+
+#[test]
+fn pool_reported_price_and_quote_reported_price_are_similar_with_quote_resource_as_input(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = defiplaza_v2.pools.bitcoin;
+    let (base_resource, quote_resource) = pool.get_tokens(env)?;
+    let input_amount = dec!(100);
+    let input_resource = quote_resource;
+    let output_resource = if input_resource == base_resource {
+        quote_resource
+    } else {
+        base_resource
+    };
+
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(ComponentAddress::try_from(pool).unwrap(), env)?;
+
+    // Act
+    let (output_amount, remainder, ..) =
+        pool.quote(input_amount, input_resource == quote_resource, env)?;
+
+    // Assert
+    let input_amount = input_amount - remainder;
+    let quote_reported_price = Price {
+        price: output_amount / input_amount,
+        base: input_resource,
+        quote: output_resource,
+    };
+    let relative_difference = pool_reported_price
+        .relative_difference(&quote_reported_price)
+        .unwrap();
+
+    assert!(relative_difference <= dec!(0.0001));
+
+    Ok(())
+}
