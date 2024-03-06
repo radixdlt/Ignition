@@ -540,7 +540,7 @@ impl ScryptoTestEnv {
         )?;
 
         // Registering all of pair configs to the adapter.
-        defiplaza_v2_adapter_v1.add_pair_config(
+        defiplaza_v2_adapter_v1.add_pair_configs(
             defiplaza_v2_pools
                 .iter()
                 .map(|pool| ComponentAddress::try_from(pool).unwrap())
@@ -1307,7 +1307,7 @@ impl ScryptoUnitEnv {
                     .lock_fee_from_faucet()
                     .call_method(
                         defiplaza_v2_adapter_v1,
-                        "add_pair_config",
+                        "add_pair_configs",
                         (defiplaza_v2_pools
                             .iter()
                             .map(|address| {
