@@ -199,7 +199,7 @@ pub mod adapter {
             let shortage = pair_state.shortage;
             let shortage_state = ShortageState::from(shortage);
 
-            let [(first_resource_address, first_bucket), (second_resource_address, second_bucket)] =
+            let [(shortage_asset_resource_address, shortage_asset_bucket), (surplus_asset_resource_address, surplus_asset_bucket)] =
                 match shortage_state {
                     ShortageState::Equilibrium => [
                         (base_resource_address, base_bucket),
@@ -218,9 +218,9 @@ pub mod adapter {
             // Step 3: Calculate tate.target_ratio * bucket1.amount() where
             // bucket1 is the bucket currently in shortage or the resource that
             // will be contributed first.
-            let first_original_target = pair_state
+            let shortage_asset_original_target = pair_state
                 .target_ratio
-                .checked_mul(first_bucket.amount())
+                .checked_mul(shortage_asset_bucket.amount())
                 .expect(OVERFLOW_ERROR);
 
             // Step 4: Contribute to the pool. The first bucket to provide the
@@ -229,25 +229,28 @@ pub mod adapter {
             //
             // In the case of equilibrium we do not contribute the second bucket
             // and instead just the first bucket.
-            let (first_pool_units, second_change) = match shortage_state {
-                ShortageState::Equilibrium => (
-                    pool.add_liquidity(first_bucket, None).0,
-                    Some(second_bucket),
-                ),
-                ShortageState::Shortage(_) => {
-                    pool.add_liquidity(first_bucket, Some(second_bucket))
-                }
-            };
+            let (shortage_asset_pool_units, surplus_asset_change) =
+                match shortage_state {
+                    ShortageState::Equilibrium => (
+                        pool.add_liquidity(shortage_asset_bucket, None).0,
+                        Some(surplus_asset_bucket),
+                    ),
+                    ShortageState::Shortage(_) => pool.add_liquidity(
+                        shortage_asset_bucket,
+                        Some(surplus_asset_bucket),
+                    ),
+                };
 
             // Step 5: Calculate and store the original target of the second
             // liquidity position. This is calculated as the amount of assets
             // that are in the remainder (change) bucket.
-            let second_bucket = second_change.expect(UNEXPECTED_ERROR);
-            let second_original_target = second_bucket.amount();
+            let surplus_asset_bucket =
+                surplus_asset_change.expect(UNEXPECTED_ERROR);
+            let surplus_asset_original_target = surplus_asset_bucket.amount();
 
             // Step 6: Add liquidity with the second resource & no co-liquidity.
-            let (second_pool_units, change) =
-                pool.add_liquidity(second_bucket, None);
+            let (surplus_asset_pool_units, change) =
+                pool.add_liquidity(surplus_asset_bucket, None);
 
             // We've been told that the change should be zero. Therefore, we
             // assert for it to make sure that everything is as we expect it
@@ -264,16 +267,16 @@ pub mod adapter {
             // units obtained from the first contribution should be different
             // from those obtained in the second contribution.
             assert_ne!(
-                first_pool_units.resource_address(),
-                second_pool_units.resource_address(),
+                shortage_asset_pool_units.resource_address(),
+                surplus_asset_pool_units.resource_address(),
             );
 
             // The procedure for adding liquidity to the pool is now complete.
             // We can now construct the output.
             OpenLiquidityPositionOutput {
                 pool_units: IndexedBuckets::from_buckets([
-                    first_pool_units,
-                    second_pool_units,
+                    shortage_asset_pool_units,
+                    surplus_asset_pool_units,
                 ]),
                 change: change
                     .map(IndexedBuckets::from_bucket)
@@ -282,8 +285,8 @@ pub mod adapter {
                 adapter_specific_information:
                     DefiPlazaV2AdapterSpecificInformation {
                         original_targets: indexmap! {
-                            first_resource_address => first_original_target,
-                            second_resource_address => second_original_target
+                            shortage_asset_resource_address => shortage_asset_original_target,
+                            surplus_asset_resource_address => surplus_asset_original_target
                         },
                     }
                     .into(),
