@@ -3000,6 +3000,7 @@ dependencies = [
  "scrypto-test",
  "scrypto-unit",
  "simple-oracle",
+ "state-manager",
  "transaction",
 ]
 
