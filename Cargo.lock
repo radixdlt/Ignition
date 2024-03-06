@@ -2978,6 +2978,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "stateful-tests"
+version = "0.1.0"
+dependencies = [
+ "caviarnine-v1-adapter-v1",
+ "common",
+ "defiplaza-v2-adapter-v1",
+ "extend",
+ "gateway-client",
+ "ignition",
+ "ociswap-v1-adapter-v1",
+ "ociswap-v2-adapter-v1",
+ "package-loader",
+ "paste",
+ "ports-interface",
+ "publishing-tool",
+ "radix-engine",
+ "radix-engine-common",
+ "radix-engine-interface",
+ "sbor",
+ "scrypto-test",
+ "scrypto-unit",
+ "simple-oracle",
+ "transaction",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

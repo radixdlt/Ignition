@@ -18,7 +18,8 @@ members = [
     # Tools
     "tools/publishing-tool",
     # Tests
-    "tests"
+    "testing/tests",
+    "testing/stateful-tests"
 ]
 
 [workspace.package]
