@@ -1466,3 +1466,296 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_p
 
     Ok(())
 }
+
+#[test]
+fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let user_resource = resources.bitcoin;
+    let pool = caviarnine_v1.pools.bitcoin;
+
+    let [user_resource_bucket, xrd_bucket] =
+        [user_resource, XRD].map(|resource| {
+            ResourceManager(resource)
+                .mint_fungible(dec!(100), env)
+                .unwrap()
+        });
+
+    // Act
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = caviarnine_v1.adapter.open_liquidity_position(
+        pool.try_into().unwrap(),
+        (user_resource_bucket, xrd_bucket),
+        env,
+    )?;
+
+    // Assert
+    let mut caviarnine_reported_redemption_value = pool
+        .get_redemption_bin_values(
+            pool_units
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
+    caviarnine_reported_redemption_value.sort_by(|a, b| a.0.cmp(&b.0));
+    let adapter_reported_redemption_value = adapter_specific_information
+        .as_typed::<CaviarnineV1AdapterSpecificInformation>()
+        .unwrap()
+        .bin_contributions;
+
+    assert_eq!(
+        caviarnine_reported_redemption_value.len(),
+        adapter_reported_redemption_value.len(),
+    );
+
+    for (
+        i,
+        (
+            caviarnine_reported_bin,
+            caviarnine_reported_amount_x,
+            caviarnine_reported_amount_y,
+        ),
+    ) in caviarnine_reported_redemption_value.into_iter().enumerate()
+    {
+        let Some(ResourceIndexedData {
+            resource_x: adapter_reported_amount_x,
+            resource_y: adapter_reported_amount_y,
+        }) = adapter_reported_redemption_value
+            .get(&caviarnine_reported_bin)
+            .copied()
+        else {
+            panic!(
+                "Bin {} does not have an entry in the adapter data",
+                caviarnine_reported_bin
+            )
+        };
+
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_x),
+            round_down_to_5_decimal_places(adapter_reported_amount_x),
+            "Failed at bin with index: {i}"
+        );
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_y),
+            round_down_to_5_decimal_places(adapter_reported_amount_y),
+            "Failed at bin with index: {i}"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price_movement1(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let user_resource = resources.bitcoin;
+    let mut pool = caviarnine_v1.pools.bitcoin;
+
+    let _ = ResourceManager(user_resource)
+        .mint_fungible(dec!(1_000_000_000), env)
+        .and_then(|bucket| pool.swap(bucket, env))?;
+
+    let [user_resource_bucket, xrd_bucket] =
+        [user_resource, XRD].map(|resource| {
+            ResourceManager(resource)
+                .mint_fungible(dec!(100), env)
+                .unwrap()
+        });
+
+    // Act
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = caviarnine_v1.adapter.open_liquidity_position(
+        pool.try_into().unwrap(),
+        (user_resource_bucket, xrd_bucket),
+        env,
+    )?;
+
+    // Assert
+    let mut caviarnine_reported_redemption_value = pool
+        .get_redemption_bin_values(
+            pool_units
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
+    caviarnine_reported_redemption_value.sort_by(|a, b| a.0.cmp(&b.0));
+    let adapter_reported_redemption_value = adapter_specific_information
+        .as_typed::<CaviarnineV1AdapterSpecificInformation>()
+        .unwrap()
+        .bin_contributions;
+
+    assert_eq!(
+        caviarnine_reported_redemption_value.len(),
+        adapter_reported_redemption_value.len(),
+    );
+
+    for (
+        i,
+        (
+            caviarnine_reported_bin,
+            caviarnine_reported_amount_x,
+            caviarnine_reported_amount_y,
+        ),
+    ) in caviarnine_reported_redemption_value.into_iter().enumerate()
+    {
+        let Some(ResourceIndexedData {
+            resource_x: adapter_reported_amount_x,
+            resource_y: adapter_reported_amount_y,
+        }) = adapter_reported_redemption_value
+            .get(&caviarnine_reported_bin)
+            .copied()
+        else {
+            panic!(
+                "Bin {} does not have an entry in the adapter data",
+                caviarnine_reported_bin
+            )
+        };
+
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_x),
+            round_down_to_5_decimal_places(adapter_reported_amount_x),
+            "Failed at bin with index: {i}"
+        );
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_y),
+            round_down_to_5_decimal_places(adapter_reported_amount_y),
+            "Failed at bin with index: {i}"
+        );
+    }
+
+    Ok(())
+}
+
+#[test]
+fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price_movement2(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let user_resource = resources.bitcoin;
+    let mut pool = caviarnine_v1.pools.bitcoin;
+
+    let _ = ResourceManager(XRD)
+        .mint_fungible(dec!(1_000_000_000), env)
+        .and_then(|bucket| pool.swap(bucket, env))?;
+
+    let [user_resource_bucket, xrd_bucket] =
+        [user_resource, XRD].map(|resource| {
+            ResourceManager(resource)
+                .mint_fungible(dec!(100), env)
+                .unwrap()
+        });
+
+    // Act
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        adapter_specific_information,
+        ..
+    } = caviarnine_v1.adapter.open_liquidity_position(
+        pool.try_into().unwrap(),
+        (user_resource_bucket, xrd_bucket),
+        env,
+    )?;
+
+    // Assert
+    let mut caviarnine_reported_redemption_value = pool
+        .get_redemption_bin_values(
+            pool_units
+                .non_fungible_local_ids(env)?
+                .first()
+                .unwrap()
+                .clone(),
+            env,
+        )?;
+    caviarnine_reported_redemption_value.sort_by(|a, b| a.0.cmp(&b.0));
+    let adapter_reported_redemption_value = adapter_specific_information
+        .as_typed::<CaviarnineV1AdapterSpecificInformation>()
+        .unwrap()
+        .bin_contributions;
+
+    assert_eq!(
+        caviarnine_reported_redemption_value.len(),
+        adapter_reported_redemption_value.len(),
+    );
+
+    for (
+        i,
+        (
+            caviarnine_reported_bin,
+            caviarnine_reported_amount_x,
+            caviarnine_reported_amount_y,
+        ),
+    ) in caviarnine_reported_redemption_value.into_iter().enumerate()
+    {
+        let Some(ResourceIndexedData {
+            resource_x: adapter_reported_amount_x,
+            resource_y: adapter_reported_amount_y,
+        }) = adapter_reported_redemption_value
+            .get(&caviarnine_reported_bin)
+            .copied()
+        else {
+            panic!(
+                "Bin {} does not have an entry in the adapter data",
+                caviarnine_reported_bin
+            )
+        };
+
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_x),
+            round_down_to_5_decimal_places(adapter_reported_amount_x),
+            "Failed at bin with index: {i}"
+        );
+        assert_eq!(
+            round_down_to_5_decimal_places(caviarnine_reported_amount_y),
+            round_down_to_5_decimal_places(adapter_reported_amount_y),
+            "Failed at bin with index: {i}"
+        );
+    }
+
+    Ok(())
+}
+
+fn round_down_to_5_decimal_places(decimal: Decimal) -> Decimal {
+    decimal
+        .checked_round(5, RoundingMode::ToNegativeInfinity)
+        .unwrap()
+}
