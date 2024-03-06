@@ -43,7 +43,7 @@ pub mod adapter {
             protocol_manager => updatable_by: [protocol_manager, protocol_owner];
         },
         methods {
-            add_pair_config => restrict_to: [protocol_manager, protocol_owner];
+            add_pair_configs => restrict_to: [protocol_manager, protocol_owner];
             /* User methods */
             price => PUBLIC;
             resource_addresses => PUBLIC;
@@ -96,7 +96,7 @@ pub mod adapter {
             .globalize()
         }
 
-        pub fn add_pair_config(
+        pub fn add_pair_configs(
             &mut self,
             pair_config: IndexMap<ComponentAddress, PairConfig>,
         ) {
