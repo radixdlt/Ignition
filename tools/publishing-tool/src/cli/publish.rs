@@ -1,6 +1,6 @@
-use crate::default_configurations::*;
 use crate::*;
 use clap::Parser;
+use publishing_tool::configuration_selector::*;
 use publishing_tool::network_connection_provider::*;
 use publishing_tool::publishing::*;
 use publishing_tool::utils::*;

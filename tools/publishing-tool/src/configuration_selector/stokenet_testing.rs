@@ -1,7 +1,7 @@
+use crate::publishing::*;
+use crate::utils::*;
+use crate::*;
 use common::prelude::*;
-use publishing_tool::publishing::*;
-use publishing_tool::utils::*;
-use publishing_tool::*;
 use radix_engine_interface::prelude::*;
 use transaction::prelude::*;
 

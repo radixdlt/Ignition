@@ -13,6 +13,8 @@ radix-engine = { workspace = true }
 radix-engine-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 
+state-manager = { workspace = true }
+
 common = { path = "../../libraries/common" }
 ignition = { path = "../../packages/ignition", features = ["test"] }
 simple-oracle = { path = "../../packages/simple-oracle", features = ["test"] }

@@ -1,6 +1,5 @@
 #![allow(dead_code, clippy::enum_variant_names, clippy::wrong_self_convention)]
 
-mod default_configurations;
 mod publish;
 
 use clap::Parser;
