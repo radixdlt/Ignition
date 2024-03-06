@@ -475,7 +475,7 @@ pub mod adapter {
             }
 
             let (receipt, change_x, change_y) =
-                pool.add_liquidity(bucket_x, bucket_y, positions);
+                pool.add_liquidity(bucket_x, bucket_y, positions.clone());
 
             let receipt_global_id = {
                 let resource_address = receipt.resource_address();
@@ -486,14 +486,11 @@ pub mod adapter {
 
             let adapter_specific_information =
                 CaviarnineV1AdapterSpecificInformation {
-                    bin_contributions: pool
-                        .get_redemption_bin_values(
-                            receipt_global_id.local_id().clone(),
-                        )
+                    bin_contributions: positions
                         .into_iter()
-                        .map(|(tick, amount_x, amount_y)| {
+                        .map(|(bin, amount_x, amount_y)| {
                             (
-                                tick,
+                                bin,
                                 ResourceIndexedData {
                                     resource_x: amount_x,
                                     resource_y: amount_y,
