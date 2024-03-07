@@ -430,16 +430,10 @@ impl ScryptoTestEnv {
                 Self::publish_package("defiplaza-v2-adapter-v1", &mut env)?;
 
             let defiplaza_v2_pools = resource_addresses.try_map(|resource_address| {
-                let (resource_x, resource_y) = if XRD < *resource_address {
-                    (XRD, *resource_address)
-                } else {
-                    (*resource_address, XRD)
-                };
-
                 let mut defiplaza_pool = DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
                     OwnerRole::None,
-                    resource_x,
-                    resource_y,
+                    *resource_address,
+                    XRD,
                     // This pair config is obtained from DefiPlaza's
                     // repo.
                     PairConfig {
@@ -454,9 +448,9 @@ impl ScryptoTestEnv {
                 )?;
 
                 let resource_x =
-                    ResourceManager(resource_x).mint_fungible(dec!(100_000_000), &mut env)?;
+                    ResourceManager(*resource_address).mint_fungible(dec!(100_000_000), &mut env)?;
                 let resource_y =
-                    ResourceManager(resource_y).mint_fungible(dec!(100_000_000), &mut env)?;
+                    ResourceManager(XRD).mint_fungible(dec!(100_000_000), &mut env)?;
 
                 let (_, change1) =
                     defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
