@@ -1511,6 +1511,9 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
     let mut caviarnine_reported_redemption_value = pool
         .get_redemption_bin_values(
             pool_units
+                .into_values()
+                .next()
+                .unwrap()
                 .non_fungible_local_ids(env)?
                 .first()
                 .unwrap()
@@ -1608,6 +1611,9 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     let mut caviarnine_reported_redemption_value = pool
         .get_redemption_bin_values(
             pool_units
+                .into_values()
+                .next()
+                .unwrap()
                 .non_fungible_local_ids(env)?
                 .first()
                 .unwrap()
@@ -1705,6 +1711,9 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     let mut caviarnine_reported_redemption_value = pool
         .get_redemption_bin_values(
             pool_units
+                .into_values()
+                .next()
+                .unwrap()
                 .non_fungible_local_ids(env)?
                 .first()
                 .unwrap()
