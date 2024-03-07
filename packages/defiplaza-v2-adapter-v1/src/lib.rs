@@ -6,8 +6,6 @@ use ports_interface::prelude::*;
 use scrypto::prelude::*;
 use scrypto_interface::*;
 
-// TODO: Remove all logging.
-
 macro_rules! define_error {
     (
         $(
@@ -15,7 +13,7 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            pub const $name: &'static str = concat!("[DefiPlaza v2 Adapter v2]", " ", $item);
+            pub const $name: &'static str = concat!("[DefiPlaza v2 Adapter v1]", " ", $item);
         )*
     };
 }
@@ -45,7 +43,7 @@ pub mod adapter {
             protocol_manager => updatable_by: [protocol_manager, protocol_owner];
         },
         methods {
-            add_pair_config => restrict_to: [protocol_manager, protocol_owner];
+            add_pair_configs => restrict_to: [protocol_manager, protocol_owner];
             /* User methods */
             price => PUBLIC;
             resource_addresses => PUBLIC;
@@ -59,7 +57,8 @@ pub mod adapter {
         /// The pair config of the various pools is constant but there is no
         /// getter function that can be used to get it on ledger. As such, the
         /// protocol owner or manager must submit this information to the
-        /// adapter for its operation.
+        /// adapter for its operation. This does not change, so, once set we
+        /// do not expect to remove it again.
         pair_config: KeyValueStore<ComponentAddress, PairConfig>,
     }
 
@@ -97,7 +96,7 @@ pub mod adapter {
             .globalize()
         }
 
-        pub fn add_pair_config(
+        pub fn add_pair_configs(
             &mut self,
             pair_config: IndexMap<ComponentAddress, PairConfig>,
         ) {
@@ -200,7 +199,7 @@ pub mod adapter {
             let shortage = pair_state.shortage;
             let shortage_state = ShortageState::from(shortage);
 
-            let [(first_resource_address, first_bucket), (second_resource_address, second_bucket)] =
+            let [(shortage_asset_resource_address, shortage_asset_bucket), (surplus_asset_resource_address, surplus_asset_bucket)] =
                 match shortage_state {
                     ShortageState::Equilibrium => [
                         (base_resource_address, base_bucket),
@@ -219,9 +218,9 @@ pub mod adapter {
             // Step 3: Calculate tate.target_ratio * bucket1.amount() where
             // bucket1 is the bucket currently in shortage or the resource that
             // will be contributed first.
-            let first_original_target = pair_state
+            let shortage_asset_original_target = pair_state
                 .target_ratio
-                .checked_mul(first_bucket.amount())
+                .checked_mul(shortage_asset_bucket.amount())
                 .expect(OVERFLOW_ERROR);
 
             // Step 4: Contribute to the pool. The first bucket to provide the
@@ -230,58 +229,54 @@ pub mod adapter {
             //
             // In the case of equilibrium we do not contribute the second bucket
             // and instead just the first bucket.
-            info!("Doing the first one");
-            info!(
-                "Shortage before first contribution: {:?}",
-                pool.get_state().shortage
-            );
-            let (first_pool_units, second_change) = match shortage_state {
-                ShortageState::Equilibrium => (
-                    pool.add_liquidity(first_bucket, None).0,
-                    Some(second_bucket),
-                ),
-                ShortageState::Shortage(_) => {
-                    pool.add_liquidity(first_bucket, Some(second_bucket))
-                }
-            };
-            info!(
-                "Shortage after first contribution: {:?}",
-                pool.get_state().shortage
-            );
+            let (shortage_asset_pool_units, surplus_asset_change) =
+                match shortage_state {
+                    ShortageState::Equilibrium => (
+                        pool.add_liquidity(shortage_asset_bucket, None).0,
+                        Some(surplus_asset_bucket),
+                    ),
+                    ShortageState::Shortage(_) => pool.add_liquidity(
+                        shortage_asset_bucket,
+                        Some(surplus_asset_bucket),
+                    ),
+                };
 
             // Step 5: Calculate and store the original target of the second
             // liquidity position. This is calculated as the amount of assets
             // that are in the remainder (change) bucket.
-            let second_bucket = second_change.expect(UNEXPECTED_ERROR);
-            let second_original_target = second_bucket.amount();
+            let surplus_asset_bucket =
+                surplus_asset_change.expect(UNEXPECTED_ERROR);
+            let surplus_asset_original_target = surplus_asset_bucket.amount();
 
             // Step 6: Add liquidity with the second resource & no co-liquidity.
-            info!("Doing the second one");
-            let (second_pool_units, change) =
-                pool.add_liquidity(second_bucket, None);
-            info!(
-                "Shortage after second contribution: {:?}",
-                pool.get_state().shortage
-            );
+            let (surplus_asset_pool_units, change) =
+                pool.add_liquidity(surplus_asset_bucket, None);
 
-            // TODO: Should we subtract the change from the second original
-            // target? Seems like we should if the price if not the same in
-            // some way?
+            // We've been told that the change should be zero. Therefore, we
+            // assert for it to make sure that everything is as we expect it
+            // to be.
+            assert_eq!(
+                change
+                    .as_ref()
+                    .map(|bucket| bucket.amount())
+                    .unwrap_or(Decimal::ZERO),
+                Decimal::ZERO
+            );
 
             // A sanity check to make sure that everything is correct. The pool
             // units obtained from the first contribution should be different
             // from those obtained in the second contribution.
             assert_ne!(
-                first_pool_units.resource_address(),
-                second_pool_units.resource_address(),
+                shortage_asset_pool_units.resource_address(),
+                surplus_asset_pool_units.resource_address(),
             );
 
             // The procedure for adding liquidity to the pool is now complete.
             // We can now construct the output.
             OpenLiquidityPositionOutput {
                 pool_units: IndexedBuckets::from_buckets([
-                    first_pool_units,
-                    second_pool_units,
+                    shortage_asset_pool_units,
+                    surplus_asset_pool_units,
                 ]),
                 change: change
                     .map(IndexedBuckets::from_bucket)
@@ -290,8 +285,8 @@ pub mod adapter {
                 adapter_specific_information:
                     DefiPlazaV2AdapterSpecificInformation {
                         original_targets: indexmap! {
-                            first_resource_address => first_original_target,
-                            second_resource_address => second_original_target
+                            shortage_asset_resource_address => shortage_asset_original_target,
+                            surplus_asset_resource_address => surplus_asset_original_target
                         },
                     }
                     .into(),
@@ -433,7 +428,6 @@ pub mod adapter {
                 Global::<TwoResourcePool>::from(base_pool),
                 Global::<TwoResourcePool>::from(quote_pool),
             );
-            info!("bid ask = {bid_ask:?}");
 
             let average_price = bid_ask
                 .bid
@@ -441,7 +435,6 @@ pub mod adapter {
                 .and_then(|value| value.checked_div(dec!(2)))
                 .expect(OVERFLOW_ERROR);
 
-            info!("average_price = {average_price}");
             Price {
                 base: base_resource_address,
                 quote: quote_resource_address,
@@ -488,8 +481,8 @@ impl From<DefiPlazaV2AdapterSpecificInformation> for AnyValue {
 // source code is licensed under the MIT license which allows us to do such
 // copies and modification of code.
 //
-// This module exposes two main functions which are the entrypoints into this
-// module's functionality which calculate the incoming and outgoing spot prices.
+// The `calculate_pair_prices` function is the entrypoint into the module and is
+// the function to calculate the current bid and ask prices of the pairs.
 #[allow(clippy::arithmetic_side_effects)]
 mod price_math {
     use super::*;
@@ -563,8 +556,6 @@ mod price_math {
 
         let bid = incoming_spot;
         let ask = outgoing_spot;
-
-        info!("Shortage = {:?}", pair_state.shortage);
 
         // TODO: What to do at equilibrium?
         match pair_state.shortage {

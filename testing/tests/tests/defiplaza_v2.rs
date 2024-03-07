@@ -822,3 +822,291 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_p
 
     Ok(())
 }
+
+#[test]
+fn pool_reported_price_and_quote_reported_price_are_similar_with_base_resource_as_input(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = defiplaza_v2.pools.bitcoin;
+    let (base_resource, quote_resource) = pool.get_tokens(env)?;
+    let input_amount = dec!(100);
+    let input_resource = base_resource;
+    let output_resource = if input_resource == base_resource {
+        quote_resource
+    } else {
+        base_resource
+    };
+
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(ComponentAddress::try_from(pool).unwrap(), env)?;
+
+    // Act
+    let (output_amount, remainder, ..) =
+        pool.quote(input_amount, input_resource == quote_resource, env)?;
+
+    // Assert
+    let input_amount = input_amount - remainder;
+    let quote_reported_price = Price {
+        price: output_amount / input_amount,
+        base: input_resource,
+        quote: output_resource,
+    };
+    let relative_difference = pool_reported_price
+        .relative_difference(&quote_reported_price)
+        .unwrap();
+
+    assert!(relative_difference <= dec!(0.0001));
+
+    Ok(())
+}
+
+#[test]
+fn pool_reported_price_and_quote_reported_price_are_similar_with_quote_resource_as_input(
+) -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let pool = defiplaza_v2.pools.bitcoin;
+    let (base_resource, quote_resource) = pool.get_tokens(env)?;
+    let input_amount = dec!(100);
+    let input_resource = quote_resource;
+    let output_resource = if input_resource == base_resource {
+        quote_resource
+    } else {
+        base_resource
+    };
+
+    let pool_reported_price = defiplaza_v2
+        .adapter
+        .price(ComponentAddress::try_from(pool).unwrap(), env)?;
+
+    // Act
+    let (output_amount, remainder, ..) =
+        pool.quote(input_amount, input_resource == quote_resource, env)?;
+
+    // Assert
+    let input_amount = input_amount - remainder;
+    let quote_reported_price = Price {
+        price: output_amount / input_amount,
+        base: input_resource,
+        quote: output_resource,
+    };
+    let relative_difference = pool_reported_price
+        .relative_difference(&quote_reported_price)
+        .unwrap();
+
+    assert!(relative_difference <= dec!(0.0001));
+
+    Ok(())
+}
+
+#[test]
+#[ignore = "Awaiting defiplaza response"]
+fn exact_fee_test1() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        AssetIndexedData {
+            protocol_resource: dec!(100_000),
+            user_resource: dec!(100_000),
+        },
+        // Initial price of the pool
+        dec!(1),
+        // The fee percentage of the pool
+        dec!(0.03),
+        // User contribution to the pool. This would mean that the user would
+        // own 0.1% of the pool
+        AssetIndexedData {
+            user_resource: dec!(100),
+            protocol_resource: dec!(100),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![(Asset::ProtocolResource, dec!(1_000))],
+        // The fees to expect - with 0.1% pool ownership of the pool and fees of
+        // 3% then we expect to see 0.03 of the protocol resource in fees (as it
+        // was the input in the swap) and none of the user resource in fees.
+        AssetIndexedData {
+            user_resource: EqualityCheck::ExactlyEquals(dec!(0)),
+            protocol_resource: EqualityCheck::ExactlyEquals(dec!(0.03)),
+        },
+    )
+    .expect("Should not fail!")
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Asset {
+    UserResource,
+    ProtocolResource,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct AssetIndexedData<T> {
+    user_resource: T,
+    protocol_resource: T,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum EqualityCheck<T> {
+    ExactlyEquals(T),
+    ApproximatelyEquals { value: T, acceptable_difference: T },
+}
+
+fn test_exact_defiplaza_fees_amounts(
+    // The initial amount of liquidity to provide when creating the liquidity
+    // pool.
+    initial_liquidity: AssetIndexedData<Decimal>,
+    // The price to set as the initial price of the pool.
+    initial_price: Decimal,
+    // The fee percentage of the pool
+    fee_percentage: Decimal,
+    // The contribution that the user will make to the pool
+    user_contribution: AssetIndexedData<Decimal>,
+    // The swaps to perform on the pool.
+    swaps: Vec<(Asset, Decimal)>,
+    // Equality checks to perform when closing the liquidity position.
+    expected_fees: AssetIndexedData<EqualityCheck<Decimal>>,
+) -> Result<(), RuntimeError> {
+    let Environment {
+        environment: ref mut env,
+        mut defiplaza_v2,
+        resources: ResourceInformation { bitcoin, .. },
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_relative_price_difference: dec!(0.05),
+        ..Default::default()
+    })?;
+
+    let resources = AssetIndexedData {
+        user_resource: bitcoin,
+        protocol_resource: XRD,
+    };
+
+    // Creating a new defiplaza pair so we can initialize it the way that we
+    // desire and without any constraints from the environment.
+    let mut pool = DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
+        OwnerRole::None,
+        resources.user_resource,
+        resources.protocol_resource,
+        PairConfig {
+            k_in: dec!("0.4"),
+            k_out: dec!("1"),
+            fee: fee_percentage,
+            decay_factor: dec!("0.9512"),
+        },
+        initial_price,
+        defiplaza_v2.package,
+        env,
+    )?;
+
+    // Providing the desired initial contribution to the pool.
+    [
+        (resources.user_resource, initial_liquidity.user_resource),
+        (
+            resources.protocol_resource,
+            initial_liquidity.protocol_resource,
+        ),
+    ]
+    .map(|(resource_address, amount)| {
+        let bucket = ResourceManager(resource_address)
+            .mint_fungible(amount, env)
+            .unwrap();
+        let (_, change) = pool.add_liquidity(bucket, None, env).unwrap();
+        let change_amount = change
+            .map(|bucket| bucket.amount(env).unwrap())
+            .unwrap_or(Decimal::ZERO);
+        assert_eq!(change_amount, Decimal::ZERO);
+    });
+
+    // Providing the user's contribution to the pool through the adapter
+    let [bucket_x, bucket_y] = [
+        (
+            resources.protocol_resource,
+            user_contribution.protocol_resource,
+        ),
+        (resources.user_resource, user_contribution.user_resource),
+    ]
+    .map(|(resource_address, amount)| {
+        ResourceManager(resource_address)
+            .mint_fungible(amount, env)
+            .unwrap()
+    });
+    let OpenLiquidityPositionOutput {
+        pool_units,
+        change,
+        adapter_specific_information,
+        ..
+    } = defiplaza_v2.adapter.open_liquidity_position(
+        pool.try_into().unwrap(),
+        (bucket_x, bucket_y),
+        env,
+    )?;
+
+    // Asset the user got back no change in this contribution
+    for bucket in change.into_values() {
+        let amount = bucket.amount(env)?;
+        assert_eq!(amount, Decimal::ZERO);
+    }
+
+    // Performing the swaps specified by the user
+    for (asset, amount) in swaps.into_iter() {
+        let address = match asset {
+            Asset::ProtocolResource => resources.protocol_resource,
+            Asset::UserResource => resources.user_resource,
+        };
+        let bucket =
+            ResourceManager(address).mint_fungible(amount, env).unwrap();
+        let _ = pool.swap(bucket, env)?;
+    }
+
+    // Close the liquidity position
+    let CloseLiquidityPositionOutput { fees, .. } =
+        defiplaza_v2.adapter.close_liquidity_position(
+            pool.try_into().unwrap(),
+            pool_units.into_values().collect(),
+            adapter_specific_information,
+            env,
+        )?;
+
+    // Assert that the fees is what's expected.
+    for (resource_address, equality_check) in [
+        (resources.protocol_resource, expected_fees.protocol_resource),
+        (resources.user_resource, expected_fees.user_resource),
+    ] {
+        // Get the fees
+        let resource_fees = fees.get(&resource_address).copied().unwrap();
+
+        // Perform the assertion
+        match equality_check {
+            EqualityCheck::ExactlyEquals(value) => {
+                assert_eq!(resource_fees, value)
+            }
+            EqualityCheck::ApproximatelyEquals {
+                value,
+                acceptable_difference,
+            } => {
+                assert!(
+                    (resource_fees - value).checked_abs().unwrap()
+                        <= acceptable_difference
+                )
+            }
+        }
+    }
+
+    Ok(())
+}
