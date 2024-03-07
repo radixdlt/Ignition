@@ -784,7 +784,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                     oracle_component_address,
                     configuration
                         .protocol_configuration
-                        .maximum_allowed_price_staleness,
+                        .maximum_allowed_price_staleness_in_seconds,
                     configuration
                         .protocol_configuration
                         .maximum_allowed_price_difference_percentage,
@@ -1145,9 +1145,9 @@ pub fn publish<N: NetworkConnectionProvider>(
             allow_closing_liquidity_positions: configuration
                 .protocol_configuration
                 .allow_closing_liquidity_positions,
-            maximum_allowed_price_staleness: configuration
+            maximum_allowed_price_staleness_in_seconds: configuration
                 .protocol_configuration
-                .maximum_allowed_price_staleness,
+                .maximum_allowed_price_staleness_in_seconds,
             maximum_allowed_price_difference_percentage: configuration
                 .protocol_configuration
                 .maximum_allowed_price_difference_percentage,

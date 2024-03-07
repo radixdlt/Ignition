@@ -5,17 +5,13 @@ use common::prelude::*;
 use radix_engine_interface::prelude::*;
 use transaction::prelude::*;
 
-pub fn stokenet_testing(
+pub fn mainnet_production(
     notary_private_key: &PrivateKey,
 ) -> PublishingConfiguration {
-    let notary_account_address =
-        ComponentAddress::virtual_account_from_public_key(
-            &notary_private_key.public_key(),
-        );
-
     // cSpell:disable
     PublishingConfiguration {
         protocol_configuration: ProtocolConfiguration {
+            // The protocol resource to use is XRD.
             protocol_resource: XRD,
             user_resource_volatility: UserResourceIndexedData {
                 bitcoin: Volatility::Volatile,
@@ -24,13 +20,20 @@ pub fn stokenet_testing(
                 usdt: Volatility::NonVolatile,
             },
             reward_rates: indexmap! {
-                LockupPeriod::from_minutes(0).unwrap() => dec!(0.125),  // 12.5%
-                LockupPeriod::from_minutes(1).unwrap() => dec!(0.15),   // 15.0%
+                LockupPeriod::from_months(9).unwrap() => dec!(0.125),  // 12.5%
+                LockupPeriod::from_months(10).unwrap() => dec!(0.145), // 14.5%
+                LockupPeriod::from_months(11).unwrap() => dec!(0.17),  // 17.0%
+                LockupPeriod::from_months(12).unwrap() => dec!(0.2),  // 20.0%
             },
-            allow_opening_liquidity_positions: true,
-            allow_closing_liquidity_positions: true,
-            maximum_allowed_price_staleness_in_seconds: i64::MAX,
-            maximum_allowed_price_difference_percentage: Decimal::MAX,
+            // When Ignition is first deployed nobody is allowed to open or
+            // close positions.
+            allow_opening_liquidity_positions: false,
+            allow_closing_liquidity_positions: false,
+            // The maximum allowed price staleness is 60 seconds
+            maximum_allowed_price_staleness_in_seconds: 60,
+            // The maximum allowed price difference percentage is 5% from the 
+            // oracle price.
+            maximum_allowed_price_difference_percentage: dec!(0.05),
             entities_metadata: Entities {
                 protocol_entities: ProtocolIndexedData {
                     ignition: metadata_init! {
@@ -50,19 +53,19 @@ pub fn stokenet_testing(
                 exchange_adapter_entities: ExchangeIndexedData {
                     ociswap_v2: metadata_init! {
                         "name" => "Ignition Ociswap v2 Adapter", updatable;
-                        "description" => "An adapter used by the Ignition protocol to communicate with Ociswap v2 pools.", updatable;
+                        "description" => "An adapter used by the Ignition protocol for Ociswap v2 interactions.", updatable;
                         // Dapp definition will be automatically added by the
                         // publisher accordingly.
                     },
                     defiplaza_v2: metadata_init! {
                         "name" => "Ignition DefiPlaza v2 Adapter", updatable;
-                        "description" => "An adapter used by the Ignition protocol to communicate with DefiPlaza v2 pools.", updatable;
+                        "description" => "An adapter used by the Ignition protocol for DefiPlaza v2 interactions.", updatable;
                         // Dapp definition will be automatically added by the
                         // publisher accordingly.
                     },
                     caviarnine_v1: metadata_init! {
                         "name" => "Ignition Caviarnine v1 Adapter", updatable;
-                        "description" => "An adapter used by the Ignition protocol to communicate with Caviarnine v1 pools.", updatable;
+                        "description" => "An adapter used by the Ignition protocol for Caviarnine v1 interactions.", updatable;
                         // Dapp definition will be automatically added by the
                         // publisher accordingly.
                     },
@@ -75,15 +78,20 @@ pub fn stokenet_testing(
             "icon_url".to_owned() => MetadataValue::Url(UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"))
         },
         transaction_configuration: TransactionConfiguration {
+            // Whoever notarizes this transaction will also be handling the 
+            // payment of fees for it.
             notary: clone_private_key(notary_private_key),
             fee_payer_information: AccountAndControllingKey::new_virtual_account(
                 clone_private_key(notary_private_key),
             ),
         },
-        // TODO: Determine where they should be sent to.
         badges: BadgeIndexedData {
             oracle_manager_badge: BadgeHandling::CreateAndSend {
-                account_address: notary_account_address,
+                // TODO: Confirm this address with Devops
+                // This is the account of devops that runs the oracle software
+                account_address: component_address!(
+                    "account_rdx168nr5dwmll4k2x5apegw5dhrpejf3xac7khjhgjqyg4qddj9tg9v4d"
+                ),
                 metadata_init: metadata_init! {
                     "name" => "Ignition Oracle Manager", updatable;
                     "symbol" => "IGNOM", updatable;
@@ -94,7 +102,10 @@ pub fn stokenet_testing(
                 },
             },
             protocol_manager_badge: BadgeHandling::CreateAndSend {
-                account_address: notary_account_address,
+                // TODO: This is currently RTJL20 which might be incorrect
+                account_address: component_address!(
+                    "account_rdx16ykaehfl0suwzy9tvtlhgds7td8ynwx4jk3q4czaucpf6m4pps9yr4"
+                ),
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Manager", updatable;
                     "symbol" => "IGNPM", updatable;
@@ -105,7 +116,10 @@ pub fn stokenet_testing(
                 },
             },
             protocol_owner_badge: BadgeHandling::CreateAndSend {
-                account_address: notary_account_address,
+                // Thee RTJL20 account
+                account_address: component_address!(
+                    "account_rdx16ykaehfl0suwzy9tvtlhgds7td8ynwx4jk3q4czaucpf6m4pps9yr4"
+                ),
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Owner", updatable;
                     "symbol" => "IGNPO", updatable;
@@ -116,26 +130,25 @@ pub fn stokenet_testing(
                 },
             },
         },
-        // TODO: Not real resources, just the notXYZ resources.
         user_resources: UserResourceIndexedData {
             bitcoin: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_tdx_2_1thltk578jr4v7axqpu5ceznhlha6ca2qtzcflqdmytgtf37xncu7l9"
+                    "resource_rdx1t580qxc7upat7lww4l2c4jckacafjeudxj5wpjrrct0p3e82sq4y75"
                 ),
             },
             ethereum: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_tdx_2_1t59gx963vzd6u6fz63h5de2zh9nmgwxc8y832edmr6pxvz98wg6zu3"
+                    "resource_rdx1th88qcj5syl9ghka2g9l7tw497vy5x6zaatyvgfkwcfe8n9jt2npww"
                 ),
             },
             usdc: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_tdx_2_1thfv477eqwlh8x4wt6xsc62myt4z0zxmdpr4ea74fa8jnxh243y60r"
+                    "resource_rdx1t4upr78guuapv5ept7d7ptekk9mqhy605zgms33mcszen8l9fac8vf"
                 ),
             },
             usdt: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
-                    "resource_tdx_2_1t4p3ytx933n576pdps4ua7jkjh36zrh36a543u0tfcsu2vthavlqg8"
+                    "resource_rdx1thrvr3xfs2tarm2dl9emvs26vjqxu6mqvfgvqjne940jv0lnrrg7rw"
                 ),
             },
         },
@@ -202,18 +215,35 @@ pub fn stokenet_testing(
         },
         exchange_information: ExchangeIndexedData {
             // No ociswap v2 currently on mainnet.
-            ociswap_v2: Some(ExchangeInformation {
+            ociswap_v2: None,
+            defiplaza_v2: Some(ExchangeInformation {
                 blueprint_id: BlueprintId {
                     package_address: package_address!(
-                        "package_tdx_2_1phgf5er6zx60wu4jjhtps97akqjpv787f6k7rjqkxgdpacng89a4uz"
+                        "package_rdx1p4dhfl7qwthqqu6p2267m5nedlqnzdvfxdl6q7h8g85dflx8n06p93"
                     ),
-                    blueprint_name: "LiquidityPool".to_owned(),
+                    blueprint_name: "PlazaPair".to_owned(),
                 },
                 pools: UserResourceIndexedData {
-                    bitcoin: PoolHandling::Create,
-                    ethereum: PoolHandling::Create,
-                    usdc: PoolHandling::Create,
-                    usdt: PoolHandling::Create,
+                    bitcoin: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cpv5g5a86qezw0g46w2ph8ydlu2m7jnzxw9p4lx6593qn9fmnwerta"
+                        ),
+                    },
+                    ethereum: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1crwdzvlv7djtkug9gmvp9ejun0gm0w6cvkpfqycw8fcp4gg82eftjc"
+                        ),
+                    },
+                    usdc: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cpw85pmjl8ujjq7kp50lgh3ej5hz3ky9x65q2cjqvg4efnhcmfpz27"
+                        ),
+                    },
+                    usdt: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1czr2hzfv2xnxdsts4a02dglkn05clv3a2t9uk04709utehau8gjv8h"
+                        ),
+                    },
                 },
                 liquidity_receipt: LiquidityReceiptHandling::CreateNew {
                     non_fungible_schema:
@@ -221,35 +251,68 @@ pub fn stokenet_testing(
                             LiquidityReceipt<AnyValue>,
                         >(),
                     metadata: metadata_init! {
-                        "name" => "Ignition LP: Ociswap", updatable;
-                        "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
+                        "name" => "Ignition LP: DefiPlaza", updatable;
+                        "description" => "Represents a particular contribution of liquidity to DefiPlaza through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
                         "tags" => vec!["lp token"], updatable;
                         "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
-                        "DEX" => "Ociswap", updatable;
-                        // TODO: Must get this from the DEX
-                        "redeem_url" => UncheckedUrl::of("https://www.google.com"), updatable;
+                        "DEX" => "DefiPlaza", updatable;
+                        // I have confirmed this with DefiPlaza to be the 
+                        // correct link.
+                        "redeem_url" => UncheckedUrl::of("https://radix.defiplaza.net/ignition"), updatable;
                     },
                 },
             }),
-            caviarnine_v1: None,
-            defiplaza_v2: None,
+            caviarnine_v1: Some(ExchangeInformation {
+                blueprint_id: BlueprintId {
+                    package_address: package_address!(
+                        "package_rdx1p4r9rkp0cq67wmlve544zgy0l45mswn6h798qdqm47x4762h383wa3"
+                    ),
+                    blueprint_name: "QuantaSwap".to_owned(),
+                },
+                pools: UserResourceIndexedData {
+                    bitcoin: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cp9w8443uyz2jtlaxnkcq84q5a5ndqpg05wgckzrnd3lgggpa080ed"
+                        ),
+                    },
+                    ethereum: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cpsvw207842gafeyvf6tc0gdnq47u3mn74kvzszqlhc03lrns52v82"
+                        ),
+                    },
+                    usdc: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cr6lxkr83gzhmyg4uxg49wkug5s4wwc3c7cgmhxuczxraa09a97wcu"
+                        ),
+                    },
+                    usdt: PoolHandling::UseExisting {
+                        pool_address: component_address!(
+                            "component_rdx1cqs338cyje65rk44zgmjvvy42qcszrhk9ewznedtkqd8l3crtgnmh5"
+                        ),
+                    },
+                },
+                liquidity_receipt: LiquidityReceiptHandling::CreateNew {
+                    non_fungible_schema:
+                        NonFungibleDataSchema::new_local_without_self_package_replacement::<
+                            LiquidityReceipt<AnyValue>,
+                        >(),
+                    metadata: metadata_init! {
+                        "name" => "Ignition LP: Caviarnine", updatable;
+                        "description" => "Represents a particular contribution of liquidity to Caviarnine through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
+                        "tags" => vec!["lp token"], updatable;
+                        "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
+                        "DEX" => "Caviarnine", updatable;
+                        // I have confirmed this with Caviarnine to be the 
+                        // correct link.
+                        "redeem_url" => UncheckedUrl::of("https://www.caviarnine.com/ignition"), updatable;
+                    },
+                },
+            }),
         },
         additional_information: AdditionalInformation {
-            ociswap_v2_registry_component_and_dapp_definition: Some((
-                component_address!(
-                    "component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"
-                ),
-                component_address!(
-                    "account_tdx_2_12yhfrtak5j0pmaju5l3p752wpye4z4nzua679ypns0094hmu66p2yk"
-                ),
-            )),
+            ociswap_v2_registry_component_and_dapp_definition: None,
         },
-        additional_operation_flags:
-            AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
-            .union(AdditionalOperationFlags::PROVIDE_INITIAL_IGNITION_LIQUIDITY)
-            .union(
-                AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE
-            )
+        additional_operation_flags: AdditionalOperationFlags::empty(), 
     }
     // cSpell:enable
 }

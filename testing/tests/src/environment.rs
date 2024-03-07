@@ -489,7 +489,7 @@ impl ScryptoTestEnv {
             protocol_manager_rule,
             XRD.into(),
             simple_oracle.try_into().unwrap(),
-            configuration.maximum_allowed_price_staleness_seconds,
+            configuration.maximum_allowed_price_staleness_in_seconds_seconds,
             configuration.maximum_allowed_relative_price_difference,
             InitializationParameters::default(),
             None,
@@ -1245,7 +1245,7 @@ impl ScryptoUnitEnv {
                             XRD,
                             simple_oracle,
                             configuration
-                                .maximum_allowed_price_staleness_seconds,
+                                .maximum_allowed_price_staleness_in_seconds_seconds,
                             configuration
                                 .maximum_allowed_relative_price_difference,
                             InitializationParametersManifest::default(),
@@ -1617,7 +1617,7 @@ impl<T> ResourceInformation<T> {
 #[derive(Clone, Debug)]
 pub struct Configuration {
     pub fees: Decimal,
-    pub maximum_allowed_price_staleness_seconds: i64,
+    pub maximum_allowed_price_staleness_in_seconds_seconds: i64,
     pub maximum_allowed_relative_price_difference: Decimal,
 }
 
@@ -1627,7 +1627,7 @@ impl Default for Configuration {
             // 1%
             fees: dec!(0.01),
             // 5 Minutes
-            maximum_allowed_price_staleness_seconds: 300i64,
+            maximum_allowed_price_staleness_in_seconds_seconds: 300i64,
             // 1%
             maximum_allowed_relative_price_difference: dec!(0.01),
         }

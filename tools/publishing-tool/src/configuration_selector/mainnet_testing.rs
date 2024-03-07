@@ -31,7 +31,7 @@ pub fn mainnet_testing(
             },
             allow_opening_liquidity_positions: true,
             allow_closing_liquidity_positions: true,
-            maximum_allowed_price_staleness: i64::MAX,
+            maximum_allowed_price_staleness_in_seconds: i64::MAX,
             maximum_allowed_price_difference_percentage: Decimal::MAX,
             entities_metadata: Entities {
                 protocol_entities: ProtocolIndexedData {

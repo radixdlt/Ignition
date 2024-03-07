@@ -105,7 +105,7 @@ fn can_add_a_positive_upfront_reward_percentage() -> Result<(), RuntimeError> {
 }
 
 #[test]
-fn cant_set_the_maximum_allowed_price_staleness_to_a_negative_number(
+fn cant_set_the_maximum_allowed_price_staleness_in_seconds_to_a_negative_number(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -117,7 +117,7 @@ fn cant_set_the_maximum_allowed_price_staleness_to_a_negative_number(
     // Act
     let rtn = protocol
         .ignition
-        .set_maximum_allowed_price_staleness(-1, env);
+        .set_maximum_allowed_price_staleness_in_seconds(-1, env);
 
     // Assert
     assert_is_ignition_invalid_maximum_price_staleness(&rtn);
@@ -126,7 +126,7 @@ fn cant_set_the_maximum_allowed_price_staleness_to_a_negative_number(
 }
 
 #[test]
-fn can_set_the_maximum_allowed_price_staleness_to_zero(
+fn can_set_the_maximum_allowed_price_staleness_in_seconds_to_zero(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -138,7 +138,7 @@ fn can_set_the_maximum_allowed_price_staleness_to_zero(
     // Act
     let rtn = protocol
         .ignition
-        .set_maximum_allowed_price_staleness(0, env);
+        .set_maximum_allowed_price_staleness_in_seconds(0, env);
 
     // Assert
     assert!(rtn.is_ok());
@@ -147,7 +147,7 @@ fn can_set_the_maximum_allowed_price_staleness_to_zero(
 }
 
 #[test]
-fn can_set_the_maximum_allowed_price_staleness_to_a_positive_number(
+fn can_set_the_maximum_allowed_price_staleness_in_seconds_to_a_positive_number(
 ) -> Result<(), RuntimeError> {
     // Arrange
     let Environment {
@@ -159,7 +159,7 @@ fn can_set_the_maximum_allowed_price_staleness_to_a_positive_number(
     // Act
     let rtn = protocol
         .ignition
-        .set_maximum_allowed_price_staleness(1, env);
+        .set_maximum_allowed_price_staleness_in_seconds(1, env);
 
     // Assert
     assert!(rtn.is_ok());
@@ -337,7 +337,7 @@ fn can_open_a_liquidity_position_before_the_price_is_stale(
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: 5 * 60,
+        maximum_allowed_price_staleness_in_seconds_seconds: 5 * 60,
         ..Default::default()
     })?;
 
@@ -370,7 +370,7 @@ fn can_open_a_liquidity_position_right_before_price_goes_stale(
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: 5 * 60,
+        maximum_allowed_price_staleness_in_seconds_seconds: 5 * 60,
         ..Default::default()
     })?;
 
@@ -406,7 +406,7 @@ fn cant_open_a_liquidity_position_right_after_price_goes_stale(
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: 5 * 60,
+        maximum_allowed_price_staleness_in_seconds_seconds: 5 * 60,
         ..Default::default()
     })?;
 
@@ -1718,7 +1718,7 @@ fn protocol_owner_can_perform_forced_liquidation() -> Result<(), RuntimeError> {
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: i64::MAX,
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
         ..Default::default()
     })?;
     env.enable_auth_module();
@@ -1769,7 +1769,7 @@ fn protocol_owner_can_perform_forced_liquidation_even_when_liquidation_is_closed
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: i64::MAX,
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
         ..Default::default()
     })?;
     env.enable_auth_module();
@@ -1824,7 +1824,7 @@ fn protocol_owner_cant_perform_forced_liquidation_before_maturity_date(
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: i64::MAX,
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
         ..Default::default()
     })?;
     env.enable_auth_module();
@@ -1872,7 +1872,7 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: i64::MAX,
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
         ..Default::default()
     })?;
 
@@ -1923,7 +1923,7 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
         resources,
         ..
     } = ScryptoTestEnv::new_with_configuration(Configuration {
-        maximum_allowed_price_staleness_seconds: i64::MAX,
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
         ..Default::default()
     })?;
 
