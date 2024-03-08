@@ -52,12 +52,14 @@ pub struct PublishingConfiguration {
 
 #[derive(Debug, Clone, ScryptoSbor)]
 pub struct PublishingReceipt {
+    pub dapp_definition_account: ComponentAddress,
     pub packages: Entities<PackageAddress>,
     pub components: Entities<ComponentAddress>,
     pub exchange_information: ExchangeIndexedData<
         Option<ExchangeInformation<ComponentAddress, ResourceAddress>>,
     >,
     pub protocol_configuration: ProtocolConfigurationReceipt,
+    pub user_resources: UserResourceIndexedData<ResourceAddress>,
     pub badges: BadgeIndexedData<ResourceAddress>,
 }
 

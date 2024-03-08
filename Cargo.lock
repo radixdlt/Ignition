@@ -2997,6 +2997,8 @@ dependencies = [
  "extend",
  "gateway-client",
  "ignition",
+ "lazy_static",
+ "macro_rules_attribute",
  "ociswap-v1-adapter-v1",
  "ociswap-v2-adapter-v1",
  "package-loader",

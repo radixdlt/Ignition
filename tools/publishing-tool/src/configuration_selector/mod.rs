@@ -19,7 +19,9 @@ impl ConfigurationSelector {
         notary_private_key: &PrivateKey,
     ) -> PublishingConfiguration {
         match self {
-            Self::MainnetProduction => todo!(),
+            Self::MainnetProduction => {
+                mainnet_production::mainnet_production(notary_private_key)
+            }
             Self::MainnetTesting => {
                 mainnet_testing::mainnet_testing(notary_private_key)
             }

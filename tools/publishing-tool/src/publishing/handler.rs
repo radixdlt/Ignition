@@ -839,7 +839,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                 )
                 .call_method(
                     resolved_adapter_component_addresses.defiplaza_v2,
-                    "add_pair_config",
+                    "add_pair_configs",
                     (pair_config_map,),
                 )
                 .build();
@@ -1118,6 +1118,7 @@ pub fn publish<N: NetworkConnectionProvider>(
     }
 
     Ok(PublishingReceipt {
+        dapp_definition_account,
         packages: Entities {
             protocol_entities: resolved_blueprint_ids
                 .protocol_entities
@@ -1156,6 +1157,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                 information.as_ref().map(|information| information.pools)
             }),
         },
+        user_resources: resolved_user_resources,
         badges: resolved_badges.map(|(_, address)| *address),
     })
 }
