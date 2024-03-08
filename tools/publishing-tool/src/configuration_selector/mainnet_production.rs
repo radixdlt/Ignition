@@ -312,7 +312,7 @@ pub fn mainnet_production(
         additional_information: AdditionalInformation {
             ociswap_v2_registry_component_and_dapp_definition: None,
         },
-        additional_operation_flags: AdditionalOperationFlags::empty(), 
+        additional_operation_flags: AdditionalOperationFlags::empty(),
     }
     // cSpell:enable
 }

@@ -224,7 +224,7 @@ where
 /// that takes arguments. The arguments given is the mainnet state after the
 /// publishing of Ignition to the network. The following is an example:
 ///
-/// ```no_run
+/// ```norun
 /// use macro_rules_attribute::apply;
 ///
 /// #[apply(mainnet_test)]
