@@ -30,7 +30,7 @@ use proc_macro::TokenStream;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```norun
 /// define_interface! {
 ///     // The name of the blueprint
 ///     Radiswap {
@@ -57,7 +57,7 @@ use proc_macro::TokenStream;
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```norun
 /// define_interface! {
 ///     // The name of the blueprint
 ///     Radiswap as Dex {
@@ -89,7 +89,7 @@ use proc_macro::TokenStream;
 /// builder stubs for a particular blueprint then we would invoke this macro as
 /// follows:
 ///
-/// ```no_run
+/// ```norun
 /// define_interface! {
 ///     // The name of the blueprint - in this example, providing a struct
 ///     // name (the `as Dex` is the struct name) is optional, just shown to
@@ -119,7 +119,7 @@ use proc_macro::TokenStream;
 /// For the Radiswap example above, we can control the types to use for the
 /// manifest builder as follows:
 ///
-/// ```no_run
+/// ```norun
 /// define_interface! {
 ///     // The name of the blueprint - in this example, providing a struct
 ///     // name (the `as Dex` is the struct name) is optional, just shown to
@@ -153,7 +153,7 @@ use proc_macro::TokenStream;
 /// then implementing the generated trait on the blueprint with the aid of the
 /// `blueprint_with_traits` macro. As an example:
 ///
-/// ```no_run
+/// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_interface::*;
 ///
@@ -239,7 +239,7 @@ use proc_macro::TokenStream;
 ///
 /// The following is an example of this in action:
 ///
-/// ```no_run
+/// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_interface::*;
 ///
@@ -301,7 +301,7 @@ use proc_macro::TokenStream;
 ///
 /// The following is an example of this macro in action:
 ///
-/// ```no_run
+/// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_test::prelude::*;
 /// use scrypto_interface::*;
@@ -359,7 +359,7 @@ use proc_macro::TokenStream;
 ///
 /// The following is an example of this in action:
 ///
-/// ```no_run
+/// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_interface::*;
 /// use transaction::builder::*;
@@ -424,7 +424,7 @@ pub fn define_interface(input: TokenStream) -> TokenStream {
 ///
 /// # Example
 ///
-/// ```no_run
+/// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_interface::*;
 ///
