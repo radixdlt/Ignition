@@ -39,6 +39,28 @@ impl<'s> SimulatorNetworkConnector<'s> {
             network_definition,
         }
     }
+
+    pub fn new_with_test_runner(
+        ledger_simulator: TestRunner<
+            NoExtension,
+            UnmergeableSubstateDatabaseOverlay<'s, RocksDBStore>,
+        >,
+        network_definition: NetworkDefinition,
+    ) -> Self {
+        Self {
+            ledger_simulator,
+            network_definition,
+        }
+    }
+
+    pub fn into_test_runner(
+        self,
+    ) -> TestRunner<
+        NoExtension,
+        UnmergeableSubstateDatabaseOverlay<'s, RocksDBStore>,
+    > {
+        self.ledger_simulator
+    }
 }
 
 impl<'s> NetworkConnectionProvider for SimulatorNetworkConnector<'s> {

@@ -1,3 +1,4 @@
+pub mod configuration_selector;
 pub mod database_overlay;
 pub mod error;
 pub mod macros;

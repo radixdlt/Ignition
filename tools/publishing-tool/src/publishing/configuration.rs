@@ -52,12 +52,14 @@ pub struct PublishingConfiguration {
 
 #[derive(Debug, Clone, ScryptoSbor)]
 pub struct PublishingReceipt {
+    pub dapp_definition_account: ComponentAddress,
     pub packages: Entities<PackageAddress>,
     pub components: Entities<ComponentAddress>,
     pub exchange_information: ExchangeIndexedData<
         Option<ExchangeInformation<ComponentAddress, ResourceAddress>>,
     >,
     pub protocol_configuration: ProtocolConfigurationReceipt,
+    pub user_resources: UserResourceIndexedData<ResourceAddress>,
     pub badges: BadgeIndexedData<ResourceAddress>,
 }
 
@@ -91,7 +93,7 @@ pub struct ProtocolConfigurationReceipt {
     pub reward_rates: IndexMap<LockupPeriod, Decimal>,
     pub allow_opening_liquidity_positions: bool,
     pub allow_closing_liquidity_positions: bool,
-    pub maximum_allowed_price_staleness: i64,
+    pub maximum_allowed_price_staleness_in_seconds: i64,
     pub maximum_allowed_price_difference_percentage: Decimal,
     pub user_resources: UserResourceIndexedData<ResourceAddress>,
     pub registered_pools:
@@ -109,7 +111,7 @@ pub struct ProtocolConfiguration {
     pub reward_rates: IndexMap<LockupPeriod, Decimal>,
     pub allow_opening_liquidity_positions: bool,
     pub allow_closing_liquidity_positions: bool,
-    pub maximum_allowed_price_staleness: i64,
+    pub maximum_allowed_price_staleness_in_seconds: i64,
     pub maximum_allowed_price_difference_percentage: Decimal,
     pub entities_metadata: Entities<MetadataInit>,
 }

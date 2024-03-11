@@ -784,7 +784,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                     oracle_component_address,
                     configuration
                         .protocol_configuration
-                        .maximum_allowed_price_staleness,
+                        .maximum_allowed_price_staleness_in_seconds,
                     configuration
                         .protocol_configuration
                         .maximum_allowed_price_difference_percentage,
@@ -839,7 +839,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                 )
                 .call_method(
                     resolved_adapter_component_addresses.defiplaza_v2,
-                    "add_pair_config",
+                    "add_pair_configs",
                     (pair_config_map,),
                 )
                 .build();
@@ -1118,6 +1118,7 @@ pub fn publish<N: NetworkConnectionProvider>(
     }
 
     Ok(PublishingReceipt {
+        dapp_definition_account,
         packages: Entities {
             protocol_entities: resolved_blueprint_ids
                 .protocol_entities
@@ -1145,9 +1146,9 @@ pub fn publish<N: NetworkConnectionProvider>(
             allow_closing_liquidity_positions: configuration
                 .protocol_configuration
                 .allow_closing_liquidity_positions,
-            maximum_allowed_price_staleness: configuration
+            maximum_allowed_price_staleness_in_seconds: configuration
                 .protocol_configuration
-                .maximum_allowed_price_staleness,
+                .maximum_allowed_price_staleness_in_seconds,
             maximum_allowed_price_difference_percentage: configuration
                 .protocol_configuration
                 .maximum_allowed_price_difference_percentage,
@@ -1156,6 +1157,7 @@ pub fn publish<N: NetworkConnectionProvider>(
                 information.as_ref().map(|information| information.pools)
             }),
         },
+        user_resources: resolved_user_resources,
         badges: resolved_badges.map(|(_, address)| *address),
     })
 }

@@ -122,7 +122,7 @@ mod ignition {
                 protocol_owner,
                 protocol_manager
             ];
-            set_maximum_allowed_price_staleness => restrict_to: [
+            set_maximum_allowed_price_staleness_in_seconds => restrict_to: [
                 protocol_owner,
                 protocol_manager
             ];
@@ -289,7 +289,7 @@ mod ignition {
 
         /// The maximum allowed staleness of prices in seconds. If a price is
         /// found to be older than this then it is deemed to be invalid.
-        maximum_allowed_price_staleness: i64,
+        maximum_allowed_price_staleness_in_seconds: i64,
 
         /// The maximum percentage of price difference the protocol is willing
         /// to accept before deeming the price difference to be too much. This
@@ -310,7 +310,7 @@ mod ignition {
             /* Initial Configuration */
             protocol_resource: ResourceManager,
             oracle_adapter: ComponentAddress,
-            maximum_allowed_price_staleness: i64,
+            maximum_allowed_price_staleness_in_seconds: i64,
             maximum_allowed_price_difference_percentage: Decimal,
             /* Initializers */
             initialization_parameters: InitializationParameters,
@@ -344,7 +344,7 @@ mod ignition {
                     reward_rates: KeyValueStore::new_with_registered_type(),
                     is_open_position_enabled: false,
                     is_close_position_enabled: false,
-                    maximum_allowed_price_staleness,
+                    maximum_allowed_price_staleness_in_seconds,
                     maximum_allowed_price_difference_percentage,
                     user_resource_volatility:
                         KeyValueStore::new_with_registered_type(),
@@ -1546,9 +1546,12 @@ mod ignition {
         ///
         /// * `value`: [`i64`] - The maximum allowed staleness period in
         /// seconds.
-        pub fn set_maximum_allowed_price_staleness(&mut self, value: i64) {
+        pub fn set_maximum_allowed_price_staleness_in_seconds(
+            &mut self,
+            value: i64,
+        ) {
             assert!(value >= 0, "{}", INVALID_MAXIMUM_PRICE_STALENESS);
-            self.maximum_allowed_price_staleness = value
+            self.maximum_allowed_price_staleness_in_seconds = value
         }
 
         /// Adds a rewards rate to the protocol.
@@ -1801,7 +1804,7 @@ mod ignition {
             let (price, last_update) =
                 self.oracle_adapter.get_price(base, quote);
             let final_price_validity = last_update
-                .add_seconds(self.maximum_allowed_price_staleness)
+                .add_seconds(self.maximum_allowed_price_staleness_in_seconds)
                 .unwrap_or(Instant::new(i64::MAX));
 
             // Check for staleness

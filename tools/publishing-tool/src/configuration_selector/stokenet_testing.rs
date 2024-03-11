@@ -1,7 +1,7 @@
+use crate::publishing::*;
+use crate::utils::*;
+use crate::*;
 use common::prelude::*;
-use publishing_tool::publishing::*;
-use publishing_tool::utils::*;
-use publishing_tool::*;
 use radix_engine_interface::prelude::*;
 use transaction::prelude::*;
 
@@ -29,7 +29,7 @@ pub fn stokenet_testing(
             },
             allow_opening_liquidity_positions: true,
             allow_closing_liquidity_positions: true,
-            maximum_allowed_price_staleness: i64::MAX,
+            maximum_allowed_price_staleness_in_seconds: i64::MAX,
             maximum_allowed_price_difference_percentage: Decimal::MAX,
             entities_metadata: Entities {
                 protocol_entities: ProtocolIndexedData {

@@ -13,6 +13,8 @@ radix-engine-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 radix-engine-store-interface = { workspace = true }
 
+state-manager = { workspace = true }
+
 common = { path = "../../libraries/common" }
 ignition = { path = "../../packages/ignition" }
 package-loader = { path = "../../libraries/package-loader" }
@@ -31,7 +33,6 @@ caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", f
     "manifest-builder-stubs",
 ] }
 
-state-manager = { git = "https://github.com/radixdlt/babylon-node", rev = "63a8267196995fef0830e4fbf0271bea65c90ab1" }
 sbor-json = { git = "https://github.com/radixdlt/radix-engine-toolkit", rev = "1cfe879c7370cfa497857ada7a8973f8a3388abc" }
 
 hex = { version = "0.4.3" }
