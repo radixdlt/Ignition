@@ -165,3 +165,26 @@ impl From<Shortage> for ShortageState {
         }
     }
 }
+
+#[derive(
+    ScryptoSbor,
+    ManifestSbor,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+)]
+pub struct PlazaPair {
+    pub config: PairConfig,
+    pub state: PairState,
+    pub base_address: ResourceAddress,
+    pub quote_address: ResourceAddress,
+    pub base_divisibility: u8,
+    pub quote_divisibility: u8,
+    pub base_pool: ComponentAddress,
+    pub quote_pool: ComponentAddress,
+}

@@ -209,7 +209,9 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                 ModuleId::Main,
                 ConsensusManagerField::ProposerMilliTimestamp.field_index(),
                 ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
-                    ProposerMilliTimestampSubstate { epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000  }
+                    ProposerMilliTimestampSubstate {
+                        epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
+                    },
                 ),
             )
             .unwrap();
@@ -221,8 +223,9 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60).unwrap(),
-                    }
+                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
+                            .unwrap(),
+                    },
                 ),
             )
             .unwrap();
@@ -801,10 +804,8 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(
-                            maturity_instant.seconds_since_unix_epoch / 60,
-                        )
-                        .unwrap(),
+                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
+                            .unwrap(),
                     },
                 ),
             )

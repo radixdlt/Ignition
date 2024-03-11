@@ -1483,10 +1483,12 @@ mod ignition {
                 }
             } else {
                 drop(entry);
-                self.pool_units
-                    .insert(global_id, indexmap! {
+                self.pool_units.insert(
+                    global_id,
+                    indexmap! {
                         pool_units_resource_address => Vault::with_bucket(pool_units)
-                    })
+                    },
+                )
             }
         }
 

@@ -171,12 +171,24 @@ pub mod adapter {
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(lower_tick, upper_tick, bucket_x, bucket_y);
 
+            let non_fungible = receipt
+                .as_non_fungible()
+                .non_fungible::<LiquidityPosition>();
+            let non_fungible_data = non_fungible.data();
+            let non_fungible_global_id = non_fungible.global_id().clone();
+
             OpenLiquidityPositionOutput {
                 pool_units: IndexedBuckets::from_bucket(receipt),
                 change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: Default::default(),
-                adapter_specific_information: AnyValue::from_typed(&())
-                    .expect(UNEXPECTED_ERROR),
+                adapter_specific_information: AnyValue::from_typed(
+                    &OciswapV2AdapterSpecificInformation {
+                        liquidity_receipt_non_fungible_global_id:
+                            non_fungible_global_id,
+                        liquidity_receipt_data: non_fungible_data,
+                    },
+                )
+                .expect(UNEXPECTED_ERROR),
             }
         }
 
@@ -246,10 +258,28 @@ pub mod adapter {
 }
 
 #[derive(ScryptoSbor, Debug, Clone)]
-pub struct OciswapV2AdapterSpecificInformation {}
+pub struct OciswapV2AdapterSpecificInformation {
+    /// Stores the non-fungible global id of the liquidity receipt.
+    pub liquidity_receipt_non_fungible_global_id: NonFungibleGlobalId,
+
+    /// The data of the underlying liquidity receipt
+    pub liquidity_receipt_data: LiquidityPosition,
+}
 
 impl From<OciswapV2AdapterSpecificInformation> for AnyValue {
     fn from(value: OciswapV2AdapterSpecificInformation) -> Self {
         AnyValue::from_typed(&value).unwrap()
     }
+}
+
+#[derive(NonFungibleData, ScryptoSbor, Debug, Clone)]
+pub struct LiquidityPosition {
+    liquidity: PreciseDecimal,
+    left_bound: i32,
+    right_bound: i32,
+    shape_id: Option<NonFungibleLocalId>,
+    x_fee_checkpoint: PreciseDecimal,
+    y_fee_checkpoint: PreciseDecimal,
+    x_total_fee_checkpoint: PreciseDecimal,
+    y_total_fee_checkpoint: PreciseDecimal,
 }

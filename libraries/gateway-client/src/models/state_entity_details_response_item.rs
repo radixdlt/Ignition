@@ -29,8 +29,7 @@ pub struct StateEntityDetailsResponseItem {
     )]
     pub explicit_metadata: Option<Box<crate::models::EntityMetadataCollection>>,
     #[serde(rename = "details", skip_serializing_if = "Option::is_none")]
-    pub details:
-        Option<Box<crate::models::StateEntityDetailsResponseItemDetails>>,
+    pub details: Option<serde_json::Value>,
 }
 
 impl StateEntityDetailsResponseItem {
