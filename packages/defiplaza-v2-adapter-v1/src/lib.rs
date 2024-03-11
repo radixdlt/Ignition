@@ -326,89 +326,248 @@ pub mod adapter {
                 (pool_units_bucket1, pool_units_bucket2)
             };
 
-            // Getting the base and quote assets
-            let (base_resource_address, quote_resource_address) =
-                pool.get_tokens();
-
             // Decoding the adapter specific information as the type we expect
             // it to be.
             let DefiPlazaV2AdapterSpecificInformation { original_targets } =
                 adapter_specific_information.as_typed().unwrap();
-            let [old_base_target, old_quote_target] =
-                [base_resource_address, quote_resource_address].map(
-                    |address| original_targets.get(&address).copied().unwrap(),
-                );
 
-            // Step 1: Get the pair's state
+            // We have gotten two pools units, one of the base pool and
+            // another for the quote pool. We need to determine which is
+            // which and overall split things according to shortage and
+            // surplus. So, instead of referring to them as base and quote
+            // we would figure out what is in shortage and what is surplus.
+
+            // First thing we do is store the pool units in a map where the
+            // key the address of the pool and the value is the pool units
+            // bucket. We find the address of the pool through metadata on
+            // the pool units since there is currently no other way to find
+            // this information.
+            let mut pool_component_to_pool_unit_mapping =
+                [pool_units1, pool_units2]
+                    .into_iter()
+                    .map(|bucket| {
+                        let resource_manager = bucket.resource_manager();
+                        let pool_address = ComponentAddress::try_from(
+                            resource_manager
+                                .get_metadata::<_, GlobalAddress>("pool")
+                                .unwrap()
+                                .unwrap(),
+                        )
+                        .unwrap();
+                        (pool_address, bucket)
+                    })
+                    .collect::<IndexMap<_, _>>();
+
+            // With the way we combined them above we now want to split them
+            // into base pool units and quote pool units. This is simple to
+            // do, just get the address of the base and quote pools and then
+            // do a simple `remove` from the above map.
+            let (base_pool_component, quote_pool_component) = pool.get_pools();
+            let base_pool_units = pool_component_to_pool_unit_mapping
+                .remove(&base_pool_component)
+                .unwrap();
+            let quote_pool_units = pool_component_to_pool_unit_mapping
+                .remove(&quote_pool_component)
+                .unwrap();
+
+            // At this point we have the the base and quote token addresses,
+            // pool addresses, and pool units. We can now split things as
+            // shortage and quote and stop referring to things as base and
+            // quote.
+            let (base_resource_address, quote_resource_address) =
+                pool.get_tokens();
             let pair_state = pool.get_state();
-
-            // Step 2 & 3: Determine which of the resources is in shortage and
-            // based on that determine what the new target should be.
-            let claimed_tokens = IndexedBuckets::from_buckets(
-                [pool_units1, pool_units2].into_iter().flat_map(|bucket| {
-                    let resource_manager = bucket.resource_manager();
-                    let entry = ComponentAddress::try_from(
-                        resource_manager
-                            .get_metadata::<_, GlobalAddress>("pool")
-                            .unwrap()
-                            .unwrap(),
-                    )
-                    .unwrap();
-                    let mut two_resource_pool =
-                        Global::<TwoResourcePool>::from(entry);
-                    let (bucket1, bucket2) = two_resource_pool.redeem(bucket);
-                    [bucket1, bucket2]
-                }),
-            );
-            let base_bucket =
-                claimed_tokens.get(&base_resource_address).unwrap();
-            let quote_bucket =
-                claimed_tokens.get(&quote_resource_address).unwrap();
-
-            let base_bucket_amount = base_bucket.amount();
-            let quote_bucket_amount = quote_bucket.amount();
-
-            let shortage = pair_state.shortage;
-            let shortage_state = ShortageState::from(shortage);
-            let (new_base_target, new_quote_target) = match shortage_state {
+            let (claimed_resources, fees) = match ShortageState::from(
+                pair_state.shortage,
+            ) {
+                // The pool is in equilibrium, none of the assets are in
+                // shortage so there is no need to multiply anything by the
+                // target ratio.
                 ShortageState::Equilibrium => {
-                    (base_bucket_amount, quote_bucket_amount)
+                    // Claiming the assets from the pools.
+                    let [resources_claimed_from_base_resource_pool, resources_claimed_from_quote_resource_pool] =
+                        [
+                            (base_pool_component, base_pool_units),
+                            (quote_pool_component, quote_pool_units),
+                        ]
+                        .map(
+                            |(pool_component_address, pool_units_bucket)| {
+                                let mut pool = Global::<TwoResourcePool>::from(
+                                    pool_component_address,
+                                );
+                                let (bucket1, bucket2) =
+                                    pool.redeem(pool_units_bucket);
+                                IndexedBuckets::from_buckets([bucket1, bucket2])
+                            },
+                        );
+
+                    // The target of the two resources is just the amount we
+                    // got back when closing the liquidity position.
+                    let new_target_of_base_resource =
+                        resources_claimed_from_base_resource_pool
+                            .get(&base_resource_address)
+                            .map(|bucket| bucket.amount())
+                            .expect(UNEXPECTED_ERROR);
+                    let new_target_of_quote_resource =
+                        resources_claimed_from_quote_resource_pool
+                            .get(&quote_resource_address)
+                            .map(|bucket| bucket.amount())
+                            .expect(UNEXPECTED_ERROR);
+
+                    // Now that we have the target for the base and quote
+                    // resources we can calculate the fees.
+                    let base_resource_fees = original_targets
+                        .get(&base_resource_address)
+                        .expect(UNEXPECTED_ERROR)
+                        .checked_sub(new_target_of_base_resource)
+                        .expect(OVERFLOW_ERROR)
+                        .max(dec!(0));
+                    let quote_resource_fees = original_targets
+                        .get(&quote_resource_address)
+                        .expect(UNEXPECTED_ERROR)
+                        .checked_sub(new_target_of_quote_resource)
+                        .expect(OVERFLOW_ERROR)
+                        .max(dec!(0));
+
+                    let fees = indexmap! {
+                        base_resource_address => base_resource_fees,
+                        quote_resource_address => quote_resource_fees,
+                    };
+
+                    let claimed_resources =
+                        resources_claimed_from_base_resource_pool.combine(
+                            resources_claimed_from_quote_resource_pool,
+                        );
+
+                    (claimed_resources, fees)
                 }
-                ShortageState::Shortage(Asset::Base) => (
-                    base_bucket_amount
-                        .checked_mul(pair_state.target_ratio)
-                        .expect(OVERFLOW_ERROR),
-                    quote_bucket_amount,
-                ),
-                ShortageState::Shortage(Asset::Quote) => (
-                    base_bucket_amount,
-                    quote_bucket_amount
-                        .checked_mul(pair_state.target_ratio)
-                        .expect(OVERFLOW_ERROR),
-                ),
+                // One of the assets is in shortage and the other is in
+                // surplus. Determine which is which and sort the info.
+                ShortageState::Shortage(asset) => {
+                    let (
+                        (
+                            shortage_asset_pool_component,
+                            shortage_asset_pool_units,
+                            shortage_asset_resource_address,
+                        ),
+                        (
+                            surplus_asset_pool_component,
+                            surplus_asset_pool_units,
+                            surplus_asset_resource_address,
+                        ),
+                    ) = match asset {
+                        Asset::Base => (
+                            (
+                                base_pool_component,
+                                base_pool_units,
+                                base_resource_address,
+                            ),
+                            (
+                                quote_pool_component,
+                                quote_pool_units,
+                                quote_resource_address,
+                            ),
+                        ),
+                        Asset::Quote => (
+                            (
+                                quote_pool_component,
+                                quote_pool_units,
+                                quote_resource_address,
+                            ),
+                            (
+                                base_pool_component,
+                                base_pool_units,
+                                base_resource_address,
+                            ),
+                        ),
+                    };
+
+                    // We have now split them into shortage and surplus and
+                    // we can now close the liquidity positions and compute
+                    // the new targets for the base and shortage assets.
+                    let [resources_claimed_from_shortage_asset_pool, resources_claimed_from_surplus_asset_pool] =
+                        [
+                            (
+                                shortage_asset_pool_component,
+                                shortage_asset_pool_units,
+                            ),
+                            (
+                                surplus_asset_pool_component,
+                                surplus_asset_pool_units,
+                            ),
+                        ]
+                        .map(
+                            |(pool_component_address, pool_units_bucket)| {
+                                let mut pool = Global::<TwoResourcePool>::from(
+                                    pool_component_address,
+                                );
+                                let (bucket1, bucket2) =
+                                    pool.redeem(pool_units_bucket);
+                                IndexedBuckets::from_buckets([bucket1, bucket2])
+                            },
+                        );
+
+                    // The target of the shortage asset can be calculated by
+                    // multiplying the amount we got back from closing the
+                    // position in the shortage pool by the target ratio of
+                    // the pool in the current state.
+                    let new_target_of_shortage_asset =
+                        resources_claimed_from_shortage_asset_pool
+                            .get(&shortage_asset_resource_address)
+                            .map(|bucket| bucket.amount())
+                            .expect(UNEXPECTED_ERROR)
+                            .checked_mul(pair_state.target_ratio)
+                            .expect(OVERFLOW_ERROR);
+
+                    // The target of the surplus asset is simple, its the
+                    // amount we got back when we closed the position in
+                    // the surplus pool.
+                    let new_target_of_surplus_asset =
+                        resources_claimed_from_surplus_asset_pool
+                            .get(&surplus_asset_resource_address)
+                            .map(|bucket| bucket.amount())
+                            .expect(UNEXPECTED_ERROR);
+
+                    // Now that we have the target for the shortage and
+                    // surplus assets we can calculate the fees earned on
+                    // those assets. Its calculated by subtracting the
+                    // new targets from the original targets.
+                    let shortage_asset_fees = new_target_of_shortage_asset
+                        .checked_sub(
+                            original_targets
+                                .get(&shortage_asset_resource_address)
+                                .copied()
+                                .expect(UNEXPECTED_ERROR),
+                        )
+                        .expect(OVERFLOW_ERROR)
+                        .max(dec!(0));
+                    let surplus_asset_fees = new_target_of_surplus_asset
+                        .checked_sub(
+                            original_targets
+                                .get(&surplus_asset_resource_address)
+                                .copied()
+                                .expect(UNEXPECTED_ERROR),
+                        )
+                        .expect(OVERFLOW_ERROR)
+                        .max(dec!(0));
+
+                    let fees = indexmap! {
+                        shortage_asset_resource_address => shortage_asset_fees,
+                        surplus_asset_resource_address => surplus_asset_fees,
+                    };
+
+                    let claimed_resources =
+                        resources_claimed_from_shortage_asset_pool
+                            .combine(resources_claimed_from_surplus_asset_pool);
+
+                    (claimed_resources, fees)
+                }
             };
 
-            // Steps 4 and 5
-            let base_fees = std::cmp::max(
-                new_base_target
-                    .checked_sub(old_base_target)
-                    .expect(OVERFLOW_ERROR),
-                Decimal::ZERO,
-            );
-            let quote_fees = std::cmp::max(
-                new_quote_target
-                    .checked_sub(old_quote_target)
-                    .expect(OVERFLOW_ERROR),
-                Decimal::ZERO,
-            );
-
             CloseLiquidityPositionOutput {
-                resources: claimed_tokens,
+                resources: claimed_resources,
                 others: vec![],
-                fees: indexmap! {
-                    base_resource_address => base_fees,
-                    quote_resource_address => quote_fees,
-                },
+                fees,
             }
         }
 

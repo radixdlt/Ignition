@@ -130,6 +130,13 @@ impl IndexedBuckets {
     pub fn into_inner(self) -> IndexMap<ResourceAddress, Bucket> {
         self.0
     }
+
+    pub fn combine(mut self, other: Self) -> Self {
+        for bucket in other.0.into_values() {
+            self.insert(bucket)
+        }
+        self
+    }
 }
 
 impl Default for IndexedBuckets {
