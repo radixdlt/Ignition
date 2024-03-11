@@ -2,7 +2,7 @@
 name = "ociswap-v1-adapter-v1"
 version.workspace = true
 edition.workspace = true
-description = "Defines the adapter for Ociswap"
+description = "Defines the adapter for Ociswap v1 - this is effectively deprecated since we won't be supporting Ociswap v1."
 
 [dependencies]
 sbor = { workspace = true }

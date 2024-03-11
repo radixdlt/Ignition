@@ -1,0 +1,27 @@
+[package]
+name = "defiplaza-v2-adapter-v1"
+version.workspace = true
+edition.workspace = true
+description = "Defines the adapter for DefiPlaza v2"
+
+[dependencies]
+sbor = { workspace = true }
+scrypto = { workspace = true }
+radix-engine-interface = { workspace = true }
+transaction = { workspace = true, optional = true }
+
+scrypto-interface = { path = "../../libraries/scrypto-interface" }
+ports-interface = { path = "../../libraries/ports-interface" }
+common = { path = "../../libraries/common" }
+
+[features]
+default = []
+test = []
+
+manifest-builder-stubs = ["dep:transaction"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[lints]
+workspace = true

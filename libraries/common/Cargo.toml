@@ -7,7 +7,7 @@ description = "A crate that defines types used by the other crates."
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
-transaction = { workspace = true, optional = true }
+native-sdk = { workspace = true }
 radix-engine-common = { workspace = true }
 radix-engine-derive = { workspace = true }
 radix-engine-interface = { workspace = true }

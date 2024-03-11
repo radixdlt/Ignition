@@ -33,6 +33,7 @@ define_error! {
         => "One or more of the resources do not belong to pool.";
     NO_PRICE_ERROR => "Pool has no price.";
     OVERFLOW_ERROR => "Overflow error.";
+    INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
 }
 
 macro_rules! pool {
@@ -76,6 +77,8 @@ pub mod adapter {
 
     impl CaviarnineV1Adapter {
         pub fn instantiate(
+            _: AccessRule,
+            _: AccessRule,
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
@@ -472,7 +475,7 @@ pub mod adapter {
             }
 
             let (receipt, change_x, change_y) =
-                pool.add_liquidity(bucket_x, bucket_y, positions);
+                pool.add_liquidity(bucket_x, bucket_y, positions.clone());
 
             let receipt_global_id = {
                 let resource_address = receipt.resource_address();
@@ -483,14 +486,11 @@ pub mod adapter {
 
             let adapter_specific_information =
                 CaviarnineV1AdapterSpecificInformation {
-                    bin_contributions: pool
-                        .get_redemption_bin_values(
-                            receipt_global_id.local_id().clone(),
-                        )
+                    bin_contributions: positions
                         .into_iter()
-                        .map(|(tick, amount_x, amount_y)| {
+                        .map(|(bin, amount_x, amount_y)| {
                             (
-                                tick,
+                                bin,
                                 ResourceIndexedData {
                                     resource_x: amount_x,
                                     resource_y: amount_y,
@@ -503,11 +503,8 @@ pub mod adapter {
                 };
 
             OpenLiquidityPositionOutput {
-                pool_units: receipt,
-                change: indexmap! {
-                    change_x.resource_address() => change_x,
-                    change_y.resource_address() => change_y,
-                },
+                pool_units: IndexedBuckets::from_bucket(receipt),
+                change: IndexedBuckets::from_buckets([change_x, change_y]),
                 others: vec![],
                 adapter_specific_information: adapter_specific_information
                     .into(),
@@ -517,10 +514,19 @@ pub mod adapter {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            pool_units: Bucket,
+            mut pool_units: Vec<Bucket>,
             adapter_specific_information: AnyValue,
         ) -> CloseLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
+            let pool_units = {
+                let pool_units_bucket =
+                    pool_units.pop().expect(INVALID_NUMBER_OF_BUCKETS);
+                if !pool_units.is_empty() {
+                    panic!("{}", INVALID_NUMBER_OF_BUCKETS)
+                }
+                pool_units_bucket
+            };
+
             let pool_information @ PoolInformation {
                 bin_span,
                 resources:
@@ -585,10 +591,7 @@ pub mod adapter {
             };
 
             CloseLiquidityPositionOutput {
-                resources: indexmap! {
-                    resource_x => bucket_x,
-                    resource_y => bucket_y,
-                },
+                resources: IndexedBuckets::from_buckets([bucket_x, bucket_y]),
                 others: Default::default(),
                 fees,
             }
