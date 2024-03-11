@@ -915,37 +915,231 @@ fn pool_reported_price_and_quote_reported_price_are_similar_with_quote_resource_
 }
 
 #[test]
-#[ignore = "Awaiting defiplaza response"]
 fn exact_fee_test1() {
     test_exact_defiplaza_fees_amounts(
         // Initial supply for the pool.
-        AssetIndexedData {
-            protocol_resource: dec!(100_000),
-            user_resource: dec!(100_000),
-        },
+        None,
         // Initial price of the pool
         dec!(1),
-        // The fee percentage of the pool
-        dec!(0.03),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
         // User contribution to the pool. This would mean that the user would
-        // own 0.1% of the pool
+        // own 100% of the pool.
         AssetIndexedData {
-            user_resource: dec!(100),
-            protocol_resource: dec!(100),
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
         },
         // The swaps to perform - the asset you see is the input asset
-        vec![(Asset::ProtocolResource, dec!(1_000))],
-        // The fees to expect - with 0.1% pool ownership of the pool and fees of
-        // 3% then we expect to see 0.03 of the protocol resource in fees (as it
-        // was the input in the swap) and none of the user resource in fees.
-        AssetIndexedData {
-            user_resource: EqualityCheck::ExactlyEquals(dec!(0)),
-            protocol_resource: EqualityCheck::ExactlyEquals(dec!(0.03)),
-        },
+        vec![(Asset::UserResource, dec!(5000))],
     )
     .expect("Should not fail!")
 }
 
+#[test]
+fn exact_fee_test2() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![(Asset::ProtocolResource, dec!(5000))],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test3() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::UserResource, dec!(5000)),
+            (Asset::ProtocolResource, dec!(1000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test4() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::ProtocolResource, dec!(5000)),
+            (Asset::UserResource, dec!(1000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test5() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::UserResource, dec!(5000)),
+            (Asset::ProtocolResource, dec!(10_000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test6() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::ProtocolResource, dec!(5000)),
+            (Asset::UserResource, dec!(10_000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test7() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::ProtocolResource, dec!(3996)),
+            (Asset::UserResource, dec!(898)),
+            (Asset::ProtocolResource, dec!(7953)),
+            (Asset::ProtocolResource, dec!(3390)),
+            (Asset::ProtocolResource, dec!(4297)),
+            (Asset::ProtocolResource, dec!(2252)),
+            (Asset::UserResource, dec!(5835)),
+            (Asset::ProtocolResource, dec!(5585)),
+            (Asset::UserResource, dec!(7984)),
+            (Asset::ProtocolResource, dec!(8845)),
+            (Asset::ProtocolResource, dec!(4511)),
+            (Asset::UserResource, dec!(1407)),
+            (Asset::UserResource, dec!(4026)),
+            (Asset::UserResource, dec!(8997)),
+            (Asset::ProtocolResource, dec!(1950)),
+            (Asset::UserResource, dec!(8016)),
+            (Asset::UserResource, dec!(8322)),
+            (Asset::UserResource, dec!(5149)),
+            (Asset::ProtocolResource, dec!(6411)),
+            (Asset::ProtocolResource, dec!(1013)),
+            (Asset::ProtocolResource, dec!(3333)),
+            (Asset::ProtocolResource, dec!(4130)),
+            (Asset::UserResource, dec!(2786)),
+            (Asset::UserResource, dec!(5828)),
+            (Asset::UserResource, dec!(8974)),
+            (Asset::UserResource, dec!(6476)),
+            (Asset::ProtocolResource, dec!(8942)),
+            (Asset::UserResource, dec!(2159)),
+            (Asset::UserResource, dec!(8387)),
+            (Asset::UserResource, dec!(2830)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Asset {
     UserResource,
@@ -958,26 +1152,24 @@ struct AssetIndexedData<T> {
     protocol_resource: T,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum EqualityCheck<T> {
-    ExactlyEquals(T),
-    ApproximatelyEquals { value: T, acceptable_difference: T },
-}
-
+/// This test will open a position for the user in a Defiplaza liquidity
+/// pool and then perform a bunch of swaps to generate fees and then asset
+/// that the amount of fees obtained as reported by the adapter matches the
+/// amount that we expect the fees to be. An important note, Defiplaza fees
+/// are collected on the output token and not the input token, so they're a
+/// percentage of the output amount.
 fn test_exact_defiplaza_fees_amounts(
     // The initial amount of liquidity to provide when creating the liquidity
     // pool.
-    initial_liquidity: AssetIndexedData<Decimal>,
+    initial_liquidity: Option<AssetIndexedData<Decimal>>,
     // The price to set as the initial price of the pool.
     initial_price: Decimal,
-    // The fee percentage of the pool
-    fee_percentage: Decimal,
+    // The pair configuration of the defiplaza pool
+    pair_configuration: PairConfig,
     // The contribution that the user will make to the pool
     user_contribution: AssetIndexedData<Decimal>,
     // The swaps to perform on the pool.
     swaps: Vec<(Asset, Decimal)>,
-    // Equality checks to perform when closing the liquidity position.
-    expected_fees: AssetIndexedData<EqualityCheck<Decimal>>,
 ) -> Result<(), RuntimeError> {
     let Environment {
         environment: ref mut env,
@@ -1000,35 +1192,32 @@ fn test_exact_defiplaza_fees_amounts(
         OwnerRole::None,
         resources.user_resource,
         resources.protocol_resource,
-        PairConfig {
-            k_in: dec!("0.4"),
-            k_out: dec!("1"),
-            fee: fee_percentage,
-            decay_factor: dec!("0.9512"),
-        },
+        pair_configuration,
         initial_price,
         defiplaza_v2.package,
         env,
     )?;
 
     // Providing the desired initial contribution to the pool.
-    [
-        (resources.user_resource, initial_liquidity.user_resource),
-        (
-            resources.protocol_resource,
-            initial_liquidity.protocol_resource,
-        ),
-    ]
-    .map(|(resource_address, amount)| {
-        let bucket = ResourceManager(resource_address)
-            .mint_fungible(amount, env)
-            .unwrap();
-        let (_, change) = pool.add_liquidity(bucket, None, env).unwrap();
-        let change_amount = change
-            .map(|bucket| bucket.amount(env).unwrap())
-            .unwrap_or(Decimal::ZERO);
-        assert_eq!(change_amount, Decimal::ZERO);
-    });
+    if let Some(initial_liquidity) = initial_liquidity {
+        [
+            (resources.user_resource, initial_liquidity.user_resource),
+            (
+                resources.protocol_resource,
+                initial_liquidity.protocol_resource,
+            ),
+        ]
+        .map(|(resource_address, amount)| {
+            let bucket = ResourceManager(resource_address)
+                .mint_fungible(amount, env)
+                .unwrap();
+            let (_, change) = pool.add_liquidity(bucket, None, env).unwrap();
+            let change_amount = change
+                .map(|bucket| bucket.amount(env).unwrap())
+                .unwrap_or(Decimal::ZERO);
+            assert_eq!(change_amount, Decimal::ZERO);
+        });
+    }
 
     // Providing the user's contribution to the pool through the adapter
     let [bucket_x, bucket_y] = [
@@ -1061,6 +1250,7 @@ fn test_exact_defiplaza_fees_amounts(
     }
 
     // Performing the swaps specified by the user
+    let mut expected_fee_amounts = IndexMap::<ResourceAddress, Decimal>::new();
     for (asset, amount) in swaps.into_iter() {
         let address = match asset {
             Asset::ProtocolResource => resources.protocol_resource,
@@ -1068,7 +1258,14 @@ fn test_exact_defiplaza_fees_amounts(
         };
         let bucket =
             ResourceManager(address).mint_fungible(amount, env).unwrap();
-        let _ = pool.swap(bucket, env)?;
+        let (output, _) = pool.swap(bucket, env)?;
+        let output_resource_address = output.resource_address(env)?;
+        let swap_output_amount = output.amount(env)?;
+        let fee = swap_output_amount / (Decimal::ONE - pair_configuration.fee)
+            * pair_configuration.fee;
+        *expected_fee_amounts
+            .entry(output_resource_address)
+            .or_default() += fee;
     }
 
     // Close the liquidity position
@@ -1081,28 +1278,25 @@ fn test_exact_defiplaza_fees_amounts(
         )?;
 
     // Assert that the fees is what's expected.
-    for (resource_address, equality_check) in [
-        (resources.protocol_resource, expected_fees.protocol_resource),
-        (resources.user_resource, expected_fees.user_resource),
-    ] {
-        // Get the fees
-        let resource_fees = fees.get(&resource_address).copied().unwrap();
+    for resource_address in
+        [resources.protocol_resource, resources.user_resource]
+    {
+        let expected_fees = expected_fee_amounts
+            .get(&resource_address)
+            .copied()
+            .unwrap_or_default();
+        let fees = fees.get(&resource_address).copied().unwrap_or_default();
 
-        // Perform the assertion
-        match equality_check {
-            EqualityCheck::ExactlyEquals(value) => {
-                assert_eq!(resource_fees, value)
-            }
-            EqualityCheck::ApproximatelyEquals {
-                value,
-                acceptable_difference,
-            } => {
-                assert!(
-                    (resource_fees - value).checked_abs().unwrap()
-                        <= acceptable_difference
-                )
-            }
-        }
+        let resource_name = if resource_address == resources.protocol_resource {
+            "protocol"
+        } else {
+            "user"
+        };
+
+        assert!(
+            expected_fees - fees <= dec!(0.000001),
+            "{resource_name} resource assertion failed. Expected: {expected_fees}, Actual: {fees}"
+        );
     }
 
     Ok(())
