@@ -4,8 +4,7 @@ default_to_workspace = false
 [tasks.test]
 command = "cargo"
 args = [
-    "nextest",
-    "run",
+    "test",
     "--features",
     "package-loader/build-time-blueprints",
     "--no-fail-fast",

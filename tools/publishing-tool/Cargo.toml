@@ -1,0 +1,57 @@
+[package]
+name = "publishing-tool"
+description = "A configurable tool used to publish Ignition to various networks."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sbor = { workspace = true }
+transaction = { workspace = true }
+scrypto-unit = { workspace = true }
+radix-engine = { workspace = true }
+radix-engine-common = { workspace = true }
+radix-engine-interface = { workspace = true }
+radix-engine-store-interface = { workspace = true }
+
+state-manager = { workspace = true }
+
+common = { path = "../../libraries/common" }
+ignition = { path = "../../packages/ignition" }
+package-loader = { path = "../../libraries/package-loader" }
+gateway-client = { path = "../../libraries/gateway-client" }
+
+ociswap-v1-adapter-v1 = { path = "../../packages/ociswap-v1-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+ociswap-v2-adapter-v1 = { path = "../../packages/ociswap-v2-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+defiplaza-v2-adapter-v1 = { path = "../../packages/defiplaza-v2-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
+    "manifest-builder-stubs",
+] }
+
+sbor-json = { git = "https://github.com/radixdlt/radix-engine-toolkit", rev = "1cfe879c7370cfa497857ada7a8973f8a3388abc" }
+
+hex = { version = "0.4.3" }
+rand = { version = "0.8.5" }
+macro_rules_attribute = { version = "0.2.0" }
+log = "0.4.21"
+env_logger = "0.11.2"
+hex-literal = "0.4.1"
+itertools = "0.12.1"
+serde_json = "1.0.114"
+clap = { version = "4.5.1", features = ["derive"] }
+bitflags = "2.4.2"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[[bin]]
+name = "publishing-tool"
+path = "src/cli/bin.rs"
