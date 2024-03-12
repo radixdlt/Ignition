@@ -1894,7 +1894,6 @@ version = "0.1.0"
 dependencies = [
  "cargo_toml",
  "getrandom 0.2.12",
- "lazy_static",
  "radix-engine",
  "radix-engine-common",
  "radix-engine-interface",

@@ -5,6 +5,7 @@ default_to_workspace = false
 command = "cargo"
 args = [
     "test",
+    "--release",
     "--features",
     "package-loader/build-time-blueprints",
     "--no-fail-fast",

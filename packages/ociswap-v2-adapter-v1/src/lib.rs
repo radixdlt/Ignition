@@ -274,12 +274,14 @@ impl From<OciswapV2AdapterSpecificInformation> for AnyValue {
 
 #[derive(NonFungibleData, ScryptoSbor, Debug, Clone)]
 pub struct LiquidityPosition {
-    liquidity: PreciseDecimal,
-    left_bound: i32,
-    right_bound: i32,
-    shape_id: Option<NonFungibleLocalId>,
-    x_fee_checkpoint: PreciseDecimal,
-    y_fee_checkpoint: PreciseDecimal,
-    x_total_fee_checkpoint: PreciseDecimal,
-    y_total_fee_checkpoint: PreciseDecimal,
+    pub liquidity: PreciseDecimal,
+    pub left_bound: i32,
+    pub right_bound: i32,
+    pub shape_id: Option<NonFungibleLocalId>,
+    pub added_at: u64,
+    pub x_fee_checkpoint: PreciseDecimal,
+    pub y_fee_checkpoint: PreciseDecimal,
+    pub x_total_fee_checkpoint: PreciseDecimal,
+    pub y_total_fee_checkpoint: PreciseDecimal,
+    pub seconds_inside_checkpoint: i64,
 }
