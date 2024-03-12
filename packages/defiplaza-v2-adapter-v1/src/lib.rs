@@ -24,6 +24,7 @@ define_error! {
     UNEXPECTED_ERROR => "Unexpected Error.";
     INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
     NO_PAIR_CONFIG => "The pair config of the provided pool is not known.";
+    TARGET_RATIO_EXCEEDS_MAXIMUM => "The target ratio exceeds the allowed maximum";
 }
 
 macro_rules! pool {
@@ -207,6 +208,14 @@ pub mod adapter {
 
             // Step 1: Get the pair's state
             let pair_state = pool.get_state();
+
+            // Ensure that the pool's target ratio does not exceed the maximum
+            // allowed.
+            assert!(
+                pair_state.target_ratio <= self.max_allowed_target_ratio,
+                "{}",
+                TARGET_RATIO_EXCEEDS_MAXIMUM
+            );
 
             // Step 2: Determine which of the resources is in shortage. The one
             // in shortage is the one that we will be contributing first to the
