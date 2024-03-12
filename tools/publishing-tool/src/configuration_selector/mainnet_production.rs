@@ -8,17 +8,26 @@ use transaction::prelude::*;
 pub fn mainnet_production(
     notary_private_key: &PrivateKey,
 ) -> PublishingConfiguration {
-    // cSpell:disable
+    let notary_account_address =
+        ComponentAddress::virtual_account_from_public_key(
+            &notary_private_key.public_key(),
+        );
+
     PublishingConfiguration {
         protocol_configuration: ProtocolConfiguration {
             // The protocol resource to use is XRD.
             protocol_resource: XRD,
+            // This is the volatility classification of the various resources
+            // that we will be supporting. This signals to Ignition which XRD
+            // vault it should use for contributions of this resource.
             user_resource_volatility: UserResourceIndexedData {
                 bitcoin: Volatility::Volatile,
                 ethereum: Volatility::Volatile,
                 usdc: Volatility::NonVolatile,
                 usdt: Volatility::NonVolatile,
             },
+            // This is a mapping of the reward rate in months to the upfront 
+            // reward percentage.
             reward_rates: indexmap! {
                 LockupPeriod::from_months(9).unwrap() => dec!(0.125),  // 12.5%
                 LockupPeriod::from_months(10).unwrap() => dec!(0.145), // 14.5%
@@ -87,7 +96,6 @@ pub fn mainnet_production(
         },
         badges: BadgeIndexedData {
             oracle_manager_badge: BadgeHandling::CreateAndSend {
-                // TODO: Confirm this address with Devops
                 // This is the account of devops that runs the oracle software
                 account_address: component_address!(
                     "account_rdx168nr5dwmll4k2x5apegw5dhrpejf3xac7khjhgjqyg4qddj9tg9v4d"
@@ -102,10 +110,9 @@ pub fn mainnet_production(
                 },
             },
             protocol_manager_badge: BadgeHandling::CreateAndSend {
-                // TODO: This is currently RTJL20 which might be incorrect
-                account_address: component_address!(
-                    "account_rdx16ykaehfl0suwzy9tvtlhgds7td8ynwx4jk3q4czaucpf6m4pps9yr4"
-                ),
+                // When we initially deploy we should send the protocol manager
+                // badge to the notary's account address. 
+                account_address: notary_account_address,
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Manager", updatable;
                     "symbol" => "IGNPM", updatable;
@@ -116,10 +123,9 @@ pub fn mainnet_production(
                 },
             },
             protocol_owner_badge: BadgeHandling::CreateAndSend {
-                // Thee RTJL20 account
-                account_address: component_address!(
-                    "account_rdx16ykaehfl0suwzy9tvtlhgds7td8ynwx4jk3q4czaucpf6m4pps9yr4"
-                ),
+                // When we initially deploy we should send the protocol manager
+                // badge to the notary's account address. 
+                account_address: notary_account_address,
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Owner", updatable;
                     "symbol" => "IGNPO", updatable;
@@ -130,6 +136,11 @@ pub fn mainnet_production(
                 },
             },
         },
+        // The address of the user resources. These have been obtained from the
+        // dapp definition of the instabridge application found here:
+        // https://dashboard.radixdlt.com/account/account_rdx1cxamqz2f03s8g6smfz32q2gr3prhwh3gqdkdk93d8q8srp8d38cs7e/metadata
+        // and have been verified against the addresses we have seen on the 
+        // exchanges.
         user_resources: UserResourceIndexedData {
             bitcoin: UserResourceHandling::UseExisting {
                 resource_address: resource_address!(
@@ -214,8 +225,13 @@ pub fn mainnet_production(
             },
         },
         exchange_information: ExchangeIndexedData {
-            // No ociswap v2 currently on mainnet.
+            // No ociswap v2 currently on mainnet. So, we set this to be None. 
+            // When they are live the protocol manager can add support for them
+            // in Ignition manually and outside of the publishing process.
             ociswap_v2: None,
+            // The package and pools found here have been given to us by the
+            // Defiplaza team here:
+            // https://rdxworks.slack.com/archives/C06908324TX/p1709652626987359
             defiplaza_v2: Some(ExchangeInformation {
                 blueprint_id: BlueprintId {
                     package_address: package_address!(
@@ -262,6 +278,9 @@ pub fn mainnet_production(
                     },
                 },
             }),
+            // The package and pools found here have been given to us by the
+            // Caviarnine team here:
+            // https://rdxworks.slack.com/archives/C066A9AD4SE/p1709569482550539
             caviarnine_v1: Some(ExchangeInformation {
                 blueprint_id: BlueprintId {
                     package_address: package_address!(
@@ -314,5 +333,4 @@ pub fn mainnet_production(
         },
         additional_operation_flags: AdditionalOperationFlags::empty(),
     }
-    // cSpell:enable
 }
