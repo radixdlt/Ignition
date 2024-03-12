@@ -163,6 +163,24 @@ pub mod adapter {
                 .expect(OVERFLOW_ERROR);
             let offset = 29959;
 
+            // Ociswap, just like Caviarnine, have a tick spacing parameter that
+            // means that not all ticks are valid. A valid tick is one that is
+            // divisible by the tick spacing. Therefore, the following step will
+            // convert the offset defined above to be valid for the tick spacing
+            // of the pool. If the offset is divisible by the tick spacing then
+            // nothing needs to be done. If it is not, then we round up to the
+            // nearest tick space.
+            let tick_spacing = pool.tick_spacing() as i32;
+            let offset = if offset % tick_spacing == 0 {
+                offset
+            } else {
+                offset
+                    .checked_div(tick_spacing)
+                    .and_then(|value| value.checked_mul(tick_spacing))
+                    .and_then(|value| value.checked_add(tick_spacing))
+                    .expect(OVERFLOW_ERROR)
+            };
+
             let lower_tick =
                 active_tick.checked_sub(offset).expect(OVERFLOW_ERROR);
             let upper_tick =
