@@ -419,14 +419,12 @@ define_open_and_close_liquidity_position_tests! {
         usdc,
         usdt
     ],
-    // TODO: Enable once Defiplaza's prices are inline with what the oracle is
-    // reporting.
-    // defiplaza_v2 => [
-    //     bitcoin,
-    //     ethereum,
-    //     usdc,
-    //     usdt
-    // ],
+    defiplaza_v2 => [
+        bitcoin,
+        ethereum,
+        usdc,
+        usdt
+    ],
     // TODO: Enable once Ociswap v2 is live on mainnet and once they have their
     // pools inline with the oracle prices.
     // ociswap_v2 => [

@@ -44,6 +44,10 @@ pub mod adapter {
         },
         methods {
             add_pair_configs => restrict_to: [protocol_manager, protocol_owner];
+            set_maximum_allowed_target_ratio => restrict_to: [
+                protocol_manager,
+                protocol_owner
+            ];
             /* User methods */
             price => PUBLIC;
             resource_addresses => PUBLIC;
@@ -60,6 +64,12 @@ pub mod adapter {
         /// adapter for its operation. This does not change, so, once set we
         /// do not expect to remove it again.
         pair_config: KeyValueStore<ComponentAddress, PairConfig>,
+
+        /// There is a limit on the target ratio that we support in Defiplaza.
+        /// This is because a larger target ratio means that the value in each
+        /// pool would be further and further away from 50%/50%. Therefore, we
+        /// limit it.
+        max_allowed_target_ratio: Decimal,
     }
 
     impl DefiPlazaV2Adapter {
@@ -81,6 +91,7 @@ pub mod adapter {
 
             Self {
                 pair_config: KeyValueStore::new_with_registered_type(),
+                max_allowed_target_ratio: dec!(1.5),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -103,6 +114,13 @@ pub mod adapter {
             for (address, config) in pair_config.into_iter() {
                 self.pair_config.insert(address, config);
             }
+        }
+
+        pub fn set_maximum_allowed_target_ratio(
+            &mut self,
+            target_ratio: Decimal,
+        ) {
+            self.max_allowed_target_ratio = target_ratio;
         }
 
         pub fn liquidity_receipt_data(
