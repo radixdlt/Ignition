@@ -12,6 +12,7 @@ define_interface! {
             x_address: ResourceAddress,
             y_address: ResourceAddress,
             price_sqrt: PreciseDecimal,
+            tick_spacing: u32,
             input_fee_rate: Decimal,
             flash_loan_fee_rate: Decimal,
             registry_address: ComponentAddress,
@@ -25,6 +26,7 @@ define_interface! {
             #[manifest_type = "ManifestBucket"]
             y_bucket: Bucket,
             price_sqrt: PreciseDecimal,
+            tick_spacing: u32,
             input_fee_rate: Decimal,
             flash_loan_fee_rate: Decimal,
             registry_address: ComponentAddress,
@@ -34,6 +36,7 @@ define_interface! {
             left_bound: i32,
             right_bound: i32
         ) -> (Self, ResourceAddress, Bucket, Bucket, Bucket);
+        fn tick_spacing(&self) -> u32;
         fn add_liquidity(
             &mut self,
             left_bound: i32,

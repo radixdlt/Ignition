@@ -1,10 +1,10 @@
 use common::prelude::*;
 use extend::*;
-use publishing_tool::component_address;
 use publishing_tool::configuration_selector::*;
 use publishing_tool::database_overlay::*;
 use publishing_tool::network_connection_provider::*;
 use publishing_tool::publishing::*;
+use publishing_tool::*;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
@@ -12,14 +12,17 @@ use radix_engine_interface::blueprints::account::*;
 use scrypto_unit::*;
 use state_manager::RocksDBStore;
 use std::ops::*;
+use std::sync::*;
 use transaction::prelude::*;
 
-lazy_static::lazy_static! {
-    /// The substate manager database is a lazy-static since it takes a lot of
-    /// time to be opened for read-only and this had a very negative impact on
-    /// tests. Keep in mind that this now means that we should keep all of the
-    /// tests to one module and that we should use `cargo test` and not nextest.
-    static ref SUBSTATE_MANAGER_DATABASE: RocksDBStore = {
+pub type StatefulTestRunner<'a> = TestRunner<
+    NoExtension,
+    UnmergeableSubstateDatabaseOverlay<'a, RocksDBStore>,
+>;
+
+fn get_database() -> &'static RocksDBStore {
+    static DATABASE: OnceLock<RocksDBStore> = OnceLock::new();
+    DATABASE.get_or_init(|| {
         const STATE_MANAGER_DATABASE_PATH_ENVIRONMENT_VARIABLE: &str =
             "STATE_MANAGER_DATABASE_PATH";
         let Ok(state_manager_database_path) =
@@ -34,13 +37,8 @@ lazy_static::lazy_static! {
         RocksDBStore::new_read_only(state_manager_database_path).expect(
             "Failed to create a new instance of the state manager database",
         )
-    };
+    })
 }
-
-pub type StatefulTestRunner<'a> = TestRunner<
-    NoExtension,
-    UnmergeableSubstateDatabaseOverlay<'a, RocksDBStore>,
->;
 
 pub fn execute_test_within_environment<F, O>(test_function: F) -> O
 where
@@ -53,11 +51,8 @@ where
     ) -> O,
 {
     // Creating the database and the necessary overlays to run the tests.
-
     let overlayed_state_manager_database =
-        UnmergeableSubstateDatabaseOverlay::new_unmergeable(
-            SUBSTATE_MANAGER_DATABASE.deref(),
-        );
+        UnmergeableSubstateDatabaseOverlay::new_unmergeable(get_database());
 
     // Creating a test runner from the overlayed state manager database
     let mut test_runner = TestRunnerBuilder::new()

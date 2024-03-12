@@ -163,6 +163,24 @@ pub mod adapter {
                 .expect(OVERFLOW_ERROR);
             let offset = 29959;
 
+            // Ociswap, just like Caviarnine, have a tick spacing parameter that
+            // means that not all ticks are valid. A valid tick is one that is
+            // divisible by the tick spacing. Therefore, the following step will
+            // convert the offset defined above to be valid for the tick spacing
+            // of the pool. If the offset is divisible by the tick spacing then
+            // nothing needs to be done. If it is not, then we round up to the
+            // nearest tick space.
+            let tick_spacing = pool.tick_spacing() as i32;
+            let offset = if offset % tick_spacing == 0 {
+                offset
+            } else {
+                offset
+                    .checked_div(tick_spacing)
+                    .and_then(|value| value.checked_mul(tick_spacing))
+                    .and_then(|value| value.checked_add(tick_spacing))
+                    .expect(OVERFLOW_ERROR)
+            };
+
             let lower_tick =
                 active_tick.checked_sub(offset).expect(OVERFLOW_ERROR);
             let upper_tick =
@@ -274,12 +292,14 @@ impl From<OciswapV2AdapterSpecificInformation> for AnyValue {
 
 #[derive(NonFungibleData, ScryptoSbor, Debug, Clone)]
 pub struct LiquidityPosition {
-    liquidity: PreciseDecimal,
-    left_bound: i32,
-    right_bound: i32,
-    shape_id: Option<NonFungibleLocalId>,
-    x_fee_checkpoint: PreciseDecimal,
-    y_fee_checkpoint: PreciseDecimal,
-    x_total_fee_checkpoint: PreciseDecimal,
-    y_total_fee_checkpoint: PreciseDecimal,
+    pub liquidity: PreciseDecimal,
+    pub left_bound: i32,
+    pub right_bound: i32,
+    pub shape_id: Option<NonFungibleLocalId>,
+    pub added_at: u64,
+    pub x_fee_checkpoint: PreciseDecimal,
+    pub y_fee_checkpoint: PreciseDecimal,
+    pub x_total_fee_checkpoint: PreciseDecimal,
+    pub y_total_fee_checkpoint: PreciseDecimal,
+    pub seconds_inside_checkpoint: i64,
 }
