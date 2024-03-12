@@ -1056,6 +1056,64 @@ fn exact_fee_test7() {
     .expect("Should not fail!")
 }
 
+#[test]
+fn exact_fee_test8() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1.5),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(1),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.9512),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(5000),
+            protocol_resource: dec!(5000),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::ProtocolResource, dec!(5000)),
+            (Asset::UserResource, dec!(10_000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
+#[test]
+fn exact_fee_test9() {
+    test_exact_defiplaza_fees_amounts(
+        // Initial supply for the pool.
+        None,
+        // Initial price of the pool
+        dec!(1.5),
+        // The pair config of the pool*
+        PairConfig {
+            k_in: dec!(0.5),
+            k_out: dec!(0.6),
+            fee: dec!(0.02),
+            decay_factor: dec!(0.2),
+        },
+        // User contribution to the pool. This would mean that the user would
+        // own 100% of the pool.
+        AssetIndexedData {
+            user_resource: dec!(12031),
+            protocol_resource: dec!(13981),
+        },
+        // The swaps to perform - the asset you see is the input asset
+        vec![
+            (Asset::ProtocolResource, dec!(5000)),
+            (Asset::UserResource, dec!(10_000)),
+        ],
+    )
+    .expect("Should not fail!")
+}
+
 #[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 enum Asset {
