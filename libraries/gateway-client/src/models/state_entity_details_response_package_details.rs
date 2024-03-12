@@ -11,12 +11,17 @@ pub struct StateEntityDetailsResponsePackageDetails {
     #[serde(rename = "code_hex")]
     pub code_hex: String,
 
-    #[serde(rename = "royalty_vault_balance", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "royalty_vault_balance",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub royalty_vault_balance: Option<String>,
     #[serde(rename = "blueprints", skip_serializing_if = "Option::is_none")]
-    pub blueprints: Option<Box<crate::models::StateEntityDetailsResponsePackageDetailsBlueprintCollection>>,
+    pub blueprints:
+        Option<Box<crate::models::StateEntityDetailsResponsePackageDetailsBlueprintCollection>>,
     #[serde(rename = "schemas", skip_serializing_if = "Option::is_none")]
-    pub schemas: Option<Box<crate::models::StateEntityDetailsResponsePackageDetailsSchemaCollection>>,
+    pub schemas:
+        Option<Box<crate::models::StateEntityDetailsResponsePackageDetailsSchemaCollection>>,
 }
 
 impl StateEntityDetailsResponsePackageDetails {

@@ -38,8 +38,8 @@ define_interface! {
         fn close_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
-            #[manifest_type = "ManifestBucket"]
-            pool_units: Bucket,
+            #[manifest_type = "Vec<ManifestBucket>"]
+            pool_units: Vec<Bucket>,
             adapter_specific_information: AnyValue
         ) -> CloseLiquidityPositionOutput;
 
@@ -57,9 +57,9 @@ define_interface! {
 #[derive(Debug, ScryptoSbor)]
 pub struct OpenLiquidityPositionOutput {
     /// The pool units obtained as part of the contribution to the pool.
-    pub pool_units: Bucket,
+    pub pool_units: IndexedBuckets,
     /// Any change the pool has returned back indexed by the resource address.
-    pub change: IndexMap<ResourceAddress, Bucket>,
+    pub change: IndexedBuckets,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
     /// Any adapter specific information that the adapter wishes to pass back
@@ -72,7 +72,7 @@ pub struct OpenLiquidityPositionOutput {
 pub struct CloseLiquidityPositionOutput {
     /// Resources obtained from closing the liquidity position, indexed by the
     /// resource address.
-    pub resources: IndexMap<ResourceAddress, Bucket>,
+    pub resources: IndexedBuckets,
     /// Any additional tokens that the pool has returned back.
     pub others: Vec<Bucket>,
     /// The amount of trading fees earned on the position.

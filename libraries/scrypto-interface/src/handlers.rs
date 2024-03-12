@@ -149,8 +149,8 @@ fn generate_scrypto_stub(
                 let mut arguments = arguments.clone();
                 if arguments.is_function() {
                     arguments.add_argument_to_end(
-                        Ident::new("blueprint_package_address", ident.span()), 
-                        parse_quote!(::radix_engine_interface::prelude::PackageAddress)
+                        Ident::new("blueprint_package_address", ident.span()),
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress),
                     );
                 }
 
@@ -296,14 +296,12 @@ fn generate_scrypto_test_stub(
                 let mut arguments = arguments.clone();
                 if arguments.is_function() {
                     arguments.add_argument_to_end(
-                        Ident::new("blueprint_package_address", ident.span()), 
-                        parse_quote!(::radix_engine_interface::prelude::PackageAddress)
+                        Ident::new("blueprint_package_address", ident.span()),
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress),
                     );
                 }
-                arguments.add_argument_to_end(
-                    Ident::new("env", ident.span()), 
-                    parse_quote!(&mut Y)
-                );
+                arguments
+                    .add_argument_to_end(Ident::new("env", ident.span()), parse_quote!(&mut Y));
 
                 let inner = if arguments.is_function() {
                     quote! {
@@ -421,29 +419,24 @@ fn generate_manifest_builder_stub(
                 if arguments.is_function() {
                     arguments.add_argument_to_beginning(
                         Ident::new("blueprint_package_address", ident.span()),
-                        parse_quote!(
-                            ::radix_engine_interface::prelude::PackageAddress
-                        ),
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress),
                     );
                 } else {
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
-                        parse_quote!(
-                            impl ::transaction::builder::ResolvableGlobalAddress
-                        ),
+                        parse_quote!(impl ::transaction::builder::ResolvableGlobalAddress),
                     );
                 }
 
-                let fn_ident = format_ident!(
-                    "{}_{}",
-                    struct_ident.to_string().to_snake_case(),
-                    ident
-                );
+                let fn_ident =
+                    format_ident!("{}_{}", struct_ident.to_string().to_snake_case(), ident);
 
-                arguments.manifest_arguments().map(|arguments| quote! {
-                    #(#attrs)*
-                    #[allow(clippy::too_many_arguments)]
-                    #token_fn #fn_ident ( self, #arguments ) -> Self #semi_colon
+                arguments.manifest_arguments().map(|arguments| {
+                    quote! {
+                        #(#attrs)*
+                        #[allow(clippy::too_many_arguments)]
+                        #token_fn #fn_ident ( self, #arguments ) -> Self #semi_colon
+                    }
                 })
             },
         )
@@ -532,7 +525,7 @@ fn generate_manifest_builder_stub(
         }
 
         #(#attributes)*
-        #[allow(clippy::too_many_arguments)]
+        #[allow(clippy::too_many_arguments, unused_mut)]
         const _: () = {
             impl #trait_ident for ::transaction::builder::ManifestBuilder {
                 #(#implementations)*
@@ -668,11 +661,11 @@ pub fn handle_blueprint_with_traits(
             #[::scrypto::prelude::blueprint]
             #module
 
-            #[allow(clippy::too_many_arguments)]
+            #[allow(clippy::too_many_arguments, unused_mut)]
             const _: () = {
                 struct #blueprint_ident;
 
-                #[allow(unused_variables)]
+                #[allow(unused_variables, unused_mut)]
                 #(#unreachable_trait_impls)*
             };
         })
@@ -791,11 +784,11 @@ mod test {
             }
         }
 
-        #[allow(clippy::too_many_arguments)]
+        #[allow(clippy::too_many_arguments, unused_mut)]
         const _: () = {
             struct Blueprint;
 
-            #[allow (unused_variables)]
+            #[allow (unused_variables, unused_mut)]
             impl MyTrait for Blueprint {
                 fn func1() {
                     unreachable!()

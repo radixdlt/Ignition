@@ -85,6 +85,7 @@ type OracleAdapter = OracleAdapterInterfaceScryptoStub;
     LockupPeriod,
     Volatility,
     StoredPoolBlueprintInformation,
+    IndexMap<ResourceAddress, Vault>,
 )]
 mod ignition {
     enable_method_auth! {
@@ -121,7 +122,7 @@ mod ignition {
                 protocol_owner,
                 protocol_manager
             ];
-            set_maximum_allowed_price_staleness => restrict_to: [
+            set_maximum_allowed_price_staleness_in_seconds => restrict_to: [
                 protocol_owner,
                 protocol_manager
             ];
@@ -242,7 +243,22 @@ mod ignition {
         /// global id of the liquidity receipt non-fungible token minted by
         /// the protocol when liquidity is provided. Only the owner of the
         /// protocol is allowed to deposit or withdraw into these vaults.
-        pool_units: KeyValueStore<NonFungibleGlobalId, Vault>,
+        ///
+        /// The value of the map is another map which maps the address of the
+        /// pool unit to a vault containing this pool unit. A map is used since
+        /// not all exchanges work one pool units per contributions. Some of
+        /// them require two or more.
+        ///
+        /// Note: it is understood that the use of [`IndexMap`] here can make
+        /// the application vulnerable to state explosion. However, we chose to
+        /// continue using it as the size of this will realistically always be
+        /// 1 in the case of most exchanges and 2 in the case of DefiPlaza. It
+        /// should not be any more than that. There is realistically no way for
+        /// this map to have more than two items.
+        pool_units: KeyValueStore<
+            NonFungibleGlobalId,
+            IndexMap<ResourceAddress, Vault>,
+        >,
 
         /// A KeyValueStore that stores all of the tokens owed to users of the
         /// protocol whose liquidity claims have been forcefully liquidated.
@@ -273,7 +289,7 @@ mod ignition {
 
         /// The maximum allowed staleness of prices in seconds. If a price is
         /// found to be older than this then it is deemed to be invalid.
-        maximum_allowed_price_staleness: i64,
+        maximum_allowed_price_staleness_in_seconds: i64,
 
         /// The maximum percentage of price difference the protocol is willing
         /// to accept before deeming the price difference to be too much. This
@@ -294,7 +310,7 @@ mod ignition {
             /* Initial Configuration */
             protocol_resource: ResourceManager,
             oracle_adapter: ComponentAddress,
-            maximum_allowed_price_staleness: i64,
+            maximum_allowed_price_staleness_in_seconds: i64,
             maximum_allowed_price_difference_percentage: Decimal,
             /* Initializers */
             initialization_parameters: InitializationParameters,
@@ -328,7 +344,7 @@ mod ignition {
                     reward_rates: KeyValueStore::new_with_registered_type(),
                     is_open_position_enabled: false,
                     is_close_position_enabled: false,
-                    maximum_allowed_price_staleness,
+                    maximum_allowed_price_staleness_in_seconds,
                     maximum_allowed_price_difference_percentage,
                     user_resource_volatility:
                         KeyValueStore::new_with_registered_type(),
@@ -563,7 +579,7 @@ mod ignition {
                         value
                             .checked_round(17, RoundingMode::ToPositiveInfinity)
                     })
-                    .expect(OVERFLOW_ERROR);
+                    .unwrap_or(Decimal::MAX);
                 assert!(
                     pool_reported_value_of_user_resource_in_protocol_resource
                         <= maximum_amount,
@@ -666,8 +682,16 @@ mod ignition {
                     liquidity_receipt_resource.address(),
                     liquidity_receipt.non_fungible_local_id(),
                 );
-                self.pool_units
-                    .insert(global_id, Vault::with_bucket(pool_units));
+                self.pool_units.insert(
+                    global_id,
+                    pool_units
+                        .into_inner()
+                        .into_iter()
+                        .map(|(address, bucket)| {
+                            (address, Vault::with_bucket(bucket))
+                        })
+                        .collect(),
+                );
 
                 liquidity_receipt
             };
@@ -903,7 +927,9 @@ mod ignition {
                     .pool_units
                     .get_mut(&liquidity_receipt_global_id)
                     .expect(UNEXPECTED_ERROR)
-                    .take_all();
+                    .values_mut()
+                    .map(|vault| vault.take_all())
+                    .collect::<Vec<_>>();
                 adapter.close_liquidity_position(
                     liquidity_receipt_data.pool_address,
                     pool_units,
@@ -1441,13 +1467,28 @@ mod ignition {
             global_id: NonFungibleGlobalId,
             pool_units: Bucket,
         ) {
+            let pool_units_resource_address = pool_units.resource_address();
+
             let entry = self.pool_units.get_mut(&global_id);
-            if let Some(mut vault) = entry {
-                vault.put(pool_units);
+            if let Some(mut vaults) = entry {
+                if let Some(vault) =
+                    vaults.get_mut(&pool_units_resource_address)
+                {
+                    vault.put(pool_units)
+                } else {
+                    vaults.insert(
+                        pool_units_resource_address,
+                        Vault::with_bucket(pool_units),
+                    );
+                }
             } else {
                 drop(entry);
-                self.pool_units
-                    .insert(global_id, Vault::with_bucket(pool_units))
+                self.pool_units.insert(
+                    global_id,
+                    indexmap! {
+                        pool_units_resource_address => Vault::with_bucket(pool_units)
+                    },
+                )
             }
         }
 
@@ -1470,15 +1511,18 @@ mod ignition {
         ///
         /// # Returns
         ///
-        /// * [`Bucket`] - A bucket of the withdrawn tokens.
+        /// * [`Vec<Bucket>`] - A vector of buckets of the pool units for the
+        /// specified liquidity receipt.
         pub fn withdraw_pool_units(
             &mut self,
             global_id: NonFungibleGlobalId,
-        ) -> Bucket {
+        ) -> Vec<Bucket> {
             self.pool_units
                 .get_mut(&global_id)
                 .expect(NO_ASSOCIATED_LIQUIDITY_RECEIPT_VAULT_ERROR)
-                .take_all()
+                .values_mut()
+                .map(|vault| vault.take_all())
+                .collect()
         }
 
         /// Updates the value of the maximum allowed price staleness used by
@@ -1502,8 +1546,12 @@ mod ignition {
         ///
         /// * `value`: [`i64`] - The maximum allowed staleness period in
         /// seconds.
-        pub fn set_maximum_allowed_price_staleness(&mut self, value: i64) {
-            self.maximum_allowed_price_staleness = value
+        pub fn set_maximum_allowed_price_staleness_in_seconds(
+            &mut self,
+            value: i64,
+        ) {
+            assert!(value >= 0, "{}", INVALID_MAXIMUM_PRICE_STALENESS);
+            self.maximum_allowed_price_staleness_in_seconds = value
         }
 
         /// Adds a rewards rate to the protocol.
@@ -1534,6 +1582,11 @@ mod ignition {
             lockup_period: LockupPeriod,
             percentage: Decimal,
         ) {
+            assert!(
+                percentage >= Decimal::ZERO,
+                "{}",
+                INVALID_UPFRONT_REWARD_PERCENTAGE
+            );
             self.reward_rates.insert(lockup_period, percentage)
         }
 
@@ -1751,7 +1804,7 @@ mod ignition {
             let (price, last_update) =
                 self.oracle_adapter.get_price(base, quote);
             let final_price_validity = last_update
-                .add_seconds(self.maximum_allowed_price_staleness)
+                .add_seconds(self.maximum_allowed_price_staleness_in_seconds)
                 .unwrap_or(Instant::new(i64::MAX));
 
             // Check for staleness
