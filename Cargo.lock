@@ -12,6 +12,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "address-macros"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "proc-macro2",
+ "quote",
+ "radix-engine-common",
+ "radix-engine-interface",
+ "syn 2.0.52",
+]
+
+[[package]]
 name = "adler"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2990,13 +3002,13 @@ dependencies = [
 name = "stateful-tests"
 version = "0.1.0"
 dependencies = [
+ "address-macros",
  "caviarnine-v1-adapter-v1",
  "common",
  "defiplaza-v2-adapter-v1",
  "extend",
  "gateway-client",
  "ignition",
- "lazy_static",
  "macro_rules_attribute",
  "ociswap-v1-adapter-v1",
  "ociswap-v2-adapter-v1",

@@ -15,6 +15,7 @@ members = [
     "libraries/scrypto-interface",
     "libraries/ports-interface",
     "libraries/scrypto-math",
+    "libraries/address-macros",
     # Tools
     "tools/publishing-tool",
     # Tests

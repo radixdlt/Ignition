@@ -15,9 +15,7 @@ use transaction::prelude::*;
 #[apply(mainnet_test)]
 fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_the_metadata_standard(
     _: AccountAndControllingKey,
-    _: PublishingConfiguration,
-    receipt: PublishingReceipt,
-    _: ComponentAddress,
+    receipt: &PublishingReceipt,
     test_runner: &mut StatefulTestRunner<'_>,
 ) {
     // Collecting all of the entities into an array
@@ -165,9 +163,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     account_address: test_account,
                     controlling_key: test_account_private_key,
                 }: AccountAndControllingKey,
-                _: PublishingConfiguration,
-                receipt: PublishingReceipt,
-                _: ComponentAddress,
+                receipt: &PublishingReceipt,
                 test_runner: &mut StatefulTestRunner<'_>,
             ) {
                 // Arrange
@@ -195,7 +191,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     .manifest(
                         ManifestBuilder::new()
                             .lock_fee(test_account, dec!(10))
-                            .withdraw_from_account(test_account, user_resource, dec!(1000))
+                            .withdraw_from_account(test_account, user_resource, dec!(1))
                             .take_all_from_worktop(user_resource, "bucket")
                             .with_bucket("bucket", |builder, bucket| {
                                 builder.call_method(
@@ -232,9 +228,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     account_address: test_account,
                     controlling_key: test_account_private_key,
                 }: AccountAndControllingKey,
-                _: PublishingConfiguration,
-                receipt: PublishingReceipt,
-                oracle: ComponentAddress,
+                receipt: &PublishingReceipt,
                 test_runner: &mut StatefulTestRunner<'_>,
             ) {
                 // Arrange
@@ -261,7 +255,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     .manifest(
                         ManifestBuilder::new()
                             .lock_fee(test_account, dec!(10))
-                            .withdraw_from_account(test_account, user_resource, dec!(1000))
+                            .withdraw_from_account(test_account, user_resource, dec!(1))
                             .take_all_from_worktop(user_resource, "bucket")
                             .with_bucket("bucket", |builder, bucket| {
                                 builder.call_method(
@@ -325,6 +319,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 }
 
                 {
+                    let oracle = receipt.components.protocol_entities.simple_oracle;
                     let (price, _) = test_runner
                         .execute_manifest_with_enabled_modules(
                             ManifestBuilder::new()
@@ -425,12 +420,48 @@ define_open_and_close_liquidity_position_tests! {
         usdc,
         usdt
     ],
-    // TODO: Enable once Ociswap v2 is live on mainnet and once they have their
-    // pools inline with the oracle prices.
-    // ociswap_v2 => [
-    //     bitcoin,
-    //     ethereum,
-    //     usdc,
-    //     usdt
-    // ]
+    ociswap_v2 => [
+        bitcoin,
+        ethereum,
+        usdc,
+        usdt
+    ]
+}
+
+#[apply(mainnet_test)]
+fn log_reported_price_from_defiplaza_pool(
+    _: AccountAndControllingKey,
+    receipt: &PublishingReceipt,
+    test_runner: &mut StatefulTestRunner<'_>,
+) {
+    let mut manifest_builder = ManifestBuilder::new();
+    for pool in receipt
+        .exchange_information
+        .defiplaza_v2
+        .as_ref()
+        .unwrap()
+        .pools
+        .iter()
+    {
+        manifest_builder = manifest_builder.call_method(
+            receipt.components.exchange_adapter_entities.defiplaza_v2,
+            "price",
+            (*pool,),
+        )
+    }
+    let receipt = test_runner.preview_manifest(
+        manifest_builder.build(),
+        vec![],
+        0,
+        PreviewFlags {
+            use_free_credit: true,
+            assume_all_signature_proofs: true,
+            skip_epoch_check: true,
+        },
+    );
+    receipt.expect_commit_success();
+    for i in (0..4) {
+        let price = receipt.expect_commit_success().output::<Price>(i);
+        println!("{price:#?}");
+    }
 }
