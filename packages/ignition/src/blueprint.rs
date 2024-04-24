@@ -32,7 +32,8 @@
 //!
 //! This makes Ignition a perfect incentive for users who already own an amount
 //! of some of the supported tokens and who wish to provide liquidity with very
-//! low downside, upfront rewards, and impermanent loss protection.
+//! low downside, upfront rewards, increased fees, and impermanent loss
+//! protection.
 //!
 //! The user locks their tokens for some period of time allowed by the protocol
 //! and based on that they get some amount of upfront rewards. The longer the
@@ -51,15 +52,14 @@
 //! depends on their source: the protocol for the ledger's resource and the user
 //! for the user's resource.
 //!
-//! An important thing to note is that the protocol's protocol's asset can't be
-//! changed at runtime after the component has been instantiated, it will be
-//! forever stuck with that protocol's asset. The user assets can be added and
-//! removed by adding and removing pools to the allowed pools list. In the case
-//! of the official protocol deployment, the protocol's asset will be XRD and
-//! the user's asset will be BTC, ETH, USDC, and USDT. However, Ignition is
-//! actually general enough that it can be used by projects who would like to
-//! improve their liquidity and who're willing to lose some tokens in the
-//! process.
+//! An important thing to note is that the protocol asset can't be changed at
+//! runtime after the component has been instantiated, it will be forever stuck
+//! with that protocol's asset. The user assets can be added and removed by
+//! adding and removing pools to the allowed pools list. In the case of the
+//! official protocol deployment, the protocol's asset will be XRD and the
+//! user's asset will be BTC, ETH, USDC, and USDT. However, Ignition is actually
+//! general enough that it can be used by projects who would like to improve
+//! their liquidity and who're willing to lose some tokens in the process.
 //!
 //! The protocol's blueprint is made to be quite modular and to allow for easy
 //! upgrading if needed. This means that the protocol's assets can be withdrawn
