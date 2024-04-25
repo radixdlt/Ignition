@@ -18,7 +18,7 @@
 use proc_macro::*;
 use radix_engine_interface::prelude::*;
 
-macro_rules! tri {
+macro_rules! r#try {
     ($expr: expr) => {
         match $expr {
             Ok(item) => item,
@@ -34,10 +34,10 @@ macro_rules! impl_address_proc_macro {
         paste::paste! {
             #[proc_macro]
             pub fn [< $type_ident: snake >](item: TokenStream) -> TokenStream {
-                let literal_string = tri!(syn::parse::<syn::LitStr>(item));
-                let node_id = tri!(decode_string_into_node_id(&literal_string));
+                let literal_string = r#try!(syn::parse::<syn::LitStr>(item));
+                let node_id = r#try!(decode_string_into_node_id(&literal_string));
                 let node_id_bytes = node_id.0;
-                let _ = tri!($type_ident::try_from(node_id_bytes).map_err(|err| {
+                let _ = r#try!($type_ident::try_from(node_id_bytes).map_err(|err| {
                     syn::Error::new_spanned(&literal_string, format!("{err:?}"))
                 }));
                 quote::quote! {
@@ -59,8 +59,8 @@ impl_address_proc_macro!(GlobalAddress);
 
 #[proc_macro]
 pub fn node_id(item: TokenStream) -> TokenStream {
-    let literal_string = tri!(syn::parse::<syn::LitStr>(item));
-    let node_id = tri!(decode_string_into_node_id(&literal_string));
+    let literal_string = r#try!(syn::parse::<syn::LitStr>(item));
+    let node_id = r#try!(decode_string_into_node_id(&literal_string));
     let node_id_bytes = node_id.0;
 
     quote::quote! {
