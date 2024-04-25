@@ -163,7 +163,38 @@ Several potential architectures can be build around this and around how Ignition
   <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="./diagrams/architecture1-light.png">
 </picture>
 
-Starting with a naive and simple architecture where there is a single blueprint for the entire Ignition system and it is the Ignition protocol blueprint that handles all of the protocol-related things such as calculating the upfront reward, impermanent loss protection, fee settlement and so on. In addition to that, the protocol blueprint would also know how to communicate with the pools of the various exchanges to add liquidity, remove liquidity, and get the current price. 
+Starting with a naive and simple architecture where there is a single blueprint for the entire Ignition system and it is the Ignition protocol blueprint that handles all of the protocol-related things such as calculating the upfront reward, impermanent loss protection, fee settlement and so on. In addition to that, the protocol blueprint knows how to communicate with the pools of the various exchanges to add liquidity, remove liquidity, and get the current price and could be able to provide some kind of abstraction on top of these pools with a common interface of some sort.
+
+This architecture pretty much gets us a working system, however, several cons to this approach make it unideal for the final system:
+
+* This architecture violates the following point from the [technical requirements](#technical-requirements): _"All aspects of Ignition must be easily upgradable and modifiable"_. If the code for communicating with exchanges is part of the Ignition protocol blueprint then any bugs found in the communication part then an entirely new package is needed as well as fund migration. An example of when this can happen is if an exchange is using a generic proxy which introduces a real possibility of the interface changing.
+* As discussed in the [technical requirements](#technical-requirements) section, Ignition must be able to add support for new exchanges at any point in time trivially and without the need for a new package. If the code for communicating with the exchanges is part of the Ignition blueprint then any new exchange would mean a new blueprint capable of communicating with all of the previous exchanges and the newly added exchange and would also involve migration of funds to the new blueprint and component.
+* Similar to the above, the logic for communicating with the oracle is all in the Ignition blueprint which means that in the event of needing to move to a new oracle an entirely new package is required.
+
+The above cons summarize that the protocol is tied too closely to the exchanges and oracle used and changes to any of these require changes to the protocol. We would like changes to the core protocol to be as minimal and rare as possible and therefore this architecture is flawed.
+
+### Potential Architecture 2
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./diagrams/architecture2-dark.png">
+  <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="./diagrams/architecture2-light.png">
+</picture>
+
+One of the key issues with the previous architecture is the fact that all of the exchanges have different interfaces and that the protocol had code for handling these different interfaces, this architecture overcomes that by introducing adapters that unify the interface for communicating with pools and wrap pools such that Ignition only needs to call into the adapter and does not need to call the pool. Each pool has an adapter since the adapter is a wrapper and not just a global adapter.
+
+This change in architecture gives us some wins such as the Ignition protocol finally being exchange-agnostic and no piece of code in the core protocol requires any knowledge of any exchanges, that responsibility is shifted to a higher layer which is the adapter. 
+
+The issue with adding new exchanges at a later point that existed in the previous architecture is gone. Adding new exchanges can be done by writing a new adapter and allowing Ignition to call it.
+
+However, this architecture has an issue. Since the adapter is a wrapper for the pools it means that if an issue were to be discovered in the adapter then new adapters would have to be created for every single pool that Ignition supports. This means that upgradeability is possible but not easy.
+
+### Potential Architecture 3 (Selected)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./diagrams/architecture-dark.png">
+  <img alt="Text changing depending on mode. Light: 'So light!' Dark: 'So dark!'" src="./diagrams/architecture-light.png">
+</picture>
+
 
 <!-- <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./diagrams/architecture-dark.png">
