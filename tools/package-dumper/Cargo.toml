@@ -1,0 +1,18 @@
+[package]
+name = "package-dumper"
+description = "A cli tool for dumping packages from a node to the local file system."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sbor = { workspace = true }
+radix-engine-interface = { workspace = true }
+radix-engine-store-interface = { workspace = true }
+
+state-manager = { workspace = true }
+
+flate2 = { version = "1.0.28" }
+clap = { version = "4.5.1", features = ["derive"] }
+
+[lints]
+workspace = true

@@ -18,6 +18,7 @@ members = [
     "libraries/address-macros",
     # Tools
     "tools/publishing-tool",
+    "tools/package-dumper",
     # Tests
     "testing/tests",
     "testing/stateful-tests"
@@ -55,9 +56,6 @@ panic = 'abort'
 strip = true
 overflow-checks = true
 
-[workspace.lints.clippy]
-arithmetic_side_effects = "warn"
-
 [patch.'https://github.com/radixdlt/radixdlt-scrypto']
 sbor = { git = "https://www.github.com/radixdlt/radixdlt-scrypto.git", rev = "4887c5e4be2603433592ed290b70b1a0c03cced3" }
 utils = { git = "https://www.github.com/radixdlt/radixdlt-scrypto.git", rev = "4887c5e4be2603433592ed290b70b1a0c03cced3" }
@@ -73,3 +71,6 @@ radix-engine-interface = { git = "https://www.github.com/radixdlt/radixdlt-scryp
 radix-engine-store-interface = { git = "https://www.github.com/radixdlt/radixdlt-scrypto.git", rev = "4887c5e4be2603433592ed290b70b1a0c03cced3" }
 scrypto-unit = { git = "https://www.github.com/radixdlt/radixdlt-scrypto.git", rev = "4887c5e4be2603433592ed290b70b1a0c03cced3" }
 scrypto-test = { git = "https://www.github.com/radixdlt/radixdlt-scrypto.git", rev = "4887c5e4be2603433592ed290b70b1a0c03cced3" }
+
+[workspace.lints.clippy]
+arithmetic_side_effects = "warn"

@@ -21,7 +21,6 @@ use common::prelude::*;
 use extend::*;
 use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
-use publishing_tool::utils::to_json;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
