@@ -11,7 +11,9 @@
 
 ## Introduction
 
-This document covers the technical aspects of Ignition and does not focus so much on the economic or incentives aspect of it beyond the introduction section. If you would like a more detailed explanation of the economic incentives you can find it [here](https://uploads-ssl.webflow.com/6053f7fca5bf627283b582c2/65c3bfd9846b7773b8dd7148_project-Ignition-details.pdf). The hope is that this repository would serve as an example of what a production-ready application written in Scrypto and accompanied by a significant amount of tooling that utilizes the Rust libraries offered in `radixdlt-scrypto` looks like
+This document covers the technical aspects of Ignition and does not focus so much on the economic or incentives aspect of it beyond the introduction section. If you would like a more detailed explanation of the economic incentives you can find it [here](https://uploads-ssl.webflow.com/6053f7fca5bf627283b582c2/65c3bfd9846b7773b8dd7148_project-Ignition-details.pdf). The hope is that this repository would serve as an example of what a production-ready application written in Scrypto and accompanied by a significant amount of tooling that utilizes the Rust libraries offered in `radixdlt-scrypto` looks like. Ignition contains a significant amount of libraries and patterns for writing interfaces, tests, and publishing logic, all of which are covered in this document.
+
+If you are writing a production application there are a number of sections in this document that might be of interest to you such as the [Testing](#testing) and [Publishing and Bootstrapping](#publishing-and-bootstrapping) sections which provide information on what was done for Ignition in those areas.
 
 In simple terms, project Ignition allows users to provide one side of liquidity and for itself to provide the other side of the liquidity. The protocol is not quite made to be profit-generating, its main purpose is to incentivize users to provide liquidity by providing users with several benefits:
 
@@ -244,10 +246,48 @@ With this architecture Ignition features:
 * An upgradable and modular architecture that takes upgradeability into account at every step of the way.
 * The ability for oracles and other components to be changed at runtime.
 
-## Code Structure
-
 ## Testing
 
-Ignition uses the testing frameworks provided in `radixdlt-scrypto` in ways that a
+Ignition is tested through two classes of tests: integration tests and stateful integration tests. These two classes serve different needs and helped ensure that the final Ignition package could run on the networks we wanted to deploy it on.
+
+### Integration Tests
+
+### Stateful Integration Tests
+
+Most applications can rely on local integration tests alone to ensure that their code behaves as expected. However, in a complex system that contains many different blueprints and components, some of which are developed internally and some of which are developed externally, local integration tests alone are not enough, especially if some of those components and blueprints are not available locally (e.g., Ociswap's production BTC/XRD pool is not available to me locally in resim). For such applications, local integration tests might all pass but a similar test run on a live network might fail for many different reasons. 
+
+This created a need for a way to test Ignition against a live network, real pools, real resources, real exchanges, and real everything, and more specifically against mainnet. However, this also needs to be efficient and inexpensive. We're unwilling to pay actual XRD for each test run or any kind of user resources like BTC or ETH. This creates a contradiction where on one hand we would like to test against a live network with real everything and on the other hand we wish for it to be efficient and to cost nothing.
+
+The solution to that is Ignition's stateful testing framework that allows Ignition to be tested against mainnet state without needing to submit any transactions to the network! It works as follows:
+
+1. The `TestRunner` is able to operate over any substate database so long as it implements some specific traits.
+2. A running node has its substate database (part of the state manager) and it is essentially the database that contains the entirety of mainnet state.
+3. We can hook up the `TestRunner` to operate over the node's database thus allowing us to have a `TestRunner` with mainnet state!
+
+In addition to the above, the approach that Ignition follows uses a `SubstateDatabaseOverlay` which is a database overlay that the node's database is wrapped in so that any writes to the database are written to the overlay and not to the node's database to avoid the test-runner corrupting the node's database.
+
+This framework allowed for Ignition to be tested against Caviarnine, Ociswap, and Defiplaza pools from mainnet with real resources without costing a penny! The biggest downside is the need for a node to be running, however, this framework could grow to utilize the Core API instead of a locally running node as all that this framework needs is the ability to read state.
+
+The following is an example of a minimal stateful test:
+
+```rust
+// We do not use the `test` attribute macro but use a `mainnet_test` declarative
+// macro instead.
+#[apply(mainnet_test)]
+fn example_test(
+    // The test function takes a few arguments which are supplied by the "test
+    // harness" which is the notary's account, Ignition's publishing receipt,
+    // and the test runner to use. All other details involving the database and
+    // node are completely abstracted away and the test runner provided here as
+    // an argument can be used just like any other test runner. This test can 
+    // also be run just like any test and would not be treated in any special 
+    // way by cargo or the compiler. 
+    notary: AccountAndControllingKey,
+    receipt: &PublishingReceipt,
+    test_runner: &mut StatefulTestRunner<'_>,
+) {
+    todo!()
+}
+```
 
 ## Publishing and Bootstrapping

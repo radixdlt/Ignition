@@ -1,6 +1,6 @@
-<mxfile host="Electron" modified="2024-04-26T10:03:49.376Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="HOv7uCrt8SVMf7W-6HuX" version="24.2.5" type="device" pages="2">
+<mxfile host="Electron" modified="2024-04-26T10:28:57.003Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.2.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="2HTFJdX0lCwpfTSGbBzV" version="24.2.5" type="device" pages="2">
   <diagram id="20__bEuO-6v_3GmD-gwK" name="Light">
-    <mxGraphModel dx="707" dy="490" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="2442" dy="1693" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -343,48 +343,6 @@
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="799.79" y="390" as="sourcePoint" />
             <mxPoint x="799.79" y="450" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-1" value="" style="shape=table;startSize=0;container=1;collapsible=0;childLayout=tableLayout;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="320" y="920" width="280" height="120" as="geometry" />
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-2" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-1">
-          <mxGeometry width="280" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-3" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;Ociswap Pool Blueprint Id&lt;/font&gt;" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-2">
-          <mxGeometry width="120" height="40" as="geometry">
-            <mxRectangle width="120" height="40" as="alternateBounds" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-5" value="(Allowed Pools, Adapter)" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-2">
-          <mxGeometry x="120" width="160" height="40" as="geometry">
-            <mxRectangle width="160" height="40" as="alternateBounds" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-6" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-1">
-          <mxGeometry y="40" width="280" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-7" value="Caviarnine Pool Blueprint Id" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-6">
-          <mxGeometry width="120" height="40" as="geometry">
-            <mxRectangle width="120" height="40" as="alternateBounds" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-9" value="(Allowed Pools, Adapter)" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-6">
-          <mxGeometry x="120" width="160" height="40" as="geometry">
-            <mxRectangle width="160" height="40" as="alternateBounds" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-10" value="" style="shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;top=0;left=0;bottom=0;right=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-1">
-          <mxGeometry y="80" width="280" height="40" as="geometry" />
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-11" value="Defiplaza Pool Blueprint Id" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-10">
-          <mxGeometry width="120" height="40" as="geometry">
-            <mxRectangle width="120" height="40" as="alternateBounds" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="Gb2RwAZqAxKTFzgWLSsg-13" value="(Allowed Pools, Adapter)" style="shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;top=0;left=0;bottom=0;right=0;pointerEvents=1;fontSize=12;fontFamily=IBM Plex Sans;fontSource=https%3A%2F%2Ffonts.googleapis.com%2Fcss%3Ffamily%3DIBM%2BPlex%2BSans;" vertex="1" parent="Gb2RwAZqAxKTFzgWLSsg-10">
-          <mxGeometry x="120" width="160" height="40" as="geometry">
-            <mxRectangle width="160" height="40" as="alternateBounds" />
           </mxGeometry>
         </mxCell>
       </root>
