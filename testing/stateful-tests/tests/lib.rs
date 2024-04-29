@@ -30,15 +30,6 @@ use stateful_tests::*;
 use transaction::prelude::*;
 
 #[apply(mainnet_test)]
-fn example_test(
-    notary: AccountAndControllingKey,
-    receipt: &PublishingReceipt,
-    test_runner: &mut StatefulTestRunner<'_>,
-) {
-    todo!()
-}
-
-#[apply(mainnet_test)]
 fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_the_metadata_standard(
     _: AccountAndControllingKey,
     receipt: &PublishingReceipt,

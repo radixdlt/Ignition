@@ -118,7 +118,6 @@ fn main() -> Result<(), Error> {
     .map_err(|_| Error::FailedToLoadDatabase)?;
     let decoder = AddressBech32Decoder::new(&network_definition);
     let encoder = AddressBech32Encoder::new(&network_definition);
-    println!("Db is opened!");
 
     // Stores the branches and the nodes requested in order.
     let mut branches = (Vec::<NodeId>::new(), BranchStore::new());
@@ -150,21 +149,54 @@ fn main() -> Result<(), Error> {
             0,
             verbose,
         )?;
-
-        let output_path = out
-            .clone()
-            .unwrap_or(format!("{}.bin", package_addresses.join(",")).into());
-
-        let encoded = scrypto_encode(&branches).expect("Can't fail!");
-        let output = if compress {
-            let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
-            encoder.write_all(&encoded).map_err(Error::IOError)?;
-            encoder.finish().map_err(Error::IOError)?
-        } else {
-            encoded
-        };
-        std::fs::write(output_path, output).map_err(Error::IOError)?;
     }
+
+    let database_updates = DatabaseUpdates {
+        node_updates: branches
+            .1
+            .into_iter()
+            .map(|(db_node_key, partition_num_to_updates_mapping)| {
+                (
+                    db_node_key,
+                    NodeDatabaseUpdates {
+                        partition_updates: partition_num_to_updates_mapping
+                            .into_iter()
+                            .map(|(partition_num, substates)| {
+                                (
+                                    partition_num,
+                                    PartitionDatabaseUpdates::Delta {
+                                        substate_updates: substates
+                                            .into_iter()
+                                            .map(|(db_sort_key, value)| {
+                                                (
+                                                    db_sort_key,
+                                                    DatabaseUpdate::Set(value),
+                                                )
+                                            })
+                                            .collect(),
+                                    },
+                                )
+                            })
+                            .collect(),
+                    },
+                )
+            })
+            .collect(),
+    };
+
+    let output_path = out
+        .clone()
+        .unwrap_or(format!("{}.bin", package_addresses.join(",")).into());
+
+    let encoded = scrypto_encode(&database_updates).expect("Can't fail!");
+    let output = if compress {
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+        encoder.write_all(&encoded).map_err(Error::IOError)?;
+        encoder.finish().map_err(Error::IOError)?
+    } else {
+        encoded
+    };
+    std::fs::write(output_path, output).map_err(Error::IOError)?;
 
     Ok(())
 }
@@ -298,9 +330,9 @@ where
                 })
         });
 
-    // Find all of the nodes referenced in the substates of this node - this is so that we
-    // continue traversing this tree when we discover another node in the tree that we have
-    // not yet looked at.
+    // Find all of the nodes referenced in the substates of this node - this is
+    // so that we continue traversing this tree when we discover another node in
+    // the tree that we have not yet looked at.
     let nodes_to_traverse = store
         .get(node_id)
         .expect("How come we have a node that has no partitions or substates?")
