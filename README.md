@@ -434,9 +434,9 @@ All stateful tests can be found in the [`testing/stateful-tests/`](./testing/sta
 
 ## Publishing and Bootstrapping
 
-Ignition is made up of multiple packages, components, and resources which makes the process to follow to get to a running system quite long. Additionally, the modular nature of Ignition means that the process might not always be the same. As an example, one time the Ignition, Ociswap Adapter, Caviarnine Adapter, and Defiplaza Adapter packages might be needed while at other times only the Ignition package might need to be published since it was the only part that changed. The process of publishing and bootstrapping Ignition must be easy and efficient to allow for quick iterations and to quickly be able to get Ignition in the hands of integrators.
+Ignition is made up of multiple packages, components, and resources which makes the process to follow to get to a running system quite lengthy. Additionally, the modular nature of Ignition means that the process might not always be the same. As an example, one time the Ignition, Ociswap Adapter, Caviarnine Adapter, and Defiplaza Adapter packages might be needed while at other times only the Ignition package might need to be published since it was the only part that changed. The process of publishing and bootstrapping Ignition must be easy and efficient to allow for quick iterations and to quickly be able to get Ignition in the hands of integrators.
 
-The typical approach of using the developer console for this would have been too error-prone, manual, lengthy, time-consuming, and inefficient. For this Ignition has a tool called the [`publishing-tool`](./tools/publishing-tool/) which is a tool written specifically for Ignition to allow users of the tool to declaratively define what should be done when publishing and for the tool to do the publishing and everything else.
+The typical approach of using the developer console for this would have been too error-prone, manual, lengthy, time-consuming, and inefficient. For this Ignition has a tool called the [`publishing-tool`](./tools/publishing-tool/) which is a tool written specifically for Ignition to allow users of the tool to declaratively define what should be done when publishing and for the tool to do the publishing and everything else. At its core, this tool is built on a simple idea: much like it is possible to execute transactions and get receipts back programmatically on the `TestRunner` and use values and new entities from previous transactions in new transactions, it is also possible to do the same using the network gateway API. After a transaction is constructed and signed it is compiled and sent to the gateway API to then get sent to the network. The tool can then keep polling for the receipt until it gets it back. Automating and doing this process automatically makes publishing significantly simpler and standardizes the process that is followed to deploy Ignition to any network.
 
 The following are the features offered by the [`publishing-tool`](./tools/publishing-tool/):
 
@@ -446,9 +446,30 @@ The following are the features offered by the [`publishing-tool`](./tools/publis
 1. Works against any network that has a Gateway API.
 1. Has the ability to simulate the entire publishing process before it is run. This allows for issues in the configuration to be detected before spending any XRD on the actual publication and failing in the middle.
 1. The output of the publishing tool is a publishing receipt with the entire configuration of Ignition and the address of the created entities.
-1. Batches up package publishing to save on fees.
+1. Batches up package publishing to save on fees. Each batch transaction is approximately 980kbs in size.
+
+A corner piece in the [`publishing-tool`](./tools/publishing-tool/) is the `ExecutionService` which is a service whose responsibility is to handle the estimation of fees, the locking of fees, the construction of transactions, and the submission of transactions. The `ExecutionService` operates over a generic network provider which means that the execution service can operate on the Gateway API, Core API, a node's database, or other means. It ensures that there is a consistent interface for executing transactions and getting receipts back.
+
+One of the above features mentions that this framework "has the ability to simulate the entire publishing process before it is run. This allows for issues in the configuration to be detected before spending any XRD on the actual publication and failing in the middle.". This is made possible by `ExecutionService` being generic and being able to operate over any network provider. This is used to first execute all of the manifests on a fork of mainnet (if the database path is provided to the CLI) and then execute them on a gateway network connection provider if the previous simulation succeeded in _full_.
+
+The interface provided by the `ExecutionService` is very simple and ideal for tools and applications such as this one where executing transactions needs to be as simple as possible. The following example code shows what it looks like to execute a manifest through the execution service:
+
+```rust
+let mut execution_service = todo!();
+let simple_receipt = execution_service
+    .execute_manifest(ManifestBuilder::new().build())?;
+let new_resource = simple_receipt.new_entities.new_resource_addresses.first();
+```
+
+At the present moment, the two main network connection providers supported are:
+
+1. Gateway network connection provider - A network connection provider that uses the gateway API. This uses a client automatically generated using the `openapi-generator` and lives in [`libraries/gateway-client`](./libraries/gateway-client/).
+2. Node simulation client - A client that can be used with a node's database to mock transactions and previews against it.
 
 The term declarative configuration means that the user of the tool does not need to write any manifests on their own. Instead, they declare their intent and the tool will translate it into the appropriate set of manifests required to achieve the user's intent. An example of one of those configurations can be found in [`tools/publishing-tool/src/configuration_selector/mainnet_production.rs`](tools/publishing-tool/src/configuration_selector/mainnet_production.rs) module which is also seen below:
+
+<details>
+  <summary>Mainnet Production Configuration</summary>
 
 ```rust
 pub fn mainnet_production(
@@ -745,6 +766,9 @@ pub fn mainnet_production(
     }
 }
 ```
+
+</details>
+
 
 The following is an example command used to publish and bootstrap Ignition on stokenet. The private key seen in this command is an example private key created just for this example to make it easier for you to run:
 
