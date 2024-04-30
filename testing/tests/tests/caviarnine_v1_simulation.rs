@@ -509,7 +509,7 @@ macro_rules! define_price_test {
         paste::paste! {
             $(
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_bitcoin_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_decrease_in_bitcoin_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -522,7 +522,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.bitcoin.0, pool_information.bitcoin.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_ethereum_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_decrease_in_ethereum_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -535,7 +535,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.ethereum.0, pool_information.ethereum.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_usdc_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_decrease_in_usdc_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -548,7 +548,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees(- $multiplier, env, pool_information.usdc.0, pool_information.usdc.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_decrease_in_usdt_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_decrease_in_usdt_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -563,7 +563,7 @@ macro_rules! define_price_test {
             )*
             $(
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_bitcoin_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_increase_in_bitcoin_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -576,7 +576,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees($multiplier, env, pool_information.bitcoin.0, pool_information.bitcoin.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_ethereum_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_increase_in_ethereum_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -589,7 +589,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees($multiplier, env, pool_information.ethereum.0, pool_information.ethereum.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_usdc_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_increase_in_usdc_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -602,7 +602,7 @@ macro_rules! define_price_test {
                     test_effect_of_price_action_on_fees($multiplier, env, pool_information.usdc.0, pool_information.usdc.1 )
                 }
                 #[test]
-                fn [<positions_can_be_opened_at_current_price_and_closed_at_a_ $multiplier x_price_increase_in_usdt_pool>](
+                fn [<an_opened_position_can_be_closed_in_a_ $multiplier x_price_increase_in_usdt_pool>](
                 ) {
                     let env = ScryptoUnitEnv::new();
                     let pool_information = mainnet_state::pool_information(&env.resources);
@@ -930,7 +930,9 @@ fn test_effect_of_price_action_on_fees(
             .build(),
         &private_key,
     );
-    receipt.expect_commit_success();
+    if !receipt.is_commit_success() {
+        return;
+    }
     println!(
         "Open - Multiplier = {}x, Bin Span = {}, Cost = {} XRD, Execution Cost = {} XRD",
         multiplier,

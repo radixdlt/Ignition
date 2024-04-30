@@ -194,6 +194,35 @@ macro_rules! define_open_and_close_liquidity_position_tests {
 
                 let current_epoch = test_runner.get_current_epoch();
 
+                test_runner.execute_manifest_without_auth(ManifestBuilder::new()
+                    .lock_fee(test_account, dec!(10))
+                    .mint_fungible(XRD, dec!(200_000_000_000_000))
+                    .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
+                    .take_from_worktop(
+                        XRD,
+                        dec!(100_000_000_000_000),
+                        "non_volatile",
+                    )
+                    .with_name_lookup(|builder, _| {
+                        let volatile = builder.bucket("volatile");
+                        let non_volatile = builder.bucket("non_volatile");
+
+                        builder
+                            .call_method(
+                                receipt.components.protocol_entities.ignition,
+                                "deposit_protocol_resources",
+                                (volatile, Volatility::Volatile),
+                            )
+                            .call_method(
+                                receipt.components.protocol_entities.ignition,
+                                "deposit_protocol_resources",
+                                (non_volatile, Volatility::NonVolatile),
+                            )
+                    })
+                    .build()
+                )
+                .expect_commit_success();
+
                 // Act
                 let transaction = TransactionBuilder::new()
                     .header(TransactionHeaderV1 {
@@ -258,6 +287,35 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 let user_resource = receipt.user_resources.$resource_ident;
 
                 let current_epoch = test_runner.get_current_epoch();
+
+                test_runner.execute_manifest_without_auth(ManifestBuilder::new()
+                    .lock_fee(test_account, dec!(10))
+                    .mint_fungible(XRD, dec!(200_000_000_000_000))
+                    .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
+                    .take_from_worktop(
+                        XRD,
+                        dec!(100_000_000_000_000),
+                        "non_volatile",
+                    )
+                    .with_name_lookup(|builder, _| {
+                        let volatile = builder.bucket("volatile");
+                        let non_volatile = builder.bucket("non_volatile");
+
+                        builder
+                            .call_method(
+                                receipt.components.protocol_entities.ignition,
+                                "deposit_protocol_resources",
+                                (volatile, Volatility::Volatile),
+                            )
+                            .call_method(
+                                receipt.components.protocol_entities.ignition,
+                                "deposit_protocol_resources",
+                                (non_volatile, Volatility::NonVolatile),
+                            )
+                    })
+                    .build()
+                )
+                .expect_commit_success();
 
                 let transaction = TransactionBuilder::new()
                     .header(TransactionHeaderV1 {
@@ -477,7 +535,7 @@ fn log_reported_price_from_defiplaza_pool(
         },
     );
     receipt.expect_commit_success();
-    for i in (0..4) {
+    for i in 0..4 {
         let price = receipt.expect_commit_success().output::<Price>(i);
         println!("{price:#?}");
     }
