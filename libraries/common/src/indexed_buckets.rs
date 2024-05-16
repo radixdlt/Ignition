@@ -89,9 +89,11 @@ impl IndexedBuckets {
     {
         let bucket = bucket.into();
         let resource_address =
-            native_sdk::resource::NativeBucket::resource_address(&bucket, api)?;
+            radix_native_sdk::resource::NativeBucket::resource_address(
+                &bucket, api,
+            )?;
         if let Some(existing_bucket) = self.0.get(&resource_address) {
-            native_sdk::resource::NativeBucket::put(
+            radix_native_sdk::resource::NativeBucket::put(
                 existing_bucket,
                 bucket,
                 api,
@@ -141,7 +143,7 @@ impl IndexedBuckets {
         &mut self,
         resource_address: &ResourceAddress,
     ) -> Option<Bucket> {
-        self.0.remove(resource_address)
+        self.0.swap_remove(resource_address)
     }
 
     pub fn into_inner(self) -> IndexMap<ResourceAddress, Bucket> {

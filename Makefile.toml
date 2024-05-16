@@ -12,9 +12,8 @@ args = [
 ]
 
 [tasks.check]
-install_crate = "clippy"
 command = "cargo"
-args = ["clippy", "--all"]
+args = ["check", "--all-targets", "--target-dir", "target/example"]
 
 [tasks.format]
 install_crate = "rustfmt"

@@ -37,7 +37,7 @@ use tests::prelude::*;
 #[test]
 fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         resources,
         protocol,
         caviarnine_v1,
@@ -47,7 +47,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
         ..Default::default()
     });
 
-    let (public_key, private_key, account) = test_runner.new_account(false);
+    let (public_key, private_key, account) = ledger.new_account(false);
 
     let pool_information = mainnet_state::pool_information(&resources);
     let pool_information = ResourceInformation {
@@ -93,7 +93,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
         };
 
         // Creating a new pool with the same information as this provided pool.
-        let pool_address = test_runner
+        let pool_address = ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -141,7 +141,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .unwrap();
 
         let active_amounts =
-            amount_in_bins.remove(&active_tick.unwrap()).unwrap();
+            amount_in_bins.shift_remove(&active_tick.unwrap()).unwrap();
         let positions =
             vec![(active_tick.unwrap(), active_amounts.0, active_amounts.1)]
                 .into_iter()
@@ -156,7 +156,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
                 }))
                 .collect::<Vec<_>>();
 
-        let price_in_simulated_pool = test_runner
+        let price_in_simulated_pool = ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -190,7 +190,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
         assert_eq!(price_in_simulated_pool, price.unwrap());
 
         // Adding this pool to Ignition.
-        test_runner
+        ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -204,7 +204,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .expect_commit_success();
 
         // Updating the oracle price
-        test_runner
+        ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -224,7 +224,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
 
         // Minting some of the resource and depositing them into the user's
         // account.
-        test_runner
+        ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -237,7 +237,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
         // Cache the pool information - Note on this, the Caviarnine pools
         // literally require this and if the information is not cached we can
         // sometimes run out of cost units in the execution.
-        test_runner
+        ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -253,13 +253,13 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
         // Constructing a transaction that is as close as possible to a real one
         // to open a liquidity position and ensure that we can open one with the
         // fee limit that we currently have.
-        let current_epoch = test_runner.get_current_epoch();
+        let current_epoch = ledger.get_current_epoch();
         let transaction = TransactionBuilder::new()
             .header(TransactionHeaderV1 {
                 network_id: 0xf2,
                 start_epoch_inclusive: current_epoch,
                 end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                nonce: test_runner.next_transaction_nonce(),
+                nonce: ledger.next_transaction_nonce(),
                 notary_public_key: public_key.into(),
                 notary_is_signatory: true,
                 tip_percentage: 0,
@@ -289,10 +289,8 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             )
             .notarize(&private_key)
             .build();
-        let receipt = test_runner.execute_raw_transaction(
-            &NetworkDefinition::simulator(),
-            &transaction.to_raw().unwrap(),
-        );
+        let receipt = ledger
+            .execute_notarized_transaction(&transaction.to_raw().unwrap());
         receipt.expect_commit_success();
         println!(
             "Opening a position costs {} XRD in total with {} XRD in execution",
@@ -307,7 +305,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .into_iter()
             .rev()
             .filter_map(|(identifier, event)| {
-                if test_runner.event_name(&identifier)
+                if ledger.event_name(&identifier)
                     == MintNonFungibleResourceEvent::EVENT_NAME
                 {
                     Some(
@@ -326,7 +324,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .unwrap();
 
         // Getting the liquidity position receipt information.
-        let liquidity_receipt_data = test_runner
+        let liquidity_receipt_data = ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -395,14 +393,13 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
 
         // Set the current time to be 6 months from now.
         {
-            let current_time =
-                test_runner.get_current_time(TimePrecisionV2::Minute);
+            let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
             let maturity_instant = current_time
                 .add_seconds(
                     *LockupPeriod::from_months(6).unwrap().seconds() as i64
                 )
                 .unwrap();
-            let db = test_runner.substate_db_mut();
+            let db = ledger.substate_db_mut();
             let mut writer = SystemDatabaseWriter::new(db);
 
             writer
@@ -435,7 +432,7 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
                 .unwrap();
         }
 
-        test_runner
+        ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -454,13 +451,13 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .expect_commit_success();
 
         // Close the liquidity position.
-        let current_epoch = test_runner.get_current_epoch();
+        let current_epoch = ledger.get_current_epoch();
         let transaction = TransactionBuilder::new()
             .header(TransactionHeaderV1 {
                 network_id: 0xf2,
                 start_epoch_inclusive: current_epoch,
                 end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                nonce: test_runner.next_transaction_nonce(),
+                nonce: ledger.next_transaction_nonce(),
                 notary_public_key: public_key.into(),
                 notary_is_signatory: true,
                 tip_percentage: 0,
@@ -489,10 +486,8 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             )
             .notarize(&private_key)
             .build();
-        let receipt = test_runner.execute_raw_transaction(
-            &NetworkDefinition::simulator(),
-            &transaction.to_raw().unwrap(),
-        );
+        let receipt = ledger
+            .execute_notarized_transaction(&transaction.to_raw().unwrap());
         receipt.expect_commit_success();
         println!(
             "Closing a position costs {} XRD in total with {} XRD in execution",
@@ -639,7 +634,7 @@ fn test_effect_of_price_action_on_fees(
     divisibility: u8,
 ) {
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         protocol,
         caviarnine_v1,
         ..
@@ -662,7 +657,7 @@ fn test_effect_of_price_action_on_fees(
         resource_x
     };
 
-    let pool_address = test_runner
+    let pool_address = ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -728,7 +723,7 @@ fn test_effect_of_price_action_on_fees(
             .unwrap();
 
         let active_amounts =
-            amount_in_bins.remove(&active_tick.unwrap()).unwrap();
+            amount_in_bins.shift_remove(&active_tick.unwrap()).unwrap();
         let positions =
             vec![(active_tick.unwrap(), active_amounts.0, active_amounts.1)]
                 .into_iter()
@@ -743,7 +738,7 @@ fn test_effect_of_price_action_on_fees(
                 }))
                 .collect::<Vec<_>>();
 
-        let price_in_simulated_pool = test_runner
+        let price_in_simulated_pool = ledger
             .execute_manifest_without_auth(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -809,7 +804,7 @@ fn test_effect_of_price_action_on_fees(
             .reduce(|acc, item| acc + item)
             .unwrap_or_default();
 
-        test_runner
+        ledger
             .execute_manifest_with_enabled_modules(
                 ManifestBuilder::new()
                     .mint_fungible(resource_x, x_amount_required)
@@ -837,7 +832,7 @@ fn test_effect_of_price_action_on_fees(
     }
 
     // Adding this pool to Ignition.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -851,7 +846,7 @@ fn test_effect_of_price_action_on_fees(
         .expect_commit_success();
 
     // Adding this pool to Ignition.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -865,7 +860,7 @@ fn test_effect_of_price_action_on_fees(
         .expect_commit_success();
 
     // Updating the price in the Oracle component.
-    let price = test_runner
+    let price = ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -876,7 +871,7 @@ fn test_effect_of_price_action_on_fees(
         .expect_commit_success()
         .output::<Option<Decimal>>(1)
         .unwrap();
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -896,7 +891,7 @@ fn test_effect_of_price_action_on_fees(
 
     // Minting some of the resource and depositing them into the user's
     // account.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -906,7 +901,7 @@ fn test_effect_of_price_action_on_fees(
         )
         .expect_commit_success();
 
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee(account_address, dec!(10))
             .withdraw_from_account(
@@ -948,7 +943,7 @@ fn test_effect_of_price_action_on_fees(
         .into_iter()
         .rev()
         .filter_map(|(identifier, event)| {
-            if test_runner.event_name(&identifier)
+            if ledger.event_name(&identifier)
                 == MintNonFungibleResourceEvent::EVENT_NAME
             {
                 Some(
@@ -967,7 +962,7 @@ fn test_effect_of_price_action_on_fees(
         .unwrap();
 
     // Getting the liquidity position receipt information.
-    let liquidity_receipt_data = test_runner
+    let liquidity_receipt_data = ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -1030,15 +1025,14 @@ fn test_effect_of_price_action_on_fees(
 
     // Set the current time to be 6 months from now.
     {
-        let current_time =
-            test_runner.get_current_time(TimePrecisionV2::Minute);
+        let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
         let maturity_instant =
             current_time
                 .add_seconds(
                     *LockupPeriod::from_months(6).unwrap().seconds() as i64
                 )
                 .unwrap();
-        let db = test_runner.substate_db_mut();
+        let db = ledger.substate_db_mut();
         let mut writer = SystemDatabaseWriter::new(db);
 
         writer
@@ -1077,7 +1071,7 @@ fn test_effect_of_price_action_on_fees(
 
         let mut new_price = price;
         while new_price < target_price {
-            let reported_price = test_runner
+            let reported_price = ledger
                 .execute_manifest_without_auth(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -1110,7 +1104,7 @@ fn test_effect_of_price_action_on_fees(
 
         let mut new_price = price;
         while new_price > target_price {
-            let reported_price = test_runner
+            let reported_price = ledger
                 .execute_manifest_without_auth(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -1139,7 +1133,7 @@ fn test_effect_of_price_action_on_fees(
     };
 
     // Submit the new price to the oracle
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -1158,7 +1152,7 @@ fn test_effect_of_price_action_on_fees(
         .expect_commit_success();
 
     // Close the position
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee(account_address, dec!(10))
             .withdraw_from_account(
@@ -1257,7 +1251,7 @@ mod mainnet_state {
                 let preview_response = transaction_preview(
                     &gateway_configuration,
                     TransactionPreviewRequest {
-                        manifest: transaction::manifest::decompile(
+                        manifest: radix_transactions::manifest::decompile(
                             &manifest.instructions,
                             &network_definition,
                         )
@@ -1283,7 +1277,7 @@ mod mainnet_state {
                     &preview_response.encoded_receipt,
                 )
                 .unwrap()
-                .into_latest();
+                .fully_update_and_into_latest_version();
 
                 let commit_result = receipt.expect_commit_success();
 

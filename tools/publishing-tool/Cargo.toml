@@ -6,12 +6,12 @@ edition.workspace = true
 
 [dependencies]
 sbor = { workspace = true }
-transaction = { workspace = true }
-scrypto-unit = { workspace = true }
+radix-transactions = { workspace = true }
+scrypto-test = { workspace = true }
 radix-engine = { workspace = true }
-radix-engine-common = { workspace = true }
+radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
-radix-engine-store-interface = { workspace = true }
+radix-substate-store-interface = { workspace = true }
 
 state-manager = { workspace = true }
 
@@ -33,7 +33,7 @@ caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", f
     "manifest-builder-stubs",
 ] }
 
-sbor-json = { git = "https://github.com/radixdlt/radix-engine-toolkit", rev = "1cfe879c7370cfa497857ada7a8973f8a3388abc" }
+sbor-json = { workspace = true }
 
 hex = { version = "0.4.3" }
 rand = { version = "0.8.5" }

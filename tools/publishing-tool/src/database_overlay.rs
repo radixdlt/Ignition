@@ -27,8 +27,8 @@
 use core::borrow::*;
 use core::cmp::*;
 use core::iter::*;
-use radix_engine_common::prelude::*;
-use radix_engine_store_interface::interface::*;
+use radix_common::prelude::*;
+use radix_substate_store_interface::interface::*;
 
 pub type UnmergeableSubstateDatabaseOverlay<'a, S> =
     SubstateDatabaseOverlay<&'a S, S>;

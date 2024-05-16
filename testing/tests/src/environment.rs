@@ -70,7 +70,7 @@ pub struct ScryptoUnitEnvironmentSpecifier;
 
 impl EnvironmentSpecifier for ScryptoUnitEnvironmentSpecifier {
     // Environment
-    type Environment = DefaultTestRunner;
+    type Environment = DefaultLedgerSimulator;
 
     // Components
     type Ignition = ComponentAddress;
@@ -745,7 +745,7 @@ impl ScryptoTestEnv {
         env: &mut TestEnvironment<InMemorySubstateDatabase>,
     ) -> Result<PackageAddress, RuntimeError> {
         let (code, definition) = package_loader::PackageLoader::get(name);
-        Package::publish(code, definition, Default::default(), env)
+        PackageFactory::publish(code, definition, Default::default(), env)
             .map(|item| item.0)
     }
 }
@@ -766,7 +766,7 @@ impl ScryptoUnitEnv {
         let ociswap_v1_package =
             PackageAddress::try_from(addresses[1]).unwrap();
 
-        let mut test_runner = {
+        let mut ledger = {
             let mut in_memory_substate_database =
                 InMemorySubstateDatabase::standard();
             in_memory_substate_database.commit(&DatabaseUpdates {
@@ -797,19 +797,19 @@ impl ScryptoUnitEnv {
                     })
                     .collect(),
             });
-            TestRunnerBuilder::new()
+            LedgerSimulatorBuilder::new()
                 .with_custom_database(in_memory_substate_database)
-                .without_trace()
+                .without_kernel_trace()
                 .build()
         };
 
         // The account that everything gets deposited into throughout the tests.
-        let (public_key, private_key, account) = test_runner.new_account(false);
+        let (public_key, private_key, account) = ledger.new_account(false);
 
         let protocol_manager_badge =
-            test_runner.create_fungible_resource(dec!(1), 0, account);
+            ledger.create_fungible_resource(dec!(1), 0, account);
         let protocol_owner_badge =
-            test_runner.create_fungible_resource(dec!(1), 0, account);
+            ledger.create_fungible_resource(dec!(1), 0, account);
 
         let protocol_manager_rule = rule!(require(protocol_manager_badge));
         let protocol_owner_rule = rule!(require(protocol_owner_badge));
@@ -818,7 +818,7 @@ impl ScryptoUnitEnv {
             Self::PACKAGE_NAMES.map(|package_name| {
                 let (code, definition) =
                     package_loader::PackageLoader::get(package_name);
-                test_runner.publish_package(
+                ledger.publish_package(
                     (code, definition),
                     Default::default(),
                     OwnerRole::None,
@@ -827,7 +827,7 @@ impl ScryptoUnitEnv {
 
         let resource_addresses =
             Self::RESOURCE_DIVISIBILITIES.map(|divisibility| {
-                test_runner.create_freely_mintable_fungible_resource(
+                ledger.create_freely_mintable_fungible_resource(
                     OwnerRole::None,
                     None,
                     *divisibility,
@@ -837,7 +837,7 @@ impl ScryptoUnitEnv {
 
         let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, defiplaza_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
-                test_runner
+                ledger
                 .execute_manifest(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -886,7 +886,7 @@ impl ScryptoUnitEnv {
                     FAUCET,
                 )
                 .build();
-            let component_address = *test_runner
+            let component_address = *ledger
                 .execute_manifest(manifest, vec![])
                 .expect_commit_success()
                 .new_component_addresses()
@@ -910,7 +910,7 @@ impl ScryptoUnitEnv {
                 })
                 .try_deposit_entire_worktop_or_abort(account, None)
                 .build();
-            test_runner
+            ledger
                 .execute_manifest_without_auth(manifest)
                 .expect_commit_success();
 
@@ -957,7 +957,7 @@ impl ScryptoUnitEnv {
                 })
                 .try_deposit_entire_worktop_or_abort(account, None)
                 .build();
-            *test_runner
+            *ledger
                 .execute_manifest_without_auth(manifest)
                 .expect_commit_success()
                 .new_component_addresses()
@@ -981,7 +981,7 @@ impl ScryptoUnitEnv {
                     )
                     .unwrap();
 
-                test_runner.publish_package(
+                ledger.publish_package(
                     (
                         ociswap_v2_package_wasm.to_vec(),
                         ociswap_v2_package_definition,
@@ -1001,7 +1001,7 @@ impl ScryptoUnitEnv {
                     )
                     .unwrap();
 
-                test_runner.publish_package(
+                ledger.publish_package(
                     (
                         ociswap_v2_package_wasm.to_vec(),
                         ociswap_v2_package_definition,
@@ -1011,7 +1011,7 @@ impl ScryptoUnitEnv {
                 )
             };
 
-            let registry = test_runner
+            let registry = ledger
                 .execute_manifest(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -1033,7 +1033,7 @@ impl ScryptoUnitEnv {
 
             let (code, definition) =
                 package_loader::PackageLoader::get("ociswap-v2-adapter-v1");
-            let ociswap_v2_adapter_v1_package = test_runner.publish_package(
+            let ociswap_v2_adapter_v1_package = ledger.publish_package(
                 (code, definition),
                 Default::default(),
                 OwnerRole::None,
@@ -1061,7 +1061,7 @@ impl ScryptoUnitEnv {
                         FAUCET,
                     )
                     .build();
-                let component_address = *test_runner
+                let component_address = *ledger
                     .execute_manifest(manifest, vec![])
                     .expect_commit_success()
                     .new_component_addresses()
@@ -1089,7 +1089,7 @@ impl ScryptoUnitEnv {
                     })
                     .try_deposit_entire_worktop_or_abort(account, None)
                     .build();
-                test_runner
+                ledger
                     .execute_manifest_without_auth(manifest)
                     .expect_commit_success();
 
@@ -1119,7 +1119,7 @@ impl ScryptoUnitEnv {
                     )
                     .unwrap();
 
-                test_runner.publish_package(
+                ledger.publish_package(
                     (
                         defiplaza_v2_package_wasm.to_vec(),
                         defiplaza_v2_package_definition,
@@ -1131,7 +1131,7 @@ impl ScryptoUnitEnv {
 
             let (code, definition) =
                 package_loader::PackageLoader::get("defiplaza-v2-adapter-v1");
-            let defiplaza_v2_adapter_v1_package = test_runner.publish_package(
+            let defiplaza_v2_adapter_v1_package = ledger.publish_package(
                 (code, definition),
                 Default::default(),
                 OwnerRole::None,
@@ -1161,7 +1161,7 @@ impl ScryptoUnitEnv {
                             dec!(1),
                         )
                         .build();
-                    let component_address = *test_runner
+                    let component_address = *ledger
                         .execute_manifest(manifest, vec![])
                         .expect_commit_success()
                         .new_component_addresses()
@@ -1193,7 +1193,7 @@ impl ScryptoUnitEnv {
                         })
                         .try_deposit_entire_worktop_or_abort(account, None)
                         .build();
-                    test_runner
+                    ledger
                         .execute_manifest_without_auth(manifest)
                         .expect_commit_success();
 
@@ -1207,7 +1207,7 @@ impl ScryptoUnitEnv {
             )
         };
 
-        let simple_oracle = test_runner
+        let simple_oracle = ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -1233,7 +1233,7 @@ impl ScryptoUnitEnv {
 
         // Submitting some dummy prices to the oracle to get things going.
         resource_addresses.map(|resource_address| {
-            test_runner
+            ledger
                 .execute_manifest_without_auth(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -1248,7 +1248,7 @@ impl ScryptoUnitEnv {
         });
 
         // Initializing ignition with information
-        let ignition = test_runner
+        let ignition = ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -1288,7 +1288,7 @@ impl ScryptoUnitEnv {
                 (caviarnine_v1_adapter_v1_package, "CaviarnineV1Adapter"),
             ]
             .map(|(package_address, blueprint_name)| {
-                test_runner
+                ledger
                     .execute_manifest(
                         ManifestBuilder::new()
                             .lock_fee_from_faucet()
@@ -1314,7 +1314,7 @@ impl ScryptoUnitEnv {
                     .unwrap()
             });
 
-        test_runner
+        ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -1342,17 +1342,22 @@ impl ScryptoUnitEnv {
             .expect_commit_success();
 
         // Cache the addresses of the various Caviarnine pools.
-        test_runner
-            .execute_manifest_ignoring_fee(
+        ledger
+            .execute_manifest(
                 TransactionManifestV1 {
-                    instructions: caviarnine_v1_pools
-                        .iter()
-                        .map(|address| InstructionV1::CallMethod {
+                    instructions: std::iter::once(InstructionV1::CallMethod {
+                        address: FAUCET.into(),
+                        method_name: "lock_fee".into(),
+                        args: manifest_args!(dec!(100)).into(),
+                    })
+                    .chain(caviarnine_v1_pools.iter().map(|address| {
+                        InstructionV1::CallMethod {
                             address: caviarnine_v1_adapter_v1.into(),
                             method_name: "preload_pool_information".to_owned(),
                             args: manifest_args!(address).into(),
-                        })
-                        .collect(),
+                        }
+                    }))
+                    .collect(),
                     blobs: Default::default(),
                 },
                 vec![],
@@ -1477,7 +1482,7 @@ impl ScryptoUnitEnv {
                     builder
                 })
                 .build();
-            test_runner
+            ledger
                 .execute_manifest_with_enabled_modules(
                     manifest,
                     EnabledModules::for_test_transaction()
@@ -1488,7 +1493,7 @@ impl ScryptoUnitEnv {
         }
 
         Self {
-            environment: test_runner,
+            environment: ledger,
             resources: resource_addresses,
             protocol: ProtocolEntities {
                 ignition_package_address: ignition_package,

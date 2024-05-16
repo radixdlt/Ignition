@@ -7,9 +7,9 @@ description = "Defines the interface of the various adapters."
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
-transaction = { workspace = true, optional = true }
-radix-engine-common = { workspace = true }
-radix-engine-derive = { workspace = true }
+radix-transactions = { workspace = true, optional = true }
+radix-common = { workspace = true }
+radix-common-derive = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 common = { path = "../common" }
@@ -25,7 +25,7 @@ default = [
 trait = []
 scrypto-stubs = []
 scrypto-test-stubs = []
-manifest-builder-stubs = ["dep:transaction"]
+manifest-builder-stubs = ["dep:radix-transactions"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

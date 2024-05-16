@@ -136,8 +136,8 @@ macro_rules! name_indexed_struct {
             }
 
             // Creating a map of everything in the name indexed struct
-            pub fn into_map(&self) -> ::radix_engine_common::prelude::IndexMap<&'static str, &$generic> {
-                let mut map = ::radix_engine_common::prelude::IndexMap::<&'static str, &$generic>::new();
+            pub fn into_map(&self) -> ::radix_common::prelude::IndexMap<&'static str, &$generic> {
+                let mut map = ::radix_common::prelude::IndexMap::<&'static str, &$generic>::new();
 
                 $(
                     map.insert(stringify!($field_ident), &self.$field_ident);

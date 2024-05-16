@@ -6,8 +6,9 @@ edition.workspace = true
 
 [dependencies]
 sbor = { workspace = true }
+radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
-radix-engine-store-interface = { workspace = true }
+radix-substate-store-interface = { workspace = true }
 
 state-manager = { workspace = true }
 

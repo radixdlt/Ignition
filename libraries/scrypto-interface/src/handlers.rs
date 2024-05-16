@@ -177,18 +177,18 @@ fn generate_scrypto_stub(
                             blueprint_package_address,
                             stringify!(#blueprint_ident),
                             stringify!(#ident),
-                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                            ::radix_common::prelude::scrypto_args!(#(#arg_idents),*)
                         );
-                        ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap()
+                        ::radix_common::prelude::scrypto_decode(&rtn).unwrap()
                     }
                 } else {
                     quote! {
                         let rtn = ::scrypto::prelude::ScryptoVmV1Api::object_call(
                             &self.0.0,
                             stringify!(#ident),
-                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                            ::radix_common::prelude::scrypto_args!(#(#arg_idents),*)
                         );
-                        ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap()
+                        ::radix_common::prelude::scrypto_decode(&rtn).unwrap()
                     }
                 };
 
@@ -205,8 +205,8 @@ fn generate_scrypto_stub(
 
     quote! {
         #[derive(
-            ::radix_engine_interface::prelude::ScryptoSbor,
-            ::radix_engine_interface::prelude::ManifestSbor,
+            ::radix_common::prelude::ScryptoSbor,
+            ::radix_common::prelude::ManifestSbor,
             Clone,
             Copy,
             Debug,
@@ -219,7 +219,7 @@ fn generate_scrypto_stub(
         #(#attributes)*
         #[sbor(transparent)]
         pub struct #struct_ident (
-            ::radix_engine_interface::prelude::Reference
+            ::radix_common::prelude::Reference
         );
 
         #(#attributes)*
@@ -230,7 +230,7 @@ fn generate_scrypto_stub(
                 T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
             {
                 fn from(value: T) -> Self {
-                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                    Self(::radix_common::prelude::Reference(value.into()))
                 }
             }
 
@@ -326,18 +326,18 @@ fn generate_scrypto_test_stub(
                             blueprint_package_address,
                             stringify!(#blueprint_ident),
                             stringify!(#ident),
-                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                            ::radix_common::prelude::scrypto_args!(#(#arg_idents),*)
                         )
-                        .map(|rtn| ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap())
+                        .map(|rtn| ::radix_common::prelude::scrypto_decode(&rtn).unwrap())
                     }
                 } else {
                     quote! {
                         env.call_method(
                             &self.0.0,
                             stringify!(#ident),
-                            ::radix_engine_interface::scrypto_args!(#(#arg_idents),*)
+                            ::radix_common::prelude::scrypto_args!(#(#arg_idents),*)
                         )
-                        .map(|rtn| ::radix_engine_interface::prelude::scrypto_decode(&rtn).unwrap())
+                        .map(|rtn| ::radix_common::prelude::scrypto_decode(&rtn).unwrap())
                     }
                 };
 
@@ -363,8 +363,8 @@ fn generate_scrypto_test_stub(
 
     quote! {
         #[derive(
-            ::radix_engine_interface::prelude::ScryptoSbor,
-            ::radix_engine_interface::prelude::ManifestSbor,
+            ::radix_common::prelude::ScryptoSbor,
+            ::radix_common::prelude::ManifestSbor,
             Clone,
             Copy,
             Debug,
@@ -377,7 +377,7 @@ fn generate_scrypto_test_stub(
         #(#attributes)*
         #[sbor(transparent)]
         pub struct #struct_ident (
-            ::radix_engine_interface::prelude::Reference
+            ::radix_common::prelude::Reference
         );
 
         #(#attributes)*
@@ -388,7 +388,7 @@ fn generate_scrypto_test_stub(
                 T: ::core::convert::Into<::radix_engine_interface::prelude::NodeId>
             {
                 fn from(value: T) -> Self {
-                    Self(::radix_engine_interface::prelude::Reference(value.into()))
+                    Self(::radix_common::prelude::Reference(value.into()))
                 }
             }
 
@@ -441,7 +441,7 @@ fn generate_manifest_builder_stub(
                 } else {
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
-                        parse_quote!(impl ::transaction::builder::ResolvableGlobalAddress),
+                        parse_quote!(impl ::radix_transactions::builder::ResolvableGlobalAddress),
                     );
                 }
 
@@ -498,7 +498,7 @@ fn generate_manifest_builder_stub(
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
                         parse_quote!(
-                            impl ::transaction::builder::ResolvableGlobalAddress
+                            impl ::radix_transactions::builder::ResolvableGlobalAddress
                         ),
                     );
 
@@ -544,7 +544,7 @@ fn generate_manifest_builder_stub(
         #(#attributes)*
         #[allow(clippy::too_many_arguments, unused_mut)]
         const _: () = {
-            impl #trait_ident for ::transaction::builder::ManifestBuilder {
+            impl #trait_ident for ::radix_transactions::builder::ManifestBuilder {
                 #(#implementations)*
             }
         };

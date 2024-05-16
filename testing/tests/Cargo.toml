@@ -7,11 +7,11 @@ build = "build.rs"
 
 [dependencies]
 sbor = { workspace = true }
-transaction = { workspace = true }
+radix-transactions = { workspace = true }
 scrypto-test = { workspace = true }
-scrypto-unit = { workspace = true }
+
 radix-engine = { workspace = true }
-radix-engine-common = { workspace = true }
+radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 common = { path = "../../libraries/common" }

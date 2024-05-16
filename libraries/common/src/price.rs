@@ -15,7 +15,6 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use radix_engine_derive::*;
 use scrypto::prelude::*;
 
 /// A price type representing the price in terms of some base and quote assets.

@@ -87,7 +87,7 @@ fn price_reported_by_pool_is_equal_to_price_reported_by_adapter(
 fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         resources,
         protocol,
         ociswap_v2,
@@ -98,7 +98,7 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     });
     let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
 
-    test_runner
+    ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -110,7 +110,7 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(
@@ -162,7 +162,7 @@ fn can_open_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
 fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         resources,
         protocol,
         ociswap_v2,
@@ -174,7 +174,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
     let (public_key, private_key, account_address, _) =
         protocol.protocol_owner_badge;
 
-    test_runner
+    ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -185,7 +185,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    test_runner
+    ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -212,12 +212,12 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    let current_time = test_runner.get_current_time(TimePrecisionV2::Minute);
+    let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
     let maturity_instant = current_time
         .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
         .unwrap();
     {
-        let db = test_runner.substate_db_mut();
+        let db = ledger.substate_db_mut();
         let mut writer = SystemDatabaseWriter::new(db);
 
         writer
@@ -248,7 +248,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
             .unwrap();
     }
 
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -262,7 +262,7 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(
@@ -636,7 +636,7 @@ define_price_test! {
 
 fn test_effect_of_price_action_on_fees(multiplier: i32) {
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         protocol,
         ociswap_v2,
         resources,
@@ -651,7 +651,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
     // Getting the address of the x and y asset to differentiate them from one
     // another
     let (resource_x, resource_y) = {
-        let commit_result = test_runner
+        let commit_result = ledger
             .execute_manifest(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -670,7 +670,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
     };
 
     // Adding liquidity between the smallest and largest ticks possible.
-    let price = test_runner
+    let price = ledger
         .execute_manifest_with_enabled_modules(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -702,7 +702,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         .unwrap();
 
     // Adding this pool to Ignition.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -716,7 +716,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         .expect_commit_success();
 
     // Adding this pool to Ignition.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -730,7 +730,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         .expect_commit_success();
 
     // Updating the price in the Oracle component.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -750,7 +750,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
 
     // Minting some of the resource and depositing them into the user's
     // account.
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -760,7 +760,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         )
         .expect_commit_success();
 
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee(account_address, dec!(10))
             .withdraw_from_account(account_address, pool_resource, dec!(1000))
@@ -790,15 +790,14 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
 
     // Set the current time to be 6 months from now.
     {
-        let current_time =
-            test_runner.get_current_time(TimePrecisionV2::Minute);
+        let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
         let maturity_instant =
             current_time
                 .add_seconds(
                     *LockupPeriod::from_months(6).unwrap().seconds() as i64
                 )
                 .unwrap();
-        let db = test_runner.substate_db_mut();
+        let db = ledger.substate_db_mut();
         let mut writer = SystemDatabaseWriter::new(db);
 
         writer
@@ -837,7 +836,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
 
         let mut new_price = price;
         while new_price < target_price {
-            let reported_price = test_runner
+            let reported_price = ledger
                 .execute_manifest_without_auth(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -871,7 +870,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
 
         let mut new_price = price;
         while new_price > target_price {
-            let reported_price = test_runner
+            let reported_price = ledger
                 .execute_manifest_without_auth(
                     ManifestBuilder::new()
                         .lock_fee_from_faucet()
@@ -901,7 +900,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
     };
 
     // Submit the new price to the oracle
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -920,7 +919,7 @@ fn test_effect_of_price_action_on_fees(multiplier: i32) {
         .expect_commit_success();
 
     // Close the position
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee(account_address, dec!(10))
             .withdraw_from_account(

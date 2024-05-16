@@ -18,8 +18,8 @@
 #[cfg(feature = "build-time-blueprints")]
 #[allow(unused, clippy::module_inception)]
 mod package_loader {
-    use radix_engine_common::prelude::*;
-    use radix_engine_queries::typed_substate_layout::*;
+    use radix_common::prelude::*;
+    use radix_substate_store_queries::typed_substate_layout::*;
     use std::sync::*;
 
     const PACKAGES_BINARY: &[u8] =
@@ -45,8 +45,8 @@ mod package_loader {
 #[cfg(not(feature = "build-time-blueprints"))]
 #[allow(unused, clippy::module_inception)]
 mod package_loader {
-    use radix_engine_common::prelude::*;
-    use radix_engine_queries::typed_substate_layout::*;
+    use radix_common::prelude::*;
+    use radix_substate_store_queries::typed_substate_layout::*;
     use std::path::PathBuf;
 
     pub struct PackageLoader;
@@ -60,7 +60,17 @@ mod package_loader {
                 .unwrap()
                 .join("packages")
                 .join(name);
-            scrypto_unit::Compile::compile(package_dir)
+
+            let artifacts = scrypto_compiler::ScryptoCompiler::builder()
+                .manifest_path(package_dir)
+                .build()
+                .unwrap()
+                .compile()
+                .unwrap()
+                .pop()
+                .unwrap();
+
+            (artifacts.wasm.content, artifacts.package_definition.content)
         }
     }
 }

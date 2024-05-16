@@ -320,9 +320,9 @@ Prototyping is essential to answer the question of whether what is proposed is t
 
 ### Package Dependencies
 
-To run a prototype of Ignition either all or some of the Ociswap, Caviarnine, and Defiplaza packages are required. Of course, these packages do not come in a default instantiation of the `TestRunner` or the `TestEnvironment` since they are third-party packages. Additionally, all of these exchanges are closed source (except for DefiPlaza) which means that the package can not be compiled from source. In light of that, how could a prototype be built that integrates Ignition with these exchanges if their packages are not available for local testing?
+To run a prototype of Ignition either all or some of the Ociswap, Caviarnine, and Defiplaza packages are required. Of course, these packages do not come in a default instantiation of the `LedgerSimulator` or the `TestEnvironment` since they are third-party packages. Additionally, all of these exchanges are closed source (except for DefiPlaza) which means that the package can not be compiled from source. In light of that, how could a prototype be built that integrates Ignition with these exchanges if their packages are not available for local testing?
 
-These packages are actually all available in one place: on the ledger. One way to get those packages and use them for local testing is to dump their substates from ledger and then flash them onto the substate database of a local test database that can then be used with the `TestRunner` or the `TestEnvironment`.
+These packages are actually all available in one place: on the ledger. One way to get those packages and use them for local testing is to dump their substates from ledger and then flash them onto the substate database of a local test database that can then be used with the `LedgerSimulator` or the `TestEnvironment`.
 
 The [`package-dumper`](./tools/package-dumper/) tool does precisely that: given the path to the database of a node and a package address it recursively finds all substates that the package needs and dumps them to the file system. The dumped file could then be flashed onto a local database making these packages locally available.
 
@@ -342,7 +342,7 @@ The first step would be to use the [`package-dumper`](./tools/package-dumper/) t
 
 Note that the above might take some time to run since it will find all substates of the referenced packages and will recursively do that for each discovered node. For packages with static dependencies (such as the Caviarnine package), this would take a while to run.
 
-After the [`package-dumper`](./tools/package-dumper/) is done and the package dump is outputted to the file system the packages can then be flashed to any substate database and used with the `TestRunner` or the `TestEnvironment`. The following example shows how that can be done:
+After the [`package-dumper`](./tools/package-dumper/) is done and the package dump is outputted to the file system the packages can then be flashed to any substate database and used with the `LedgerSimulator` or the `TestEnvironment`. The following example shows how that can be done:
 
 ```rust
 const PACKAGES_BINARY: &'static [u8] = include_bytes!(
@@ -357,18 +357,18 @@ let ociswap_package = addresses[0];
 let caviarnine_package = addresses[1];
 let defiplaza_package = addresses[2];
 
-let mut test_runner = {
+let mut ledger = {
     let mut in_memory_substate_database =
         InMemorySubstateDatabase::standard();
     in_memory_substate_database.commit(&database_updates);
-    TestRunnerBuilder::new()
+    LedgerSimulatorBuilder::new()
         .with_custom_database(in_memory_substate_database)
-        .without_trace()
+        .without_kernel_trace()
         .build()
 };
 ```
 
-At this point, the local `test_runner` has the Ociswap, Caviarnine, and Defiplaza packages all available and ready to use in local testing!
+At this point, the local `ledger` has the Ociswap, Caviarnine, and Defiplaza packages all available and ready to use in local testing!
 
 ### Interfaces
 
@@ -384,7 +384,7 @@ Ignition uses the existing testing frameworks and also has several testing techn
 
 The `TestEnvironment` is primarily used to write unit tests for Ignition and to test units in isolation of the system. As an example, this framework is used for smoke tests like testing that positions can be opened and closed and unit tests such as that the fees reported are correct, the pool units from opening a position are correct, and so on.
 
-The `TestRunner` is used for integration tests or to test how Ignition would function when invoked in a transaction. This is used in tests such as ensuring that positions can be opened and closed within the fee limit.
+The `LedgerSimulator` is used for integration tests or to test how Ignition would function when invoked in a transaction. This is used in tests such as ensuring that positions can be opened and closed within the fee limit.
 
 Since the system under test in all of the tests is always going to be Ignition the testing framework for Ignition comes with a way of initializing the Ignition environment to start testing straight away without needing to manually publish, bootstrap, and configure the environment. It is as simple as:
 
@@ -392,7 +392,7 @@ Since the system under test in all of the tests is always going to be Ignition t
 // Instantiates a new environment that uses the `TestEnvironment`.
 let scrypto_test_env = ScryptoTestEnv::new().unwrap();
 
-// Instantiates a new environment that uses the `TestRunner`.
+// Instantiates a new environment that uses the `LedgerSimulator`.
 let scrypto_unit_env = ScryptoUnitEnv::new();
 ```
 
@@ -402,9 +402,9 @@ Certain issues might not appear when testing complex projects like Ignition agai
 2. Manual - Automating such tests might be difficult and running them manually is error-prone and inconvenient as these tests should ideally run in CI on each push.
 3. Degree of Control - Tests sometimes require a larger degree of control over the environment to effectively test. As an example, many of the Ignition tests for opening and closing positions push the time forward after opening a position. This certainly can not be done on mainnet or any test network for that matter which makes testing more difficult.
 
-Therefore, the simple approach of publishing and bootstrapping Ignition to mainnet and then making several transactions that test it can not be done. For this, Ignition uses an innovative approach to tests called "stateful tests" which allows Ignition to be tested against mainnet state without making any transactions to mainnet and without costing anything. In simple terms, Ignition's approach to stateful testing gives the test a `TestRunner` that has mainnet state in full. It follows the following logic: since the node has a substate database and since the `TestRunner` can be configured to run against any substate database then we can have a `TestRunner` running against the database of mainnet. To be explicitly clear, this approach requires a running node with a fully synced database.
+Therefore, the simple approach of publishing and bootstrapping Ignition to mainnet and then making several transactions that test it can not be done. For this, Ignition uses an innovative approach to tests called "stateful tests" which allows Ignition to be tested against mainnet state without making any transactions to mainnet and without costing anything. In simple terms, Ignition's approach to stateful testing gives the test a `LedgerSimulator` that has mainnet state in full. It follows the following logic: since the node has a substate database and since the `LedgerSimulator` can be configured to run against any substate database then we can have a `LedgerSimulator` running against the database of mainnet. To be explicitly clear, this approach requires a running node with a fully synced database.
 
-Ignition also ensures that the node's database does not get corrupted by all of the database commits that the `TestRunner` will perform by using a `SubstateDatabaseOverlay` which is a database wrapper that provides an overlay that all writes and deletes go to and that reads are preferred from. This means that the database does not need to be mutated or written to at all when used with the `TestRunner` and will not be corrupted, all the data will be written to the in-memory overlay.
+Ignition also ensures that the node's database does not get corrupted by all of the database commits that the `LedgerSimulator` will perform by using a `SubstateDatabaseOverlay` which is a database wrapper that provides an overlay that all writes and deletes go to and that reads are preferred from. This means that the database does not need to be mutated or written to at all when used with the `LedgerSimulator` and will not be corrupted, all the data will be written to the in-memory overlay.
 
 This approach to testing proved to be useful in many ideas, but especially in ensuring that all Ignition positions can be opened and closed within the allowed fee limit. Testing this on local pools did not show any issues but this issue showed itself in stateful tests where the pools are not ideal.
 
@@ -424,7 +424,7 @@ fn example_test(
     // way by cargo or the compiler. 
     notary: AccountAndControllingKey,
     receipt: &PublishingReceipt,
-    test_runner: &mut StatefulTestRunner<'_>,
+    ledger: &mut StatefulLedgerSimulator<'_>,
 ) {
     todo!()
 }
@@ -436,7 +436,7 @@ All stateful tests can be found in the [`testing/stateful-tests/`](./testing/sta
 
 Ignition is made up of multiple packages, components, and resources which makes the process to follow to get to a running system quite lengthy. Additionally, the modular nature of Ignition means that the process might not always be the same. As an example, one time the Ignition, Ociswap Adapter, Caviarnine Adapter, and Defiplaza Adapter packages might be needed while at other times only the Ignition package might need to be published since it was the only part that changed. The process of publishing and bootstrapping Ignition must be easy and efficient to allow for quick iterations and to quickly be able to get Ignition in the hands of integrators.
 
-The typical approach of using the developer console for this would have been too error-prone, manual, lengthy, time-consuming, and inefficient. For this Ignition has a tool called the [`publishing-tool`](./tools/publishing-tool/) which is a tool written specifically for Ignition to allow users of the tool to declaratively define what should be done when publishing and for the tool to do the publishing and everything else. At its core, this tool is built on a simple idea: much like it is possible to execute transactions and get receipts back programmatically on the `TestRunner` and use values and new entities from previous transactions in new transactions, it is also possible to do the same using the network gateway API. After a transaction is constructed and signed it is compiled and sent to the gateway API to then get sent to the network. The tool can then keep polling for the receipt until it gets it back. Automating and doing this process automatically makes publishing significantly simpler and standardizes the process that is followed to deploy Ignition to any network.
+The typical approach of using the developer console for this would have been too error-prone, manual, lengthy, time-consuming, and inefficient. For this Ignition has a tool called the [`publishing-tool`](./tools/publishing-tool/) which is a tool written specifically for Ignition to allow users of the tool to declaratively define what should be done when publishing and for the tool to do the publishing and everything else. At its core, this tool is built on a simple idea: much like it is possible to execute transactions and get receipts back programmatically on the `LedgerSimulator` and use values and new entities from previous transactions in new transactions, it is also possible to do the same using the network gateway API. After a transaction is constructed and signed it is compiled and sent to the gateway API to then get sent to the network. The tool can then keep polling for the receipt until it gets it back. Automating and doing this process automatically makes publishing significantly simpler and standardizes the process that is followed to deploy Ignition to any network.
 
 The following are the features offered by the [`publishing-tool`](./tools/publishing-tool/):
 

@@ -408,10 +408,10 @@ pub mod adapter {
             // do a simple `remove` from the above map.
             let (base_pool_component, quote_pool_component) = pool.get_pools();
             let base_pool_units = pool_component_to_pool_unit_mapping
-                .remove(&base_pool_component)
+                .swap_remove(&base_pool_component)
                 .unwrap();
             let quote_pool_units = pool_component_to_pool_unit_mapping
-                .remove(&quote_pool_component)
+                .swap_remove(&quote_pool_component)
                 .unwrap();
 
             // At this point we have the the base and quote token addresses,

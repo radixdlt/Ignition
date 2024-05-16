@@ -15,8 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use radix_common::prelude::*;
 use radix_engine::transaction::TransactionReceiptV1;
-use transaction::prelude::*;
+use radix_transactions::prelude::*;
 
 /// A standardized interface for objects that provide connection to the network
 /// regardless of how these objects are implemented and how they provide such
@@ -31,7 +32,7 @@ pub trait NetworkConnectionProvider {
     fn execute_transaction(
         &mut self,
         notarized_transaction: &NotarizedTransactionV1,
-    ) -> Result<ExecutionReceipt, Self::Error>;
+    ) -> Result<SimplifiedReceipt, Self::Error>;
 
     fn preview_transaction(
         &mut self,
@@ -54,8 +55,8 @@ pub trait NetworkConnectionProvider {
 /// that must be included in an execution receipt. This is limited by the data
 /// that the node can give us.
 #[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
-pub enum ExecutionReceipt {
-    CommitSuccess(ExecutionReceiptSuccessContents),
+pub enum SimplifiedReceipt {
+    CommitSuccess(SimplifiedReceiptSuccessContents),
     CommitFailure { reason: String },
     Rejection { reason: String },
     Abort { reason: String },
@@ -69,6 +70,6 @@ pub struct NewEntities {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, ScryptoSbor)]
-pub struct ExecutionReceiptSuccessContents {
+pub struct SimplifiedReceiptSuccessContents {
     pub new_entities: NewEntities,
 }

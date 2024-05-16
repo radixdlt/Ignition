@@ -7,7 +7,7 @@ description = "The implementation of the Ignition protocol"
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
-radix-engine-derive = { workspace = true }
+radix-common-derive = { workspace = true }
 
 ports-interface = { path = "../../libraries/ports-interface" }
 common = { path = "../../libraries/common" }

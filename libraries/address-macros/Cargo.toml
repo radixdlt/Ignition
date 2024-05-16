@@ -5,7 +5,7 @@ edition.workspace = true
 description = "A crate for decoding addresses at compile-time."
 
 [dependencies]
-radix-engine-common = { workspace = true }
+radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 
 proc-macro2 = { version = "1.0.76" }
