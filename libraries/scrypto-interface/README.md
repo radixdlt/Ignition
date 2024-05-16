@@ -291,7 +291,7 @@ The following is an example of this in action:
 ```rust
 use scrypto::prelude::*;
 use scrypto_interface::*;
-use transaction::builder::*;
+use radix_transactions::builder::*;
 
 define_interface! {
     Radiswap impl [ManifestBuilderStub] {

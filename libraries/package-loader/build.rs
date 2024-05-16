@@ -34,7 +34,7 @@ fn build_blueprints() -> Result<(), Error> {
     use std::*;
 
     use cargo_toml::Manifest;
-    use radix_engine_interface::prelude::*;
+    use radix_common::prelude::*;
 
     // All of the blueprints are in the `packages` subdirectory of the project.
     // So, we get the path to it so that we can start finding the blueprints

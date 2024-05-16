@@ -17,13 +17,15 @@
 
 use super::*;
 use crate::database_overlay::*;
+use radix_common::prelude::*;
 use radix_engine::system::system_substates::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
-use radix_engine_store_interface::db_key_mapper::*;
-use scrypto_unit::*;
+use radix_engine_interface::prelude::*;
+use radix_substate_store_interface::db_key_mapper::*;
+use radix_transactions::prelude::*;
+use scrypto_test::prelude::*;
 use state_manager::store::*;
-use transaction::prelude::*;
 
 /// A [`NetworkConnectionProvider`] that simulates the transaction execution on
 /// any network so long as it can access the state manager's database. The most
@@ -35,32 +37,32 @@ pub struct SimulatorNetworkConnector<'s> {
     network_definition: NetworkDefinition,
 
     /// The simulator that transactions will be running against.
-    ledger_simulator: TestRunner<
+    ledger_simulator: LedgerSimulator<
         NoExtension,
-        UnmergeableSubstateDatabaseOverlay<'s, RocksDBStore>,
+        UnmergeableSubstateDatabaseOverlay<'s, ActualStateManagerDatabase>,
     >,
 }
 
 impl<'s> SimulatorNetworkConnector<'s> {
     pub fn new(
-        database: &'s RocksDBStore,
+        database: &'s ActualStateManagerDatabase,
         network_definition: NetworkDefinition,
     ) -> Self {
         let database = UnmergeableSubstateDatabaseOverlay::new(database);
-        let test_runner = TestRunnerBuilder::new()
+        let (ledger, _) = LedgerSimulatorBuilder::new()
             .with_custom_database(database)
-            .without_trace()
+            .without_kernel_trace()
             .build_without_bootstrapping();
         Self {
-            ledger_simulator: test_runner,
+            ledger_simulator: ledger,
             network_definition,
         }
     }
 
-    pub fn new_with_test_runner(
-        ledger_simulator: TestRunner<
+    pub fn new_with_ledger(
+        ledger_simulator: LedgerSimulator<
             NoExtension,
-            UnmergeableSubstateDatabaseOverlay<'s, RocksDBStore>,
+            UnmergeableSubstateDatabaseOverlay<'s, ActualStateManagerDatabase>,
         >,
         network_definition: NetworkDefinition,
     ) -> Self {
@@ -70,11 +72,11 @@ impl<'s> SimulatorNetworkConnector<'s> {
         }
     }
 
-    pub fn into_test_runner(
+    pub fn into_ledger(
         self,
-    ) -> TestRunner<
+    ) -> LedgerSimulator<
         NoExtension,
-        UnmergeableSubstateDatabaseOverlay<'s, RocksDBStore>,
+        UnmergeableSubstateDatabaseOverlay<'s, ActualStateManagerDatabase>,
     > {
         self.ledger_simulator
     }
@@ -86,24 +88,22 @@ impl<'s> NetworkConnectionProvider for SimulatorNetworkConnector<'s> {
     fn execute_transaction(
         &mut self,
         notarized_transaction: &NotarizedTransactionV1,
-    ) -> Result<ExecutionReceipt, Self::Error> {
+    ) -> Result<SimplifiedReceipt, Self::Error> {
         let raw_transaction = notarized_transaction.to_raw().map_err(
             MainnetSimulatorError::NotarizedTransactionRawFormatError,
         )?;
 
-        let transaction_receipt =
-            self.ledger_simulator.execute_raw_transaction(
-                &self.network_definition,
-                &raw_transaction,
-            );
+        let transaction_receipt = self
+            .ledger_simulator
+            .execute_notarized_transaction(&raw_transaction);
 
         let execution_receipt = match transaction_receipt.result {
             TransactionResult::Commit(CommitResult {
                 outcome: TransactionOutcome::Success(..),
                 state_update_summary,
                 ..
-            }) => ExecutionReceipt::CommitSuccess(
-                ExecutionReceiptSuccessContents {
+            }) => SimplifiedReceipt::CommitSuccess(
+                SimplifiedReceiptSuccessContents {
                     new_entities: NewEntities {
                         new_component_addresses: state_update_summary
                             .new_components,
@@ -117,16 +117,16 @@ impl<'s> NetworkConnectionProvider for SimulatorNetworkConnector<'s> {
             TransactionResult::Commit(CommitResult {
                 outcome: TransactionOutcome::Failure(reason),
                 ..
-            }) => ExecutionReceipt::CommitFailure {
+            }) => SimplifiedReceipt::CommitFailure {
                 reason: format!("{:?}", reason),
             },
             TransactionResult::Reject(RejectResult { reason }) => {
-                ExecutionReceipt::Rejection {
+                SimplifiedReceipt::Rejection {
                     reason: format!("{:?}", reason),
                 }
             }
             TransactionResult::Abort(AbortResult { reason }) => {
-                ExecutionReceipt::Abort {
+                SimplifiedReceipt::Abort {
                     reason: format!("{:?}", reason),
                 }
             }

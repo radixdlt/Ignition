@@ -16,7 +16,7 @@
 // under the License.
 
 use proc_macro::*;
-use radix_engine_interface::prelude::*;
+use radix_common::prelude::*;
 
 macro_rules! r#try {
     ($expr: expr) => {

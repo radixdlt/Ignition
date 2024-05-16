@@ -16,12 +16,13 @@
 // under the License.
 
 use itertools::*;
+use radix_common::prelude::*;
 use radix_engine::transaction::*;
-use radix_engine_common::prelude::*;
 use radix_engine_interface::blueprints::account::*;
-use transaction::manifest::*;
-use transaction::model::*;
-use transaction::prelude::*;
+use radix_engine_interface::prelude::*;
+use radix_transactions::manifest::*;
+use radix_transactions::model::*;
+use radix_transactions::prelude::*;
 
 use super::*;
 
@@ -57,12 +58,12 @@ impl<'e, E: NetworkConnectionProvider> ExecutionService<'e, E> {
         &mut self,
         mut manifest: TransactionManifestV1,
     ) -> Result<
-        ExecutionReceiptSuccessContents,
+        SimplifiedReceiptSuccessContents,
         ExecutionServiceError<<E as NetworkConnectionProvider>::Error>,
     > {
         // If the manifest is empty (has no instructions) do no work
         if manifest.instructions.is_empty() {
-            return Ok(ExecutionReceiptSuccessContents {
+            return Ok(SimplifiedReceiptSuccessContents {
                 new_entities: Default::default(),
             });
         }
@@ -130,6 +131,7 @@ impl<'e, E: NetworkConnectionProvider> ExecutionService<'e, E> {
                     use_free_credit: true,
                     assume_all_signature_proofs: false,
                     skip_epoch_check: false,
+                    disable_auth: false,
                 },
             })
             .map_err(ExecutionServiceError::ExecutorError)?;
@@ -180,12 +182,12 @@ impl<'e, E: NetworkConnectionProvider> ExecutionService<'e, E> {
         // Do a match on the receipt and error out if execution failed. If it
         // did not, then return the success contents.
         match receipt {
-            ExecutionReceipt::CommitSuccess(success_contents) => {
+            SimplifiedReceipt::CommitSuccess(success_contents) => {
                 Ok(success_contents)
             }
-            ExecutionReceipt::CommitFailure { reason }
-            | ExecutionReceipt::Rejection { reason }
-            | ExecutionReceipt::Abort { reason } => {
+            SimplifiedReceipt::CommitFailure { reason }
+            | SimplifiedReceipt::Rejection { reason }
+            | SimplifiedReceipt::Abort { reason } => {
                 let decompiled_manifest =
                     decompile(&manifest.instructions, &network_definition)
                         .map_err(

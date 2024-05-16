@@ -1246,7 +1246,7 @@ mod ignition {
             self.with_pool_blueprint_information_mut(
                 pool_address,
                 |pool_information| {
-                    pool_information.allowed_pools.remove(&pool_address);
+                    pool_information.allowed_pools.swap_remove(&pool_address);
                 },
             )
             .expect(NO_ADAPTER_FOUND_FOR_POOL_ERROR)

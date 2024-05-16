@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use radix_engine_interface::prelude::*;
+use radix_common::prelude::*;
 
 #[derive(Clone, Debug, ScryptoSbor, PartialEq, Eq)]
 #[sbor(transparent)]

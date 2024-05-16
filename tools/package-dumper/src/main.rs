@@ -20,9 +20,10 @@
 use clap::Parser;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use radix_common::prelude::*;
 use radix_engine_interface::prelude::*;
-use radix_engine_store_interface::db_key_mapper::*;
-use radix_engine_store_interface::interface::*;
+use radix_substate_store_interface::db_key_mapper::*;
+use radix_substate_store_interface::interface::*;
 use state_manager::store::traits::*;
 use state_manager::store::*;
 use std::io::Write;
@@ -110,9 +111,9 @@ fn main() -> Result<(), Error> {
 
     // Prepare the network dependent objects.
     let network_definition = network_definition_from_network_id(network_id);
-    let db = RocksDBStore::new(
+    let db = ActualStateManagerDatabase::new(
         state_manager_database_dir.clone(),
-        DatabaseFlags::default(),
+        DatabaseConfig::default(),
         &network_definition,
     )
     .map_err(|_| Error::FailedToLoadDatabase)?;

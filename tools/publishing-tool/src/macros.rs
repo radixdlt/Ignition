@@ -70,7 +70,7 @@ macro_rules! global_address {
 #[macro_export]
 macro_rules! decode_to_node_id {
     ($address: expr) => {
-        ::radix_engine_interface::prelude::AddressBech32Decoder::validate_and_decode_ignore_hrp(
+        ::radix_common::prelude::AddressBech32Decoder::validate_and_decode_ignore_hrp(
             $address,
         )
         .ok()

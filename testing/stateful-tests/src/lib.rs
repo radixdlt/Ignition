@@ -21,23 +21,24 @@ use common::prelude::*;
 use extend::*;
 use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
+use radix_common::prelude::*;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
 use radix_engine_interface::blueprints::account::*;
-use scrypto_unit::*;
-use state_manager::RocksDBStore;
-use std::ops::*;
+use radix_engine_interface::prelude::*;
+use radix_transactions::prelude::*;
+use scrypto_test::prelude::*;
+use state_manager::ActualStateManagerDatabase;
 use std::sync::*;
-use transaction::prelude::*;
 
-pub type StatefulTestRunner<'a> = TestRunner<
+pub type StatefulLedgerSimulator<'a> = LedgerSimulator<
     NoExtension,
-    UnmergeableSubstateDatabaseOverlay<'a, RocksDBStore>,
+    UnmergeableSubstateDatabaseOverlay<'a, ActualStateManagerDatabase>,
 >;
 
-fn get_database() -> &'static RocksDBStore {
-    static DATABASE: OnceLock<RocksDBStore> = OnceLock::new();
+fn get_database() -> &'static ActualStateManagerDatabase {
+    static DATABASE: OnceLock<ActualStateManagerDatabase> = OnceLock::new();
     DATABASE.get_or_init(|| {
         const STATE_MANAGER_DATABASE_PATH_ENVIRONMENT_VARIABLE: &str =
             "STATE_MANAGER_DATABASE_PATH";
@@ -50,9 +51,7 @@ fn get_database() -> &'static RocksDBStore {
                 STATE_MANAGER_DATABASE_PATH_ENVIRONMENT_VARIABLE
             );
         };
-        RocksDBStore::new_read_only(state_manager_database_path).expect(
-            "Failed to create a new instance of the state manager database",
-        )
+        ActualStateManagerDatabase::new_read_only(state_manager_database_path)
     })
 }
 
@@ -61,7 +60,7 @@ where
     F: Fn(
         AccountAndControllingKey,
         &PublishingReceipt,
-        &mut StatefulTestRunner<'_>,
+        &mut StatefulLedgerSimulator<'_>,
     ) -> O,
 {
     let publishing_receipt = publishing_receipt();
@@ -71,9 +70,9 @@ where
         UnmergeableSubstateDatabaseOverlay::new_unmergeable(get_database());
 
     // Creating a test runner from the overlayed state manager database
-    let mut test_runner = TestRunnerBuilder::new()
+    let (mut ledger, _) = LedgerSimulatorBuilder::new()
         .with_custom_database(overlayed_state_manager_database)
-        .without_trace()
+        .without_kernel_trace()
         .build_without_bootstrapping();
 
     // Creating a new account which we will be using as the notary and funding
@@ -85,7 +84,7 @@ where
         ComponentAddress::virtual_account_from_public_key(
             &notary_private_key.public_key(),
         );
-    test_runner
+    ledger
         .execute_manifest_with_enabled_modules(
             ManifestBuilder::new()
                 .mint_fungible(XRD, dec!(100_000_000_000))
@@ -98,7 +97,7 @@ where
         .expect_commit_success();
 
     // Enabling contributions through Ignition
-    test_runner
+    ledger
         .execute_manifest_with_enabled_modules(
             ManifestBuilder::new()
                 .call_method(
@@ -131,7 +130,7 @@ where
         ComponentAddress::virtual_account_from_public_key(
             &test_account_private_key.public_key(),
         );
-    test_runner
+    ledger
         .execute_manifest_with_enabled_modules(
             TransactionManifestV1 {
                 instructions: std::iter::once(XRD)
@@ -168,7 +167,7 @@ where
 
     // We are now ready to execute the function callback and return its output
     // back
-    test_function(test_account, publishing_receipt, &mut test_runner)
+    test_function(test_account, publishing_receipt, &mut ledger)
 }
 
 /// This macro can be applied to any function to turn it into a test function
@@ -183,7 +182,7 @@ where
 ///     _test_account: AccountAndControllingKey,
 ///     _configuration: PublishingConfiguration,
 ///     _receipt: PublishingReceipt,
-///     _test_runner: &mut StatefulTestRunner<'_>,
+///     _ledger: &mut StatefulLedgerSimulator<'_>,
 /// ) -> Result<(), RuntimeError> {
 ///     assert!(false);
 ///     Ok(())
@@ -223,7 +222,7 @@ macro_rules! resolve_return_type {
 }
 
 #[ext]
-pub impl<'a> StatefulTestRunner<'a> {
+pub impl<'a> StatefulLedgerSimulator<'a> {
     fn execute_manifest_without_auth(
         &mut self,
         manifest: TransactionManifestV1,
@@ -239,21 +238,32 @@ pub impl<'a> StatefulTestRunner<'a> {
         manifest: TransactionManifestV1,
         enabled_modules: EnabledModules,
     ) -> TransactionReceiptV1 {
-        let mut execution_config = ExecutionConfig::for_notarized_transaction(
-            NetworkDefinition::mainnet(),
-        );
-        execution_config.enabled_modules = enabled_modules;
+        let mut execution_config = ExecutionConfig::for_test_transaction();
+        execution_config.system_overrides = Some(SystemOverrides {
+            disable_costing: !enabled_modules.contains(EnabledModules::COSTING),
+            disable_limits: !enabled_modules.contains(EnabledModules::LIMITS),
+            disable_auth: !enabled_modules.contains(EnabledModules::AUTH),
+            network_definition: Default::default(),
+            costing_parameters: Default::default(),
+            limit_parameters: Default::default(),
+        });
+        execution_config.enable_kernel_trace =
+            enabled_modules.contains(EnabledModules::KERNEL_TRACE);
+        execution_config.enable_cost_breakdown =
+            enabled_modules.contains(EnabledModules::KERNEL_TRACE);
+        execution_config.execution_trace =
+            if enabled_modules.contains(EnabledModules::EXECUTION_TRACE) {
+                Some(1)
+            } else {
+                None
+            };
 
         let nonce = self.next_transaction_nonce();
         let test_transaction = TestTransaction::new_from_nonce(manifest, nonce);
         let prepared_transaction = test_transaction.prepare().unwrap();
         let executable =
             prepared_transaction.get_executable(Default::default());
-        self.execute_transaction(
-            executable,
-            Default::default(),
-            execution_config,
-        )
+        self.execute_transaction(executable, execution_config)
     }
 
     /// Constructs a notarized transaction and executes it. This is primarily
@@ -279,10 +289,7 @@ pub impl<'a> StatefulTestRunner<'a> {
             .manifest(manifest)
             .notarize(notary_private_key)
             .build();
-        self.execute_raw_transaction(
-            &network_definition,
-            &transaction.to_raw().unwrap(),
-        )
+        self.execute_notarized_transaction(&transaction.to_raw().unwrap())
     }
 }
 

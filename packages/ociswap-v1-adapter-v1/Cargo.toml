@@ -7,8 +7,9 @@ description = "Defines the adapter for Ociswap v1 - this is effectively deprecat
 [dependencies]
 sbor = { workspace = true }
 scrypto = { workspace = true }
+radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
-transaction = { workspace = true, optional = true }
+radix-transactions = { workspace = true, optional = true }
 
 scrypto-interface = { path = "../../libraries/scrypto-interface" }
 ports-interface = { path = "../../libraries/ports-interface" }
@@ -18,7 +19,7 @@ common = { path = "../../libraries/common" }
 default = []
 test = []
 
-manifest-builder-stubs = ["dep:transaction"]
+manifest-builder-stubs = ["dep:radix-transactions"]
 
 [lib]
 crate-type = ["cdylib", "lib"]

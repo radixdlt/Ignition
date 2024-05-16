@@ -21,10 +21,10 @@ use publishing_tool::configuration_selector::*;
 use publishing_tool::network_connection_provider::*;
 use publishing_tool::publishing::*;
 use publishing_tool::utils::*;
-use radix_engine_common::prelude::*;
-use state_manager::RocksDBStore;
+use radix_common::prelude::*;
+use radix_transactions::prelude::*;
+use state_manager::ActualStateManagerDatabase;
 use std::path::*;
-use transaction::prelude::*;
 
 #[derive(Parser, Debug)]
 pub struct Publish {
@@ -63,9 +63,9 @@ impl Publish {
         if let Some(state_manager_database_path) =
             self.state_manager_database_path
         {
-            let database =
-                RocksDBStore::new_read_only(state_manager_database_path)
-                    .map_err(Error::RocksDbOpenError)?;
+            let database = ActualStateManagerDatabase::new_read_only(
+                state_manager_database_path,
+            );
 
             let mut simulator_network_provider = SimulatorNetworkConnector::new(
                 &database,

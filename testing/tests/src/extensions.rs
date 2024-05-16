@@ -19,7 +19,7 @@ use crate::prelude::*;
 use extend::ext;
 
 #[ext]
-pub impl DefaultTestRunner {
+pub impl DefaultLedgerSimulator {
     fn execute_manifest_without_auth(
         &mut self,
         manifest: TransactionManifestV1,
@@ -36,18 +36,31 @@ pub impl DefaultTestRunner {
         enabled_modules: EnabledModules,
     ) -> TransactionReceiptV1 {
         let mut execution_config = ExecutionConfig::for_test_transaction();
-        execution_config.enabled_modules = enabled_modules;
+        execution_config.system_overrides = Some(SystemOverrides {
+            disable_costing: !enabled_modules.contains(EnabledModules::COSTING),
+            disable_limits: !enabled_modules.contains(EnabledModules::LIMITS),
+            disable_auth: !enabled_modules.contains(EnabledModules::AUTH),
+            network_definition: Default::default(),
+            costing_parameters: Default::default(),
+            limit_parameters: Default::default(),
+        });
+        execution_config.enable_kernel_trace =
+            enabled_modules.contains(EnabledModules::KERNEL_TRACE);
+        execution_config.enable_cost_breakdown =
+            enabled_modules.contains(EnabledModules::KERNEL_TRACE);
+        execution_config.execution_trace =
+            if enabled_modules.contains(EnabledModules::EXECUTION_TRACE) {
+                Some(1)
+            } else {
+                None
+            };
 
         let nonce = self.next_transaction_nonce();
         let test_transaction = TestTransaction::new_from_nonce(manifest, nonce);
         let prepared_transaction = test_transaction.prepare().unwrap();
         let executable =
             prepared_transaction.get_executable(Default::default());
-        self.execute_transaction(
-            executable,
-            Default::default(),
-            execution_config,
-        )
+        self.execute_transaction(executable, execution_config)
     }
 
     /// Constructs a notarized transaction and executes it. This is primarily
@@ -73,9 +86,6 @@ pub impl DefaultTestRunner {
             .manifest(manifest)
             .notarize(notary_private_key)
             .build();
-        self.execute_raw_transaction(
-            &network_definition,
-            &transaction.to_raw().unwrap(),
-        )
+        self.execute_notarized_transaction(&transaction.to_raw().unwrap())
     }
 }

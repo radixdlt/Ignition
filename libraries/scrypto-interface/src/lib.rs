@@ -379,7 +379,7 @@ use proc_macro::TokenStream;
 /// ```norun
 /// use scrypto::prelude::*;
 /// use scrypto_interface::*;
-/// use transaction::builder::*;
+/// use radix_transactions::builder::*;
 ///
 /// define_interface! {
 ///     Radiswap impl [ManifestBuilderStub] {

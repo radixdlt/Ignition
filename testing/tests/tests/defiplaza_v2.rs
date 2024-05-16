@@ -55,7 +55,7 @@ fn can_open_a_simple_position_against_a_defiplaza_pool(
 fn can_open_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         resources,
         protocol,
         defiplaza_v2,
@@ -66,7 +66,7 @@ fn can_open_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
     });
     let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
 
-    test_runner
+    ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -77,7 +77,7 @@ fn can_open_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    test_runner
+    ledger
         .execute_manifest_with_enabled_modules(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -107,7 +107,7 @@ fn can_open_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(
@@ -150,7 +150,7 @@ fn can_open_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
 fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
     // Arrange
     let ScryptoUnitEnv {
-        environment: mut test_runner,
+        environment: mut ledger,
         resources,
         protocol,
         defiplaza_v2,
@@ -161,7 +161,7 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
     });
     let (_, private_key, account_address, _) = protocol.protocol_owner_badge;
 
-    test_runner
+    ledger
         .execute_manifest(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -173,7 +173,7 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     for _ in 0..2 {
-        test_runner
+        ledger
             .execute_manifest_with_enabled_modules(
                 ManifestBuilder::new()
                     .lock_fee_from_faucet()
@@ -203,12 +203,12 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
             .expect_commit_success();
     }
 
-    let current_time = test_runner.get_current_time(TimePrecisionV2::Minute);
+    let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
     let maturity_instant = current_time
         .add_seconds(*LockupPeriod::from_months(6).unwrap().seconds() as i64)
         .unwrap();
     {
-        let db = test_runner.substate_db_mut();
+        let db = ledger.substate_db_mut();
         let mut writer = SystemDatabaseWriter::new(db);
 
         writer
@@ -239,7 +239,7 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
             .unwrap();
     }
 
-    test_runner
+    ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee_from_faucet()
@@ -253,7 +253,7 @@ fn can_close_a_liquidity_position_in_defiplaza_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     // Act
-    let receipt = test_runner.construct_and_execute_notarized_transaction(
+    let receipt = ledger.construct_and_execute_notarized_transaction(
         ManifestBuilder::new()
             .lock_fee_from_faucet()
             .withdraw_from_account(

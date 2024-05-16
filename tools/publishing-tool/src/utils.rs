@@ -15,8 +15,9 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use radix_common::prelude::*;
+use radix_transactions::prelude::*;
 use sbor::representations::SerializationParameters;
-use transaction::prelude::*;
 
 pub fn clone_private_key(private_key: &PrivateKey) -> PrivateKey {
     match private_key {
@@ -37,7 +38,7 @@ pub fn to_json<S: ScryptoEncode + ScryptoDescribe>(
 
     let (local_type_id, schema) =
         generate_full_schema_from_single_type::<S, ScryptoCustomSchema>();
-    let schema = schema.into_latest();
+    let schema = schema.fully_update_and_into_latest_version();
 
     let context =
         ScryptoValueDisplayContext::with_optional_bech32(Some(&encoder));

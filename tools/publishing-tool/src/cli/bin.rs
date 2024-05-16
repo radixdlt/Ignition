@@ -21,8 +21,7 @@ mod publish;
 
 use clap::Parser;
 use publishing_tool::error::*;
-use radix_engine_common::prelude::*;
-use transaction::prelude::*;
+use radix_common::prelude::*;
 
 fn main() -> Result<(), Error> {
     env_logger::init();

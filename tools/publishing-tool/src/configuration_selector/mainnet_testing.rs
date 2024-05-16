@@ -19,8 +19,9 @@ use crate::publishing::*;
 use crate::utils::*;
 use crate::*;
 use common::prelude::*;
+use radix_common::prelude::*;
 use radix_engine_interface::prelude::*;
-use transaction::prelude::*;
+use radix_transactions::prelude::*;
 
 pub fn mainnet_testing(
     notary_private_key: &PrivateKey,

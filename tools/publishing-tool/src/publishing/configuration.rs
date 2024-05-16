@@ -18,8 +18,9 @@
 use super::macros::*;
 use common::prelude::*;
 use macro_rules_attribute::apply;
-use radix_engine::prelude::*;
-use transaction::prelude::*;
+use radix_common::prelude::*;
+use radix_engine_interface::prelude::*;
+use radix_transactions::prelude::*;
 
 pub struct PublishingConfiguration {
     /// The configuration of the Ignition protocol.

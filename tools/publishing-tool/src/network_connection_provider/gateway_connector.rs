@@ -23,9 +23,10 @@ use gateway_client::apis::status_api::*;
 use gateway_client::apis::transaction_api::*;
 use gateway_client::apis::Error as GatewayClientError;
 use gateway_client::models::*;
+use radix_common::prelude::*;
 use radix_engine::transaction::*;
-use transaction::manifest::*;
-use transaction::prelude::*;
+use radix_transactions::manifest::*;
+use radix_transactions::prelude::*;
 
 pub struct GatewayNetworkConnector {
     /// The configuration to use when making gateway HTTP requests.
@@ -59,7 +60,7 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
     fn execute_transaction(
         &mut self,
         notarized_transaction: &NotarizedTransactionV1,
-    ) -> Result<ExecutionReceipt, Self::Error> {
+    ) -> Result<SimplifiedReceipt, Self::Error> {
         let notarized_transaction_payload_bytes = notarized_transaction
             .to_payload_bytes()
             .map_err(GatewayExecutorError::NotarizedTransactionEncodeError)?;
@@ -177,19 +178,19 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
                         new_entities
                     };
 
-                    return Ok(ExecutionReceipt::CommitSuccess(
-                        ExecutionReceiptSuccessContents { new_entities },
+                    return Ok(SimplifiedReceipt::CommitSuccess(
+                        SimplifiedReceiptSuccessContents { new_entities },
                     ));
                 }
                 TransactionIntentStatus::CommittedFailure => {
-                    return Ok(ExecutionReceipt::CommitFailure {
+                    return Ok(SimplifiedReceipt::CommitFailure {
                         reason: transaction_status_response
                             .intent_status_description,
                     })
                 }
                 TransactionIntentStatus::PermanentlyRejected
                 | TransactionIntentStatus::LikelyButNotCertainRejection => {
-                    return Ok(ExecutionReceipt::Rejection {
+                    return Ok(SimplifiedReceipt::Rejection {
                         reason: transaction_status_response
                             .intent_status_description,
                     })
@@ -263,7 +264,7 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
 
         scrypto_decode::<VersionedTransactionReceipt>(&response.encoded_receipt)
             .map_err(GatewayExecutorError::TransactionReceiptDecodeError)
-            .map(|receipt| receipt.into_latest())
+            .map(|receipt| receipt.fully_update_and_into_latest_version())
     }
 
     fn get_current_epoch(&mut self) -> Result<Epoch, Self::Error> {
@@ -330,15 +331,15 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
 }
 
 fn native_public_key_to_gateway_public_key(
-    native_public_key: &radix_engine_common::prelude::PublicKey,
+    native_public_key: &radix_common::prelude::PublicKey,
 ) -> gateway_client::models::PublicKey {
     match native_public_key {
-        radix_engine::types::PublicKey::Secp256k1(public_key) => {
+        radix_common::prelude::PublicKey::Secp256k1(public_key) => {
             gateway_client::models::PublicKey::EcdsaSecp256k1 {
                 key: public_key.0,
             }
         }
-        radix_engine::types::PublicKey::Ed25519(public_key) => {
+        radix_common::prelude::PublicKey::Ed25519(public_key) => {
             gateway_client::models::PublicKey::EddsaEd25519 {
                 key: public_key.0,
             }

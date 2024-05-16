@@ -20,20 +20,21 @@
 use common::prelude::*;
 use macro_rules_attribute::apply;
 use publishing_tool::publishing::*;
+use radix_common::prelude::*;
 use radix_engine::blueprints::consensus_manager::*;
 use radix_engine::blueprints::models::*;
 use radix_engine::system::system_db_reader::*;
 use radix_engine::system::system_modules::EnabledModules;
-use radix_engine::types::*;
 use radix_engine_interface::blueprints::consensus_manager::*;
+use radix_engine_interface::prelude::*;
+use radix_transactions::prelude::*;
 use stateful_tests::*;
-use transaction::prelude::*;
 
 #[apply(mainnet_test)]
 fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_the_metadata_standard(
     _: AccountAndControllingKey,
     receipt: &PublishingReceipt,
-    test_runner: &mut StatefulTestRunner<'_>,
+    ledger: &mut StatefulLedgerSimulator<'_>,
 ) {
     // Collecting all of the entities into an array
     let ignition_entities = receipt
@@ -89,15 +90,15 @@ fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_th
     // Validating that the dapp definition account has the correct fields and
     // metadata values.
     let dapp_definition_account = receipt.dapp_definition_account;
-    let Some(MetadataValue::String(dapp_definition_account_type)) = test_runner
-        .get_metadata(dapp_definition_account.into(), "account_type")
+    let Some(MetadataValue::String(dapp_definition_account_type)) =
+        ledger.get_metadata(dapp_definition_account.into(), "account_type")
     else {
         panic!("Dapp definition account type either does not exist or isn't a string")
     };
     let Some(MetadataValue::GlobalAddressArray(
         dapp_definition_claimed_entities,
-    )) = test_runner
-        .get_metadata(dapp_definition_account.into(), "claimed_entities")
+    )) =
+        ledger.get_metadata(dapp_definition_account.into(), "claimed_entities")
     else {
         panic!("Dapp definition claimed entities either does not exist or is not an array")
     };
@@ -117,7 +118,7 @@ fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_th
             || ComponentAddress::try_from(**address).is_ok()
     }) {
         let Some(MetadataValue::GlobalAddress(linked_dapp_definition_account)) =
-            test_runner.get_metadata(*entity_address, "dapp_definition")
+            ledger.get_metadata(*entity_address, "dapp_definition")
         else {
             panic!("Dapp definition key does not exist on package or component")
         };
@@ -135,7 +136,7 @@ fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_th
     {
         let Some(MetadataValue::GlobalAddressArray(
             linked_dapp_definition_account,
-        )) = test_runner.get_metadata(*entity_address, "dapp_definitions")
+        )) = ledger.get_metadata(*entity_address, "dapp_definitions")
         else {
             panic!(
                 "Dapp definition key does not exist on resource: {}",
@@ -181,7 +182,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     controlling_key: test_account_private_key,
                 }: AccountAndControllingKey,
                 receipt: &PublishingReceipt,
-                test_runner: &mut StatefulTestRunner<'_>,
+                ledger: &mut StatefulLedgerSimulator<'_>,
             ) {
                 // Arrange
                     let Some(ExchangeInformation { pools, .. }) =
@@ -192,9 +193,9 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 let pool = pools.$resource_ident;
                 let user_resource = receipt.user_resources.$resource_ident;
 
-                let current_epoch = test_runner.get_current_epoch();
+                let current_epoch = ledger.get_current_epoch();
 
-                test_runner.execute_manifest_without_auth(ManifestBuilder::new()
+                ledger.execute_manifest_without_auth(ManifestBuilder::new()
                     .lock_fee(test_account, dec!(10))
                     .mint_fungible(XRD, dec!(200_000_000_000_000))
                     .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
@@ -226,10 +227,10 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 // Act
                 let transaction = TransactionBuilder::new()
                     .header(TransactionHeaderV1 {
-                        network_id: 1,
+                        network_id: 0xf2,
                         start_epoch_inclusive: current_epoch,
                         end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                        nonce: test_runner.next_transaction_nonce(),
+                        nonce: ledger.next_transaction_nonce(),
                         notary_public_key: test_account_private_key.public_key(),
                         notary_is_signatory: true,
                         tip_percentage: 0,
@@ -251,8 +252,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     )
                     .notarize(&test_account_private_key)
                     .build();
-                let receipt = test_runner.execute_raw_transaction(
-                    &NetworkDefinition::mainnet(),
+                let receipt = ledger.execute_notarized_transaction(
                     &transaction.to_raw().unwrap(),
                 );
 
@@ -275,7 +275,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     controlling_key: test_account_private_key,
                 }: AccountAndControllingKey,
                 receipt: &PublishingReceipt,
-                test_runner: &mut StatefulTestRunner<'_>,
+                ledger: &mut StatefulLedgerSimulator<'_>,
             ) {
                 // Arrange
                     let Some(ExchangeInformation { pools, liquidity_receipt, .. }) =
@@ -286,9 +286,9 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 let pool = pools.$resource_ident;
                 let user_resource = receipt.user_resources.$resource_ident;
 
-                let current_epoch = test_runner.get_current_epoch();
+                let current_epoch = ledger.get_current_epoch();
 
-                test_runner.execute_manifest_without_auth(ManifestBuilder::new()
+                ledger.execute_manifest_without_auth(ManifestBuilder::new()
                     .lock_fee(test_account, dec!(10))
                     .mint_fungible(XRD, dec!(200_000_000_000_000))
                     .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
@@ -319,10 +319,10 @@ macro_rules! define_open_and_close_liquidity_position_tests {
 
                 let transaction = TransactionBuilder::new()
                     .header(TransactionHeaderV1 {
-                        network_id: 1,
+                        network_id: 0xf2,
                         start_epoch_inclusive: current_epoch,
                         end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                        nonce: test_runner.next_transaction_nonce(),
+                        nonce: ledger.next_transaction_nonce(),
                         notary_public_key: test_account_private_key.public_key(),
                         notary_is_signatory: true,
                         tip_percentage: 0,
@@ -344,8 +344,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     )
                     .notarize(&test_account_private_key)
                     .build();
-                let transaction_receipt = test_runner.execute_raw_transaction(
-                    &NetworkDefinition::mainnet(),
+                let transaction_receipt = ledger.execute_notarized_transaction(
                     &transaction.to_raw().unwrap(),
                 );
 
@@ -354,13 +353,13 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                 // Set the current time to be 6 months from now.
                 {
                     let current_time =
-                        test_runner.get_current_time(TimePrecisionV2::Minute);
+                        ledger.get_current_time(TimePrecisionV2::Minute);
                     let maturity_instant = current_time
                         .add_seconds(
                             *LockupPeriod::from_months($lockup_period).unwrap().seconds() as i64
                         )
                         .unwrap();
-                    let db = test_runner.substate_db_mut();
+                    let db = ledger.substate_db_mut();
                     let mut writer = SystemDatabaseWriter::new(db);
 
                     writer
@@ -395,7 +394,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
 
                 {
                     let oracle = receipt.components.protocol_entities.simple_oracle;
-                    let (price, _) = test_runner
+                    let (price, _) = ledger
                         .execute_manifest_with_enabled_modules(
                             ManifestBuilder::new()
                                 .call_method(
@@ -410,7 +409,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                         )
                         .expect_commit_success()
                         .output::<(Decimal, Instant)>(0);
-                    test_runner
+                    ledger
                         .execute_manifest_with_enabled_modules(
                             ManifestBuilder::new()
                                 .call_method(
@@ -426,15 +425,15 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                         .expect_commit_success();
                 }
 
-                let current_epoch = test_runner.get_current_epoch();
+                let current_epoch = ledger.get_current_epoch();
 
                 // Act
                 let transaction = TransactionBuilder::new()
                     .header(TransactionHeaderV1 {
-                        network_id: 1,
+                        network_id: 0xf2,
                         start_epoch_inclusive: current_epoch,
                         end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                        nonce: test_runner.next_transaction_nonce(),
+                        nonce: ledger.next_transaction_nonce(),
                         notary_public_key: test_account_private_key.public_key().into(),
                         notary_is_signatory: true,
                         tip_percentage: 0,
@@ -463,8 +462,7 @@ macro_rules! define_open_and_close_liquidity_position_tests {
                     )
                     .notarize(&test_account_private_key)
                     .build();
-                let receipt = test_runner.execute_raw_transaction(
-                    &NetworkDefinition::mainnet(),
+                let receipt = ledger.execute_notarized_transaction(
                     &transaction.to_raw().unwrap(),
                 );
 
@@ -507,7 +505,7 @@ define_open_and_close_liquidity_position_tests! {
 fn log_reported_price_from_defiplaza_pool(
     _: AccountAndControllingKey,
     receipt: &PublishingReceipt,
-    test_runner: &mut StatefulTestRunner<'_>,
+    ledger: &mut StatefulLedgerSimulator<'_>,
 ) {
     let mut manifest_builder = ManifestBuilder::new();
     for pool in receipt
@@ -524,7 +522,7 @@ fn log_reported_price_from_defiplaza_pool(
             (*pool,),
         )
     }
-    let receipt = test_runner.preview_manifest(
+    let receipt = ledger.preview_manifest(
         manifest_builder.build(),
         vec![],
         0,
@@ -532,6 +530,7 @@ fn log_reported_price_from_defiplaza_pool(
             use_free_credit: true,
             assume_all_signature_proofs: true,
             skip_epoch_check: true,
+            disable_auth: true,
         },
     );
     receipt.expect_commit_success();

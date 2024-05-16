@@ -21,7 +21,8 @@ mod stokenet_testing;
 
 use crate::publishing::*;
 use clap::*;
-use transaction::prelude::*;
+use radix_common::prelude::*;
+use radix_transactions::prelude::*;
 
 #[derive(ValueEnum, Clone, Copy, Debug)]
 pub enum ConfigurationSelector {
