@@ -22,6 +22,7 @@ use extend::*;
 use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
 use radix_common::prelude::*;
+use radix_engine::system::system_db_reader::*;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
@@ -290,6 +291,43 @@ pub impl<'a> StatefulLedgerSimulator<'a> {
             .notarize(notary_private_key)
             .build();
         self.execute_notarized_transaction(&transaction.to_raw().unwrap())
+    }
+
+    #[allow(clippy::arithmetic_side_effects)]
+    fn push_time_forward(&mut self, seconds: i64) {
+        let current_time = self.get_current_time(TimePrecisionV2::Minute);
+        let maturity_instant = current_time.add_seconds(seconds).unwrap();
+        let db = self.substate_db_mut();
+        let mut writer = SystemDatabaseWriter::new(db);
+
+        writer
+                .write_typed_object_field(
+                    CONSENSUS_MANAGER.as_node_id(),
+                    ModuleId::Main,
+                    ConsensusManagerField::ProposerMilliTimestamp.field_index(),
+                    ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
+                        ProposerMilliTimestampSubstate {
+                            epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
+                        },
+                    ),
+                )
+                .unwrap();
+
+        writer
+                .write_typed_object_field(
+                    CONSENSUS_MANAGER.as_node_id(),
+                    ModuleId::Main,
+                    ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
+                    ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
+                        ProposerMinuteTimestampSubstate {
+                            epoch_minute: i32::try_from(
+                                maturity_instant.seconds_since_unix_epoch / 60,
+                            )
+                            .unwrap(),
+                        },
+                    ),
+                )
+                .unwrap();
     }
 }
 
