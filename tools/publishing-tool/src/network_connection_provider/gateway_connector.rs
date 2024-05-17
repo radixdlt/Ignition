@@ -107,26 +107,29 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
                     // result in us not getting commit results back.
                     std::thread::sleep(std::time::Duration::from_secs(5));
 
-                    let transaction_committed_result_response = transaction_committed_details(
-                        &self.configuration,
-                        TransactionCommittedDetailsRequest {
-                            intent_hash: intent_hash_string.clone(),
-                            opt_ins: Some(Box::new(TransactionDetailsOptIns {
-                                raw_hex: Some(true),
-                                receipt_state_changes: Some(true),
-                                receipt_fee_summary: Some(true),
-                                receipt_fee_source: Some(true),
-                                receipt_fee_destination: Some(true),
-                                receipt_costing_parameters: Some(true),
-                                receipt_events: Some(true),
-                                receipt_output: Some(true),
-                                affected_global_entities: Some(true),
-                                balance_changes: Some(true),
-                            })),
-                            at_ledger_state: None,
-                        },
-                    )
-                    .map_err(GatewayExecutorError::TransactionCommittedDetailsError)?;
+                    let transaction_committed_result_response =
+                        transaction_committed_details(
+                            &self.configuration,
+                            TransactionCommittedDetailsRequest {
+                                intent_hash: intent_hash_string.clone(),
+                                opt_ins: Some(Box::new(TransactionDetailsOptIns {
+                                    raw_hex: Some(true),
+                                    receipt_state_changes: Some(true),
+                                    receipt_fee_summary: Some(true),
+                                    receipt_fee_source: Some(true),
+                                    receipt_fee_destination: Some(true),
+                                    receipt_costing_parameters: Some(true),
+                                    receipt_events: Some(true),
+                                    receipt_output: Some(true),
+                                    affected_global_entities: Some(true),
+                                    balance_changes: Some(true),
+                                })),
+                                at_ledger_state: None,
+                            },
+                        )
+                        .map_err(
+                            GatewayExecutorError::TransactionCommittedDetailsError,
+                        )?;
 
                     let new_entities = {
                         let mut new_entities = NewEntities::default();

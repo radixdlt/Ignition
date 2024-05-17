@@ -40,7 +40,9 @@ pub struct FungibleResourcesCollectionItemVaultAggregatedVault {
 
 impl FungibleResourcesCollectionItemVaultAggregatedVault {
     pub fn new(
-        items: Vec<crate::models::FungibleResourcesCollectionItemVaultAggregatedVaultItem>,
+        items: Vec<
+            crate::models::FungibleResourcesCollectionItemVaultAggregatedVaultItem,
+        >,
     ) -> FungibleResourcesCollectionItemVaultAggregatedVault {
         FungibleResourcesCollectionItemVaultAggregatedVault {
             total_count: None,

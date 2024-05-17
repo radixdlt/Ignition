@@ -747,8 +747,8 @@ fn cant_add_an_allowed_pool_where_neither_of_the_resources_is_the_protocol_resou
     let fungible2 = ResourceBuilder::new_fungible(OwnerRole::None)
         .mint_initial_supply(100, env)?;
     let (pool, ..) = OciswapV2PoolInterfaceScryptoTestStub::instantiate(
-        fungible2.resource_address(env)?,
         fungible1.resource_address(env)?,
+        fungible2.resource_address(env)?,
         pdec!(1),
         60,
         dec!(0.03),

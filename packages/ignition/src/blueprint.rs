@@ -337,8 +337,9 @@ mod ignition {
             // If no address reservation is provided then reserve an address to
             // globalize the component to - this is to provide us with a non
             // branching way of globalizing the component.
-            let address_reservation = address_reservation
-                .unwrap_or_else(|| Runtime::allocate_component_address(Ignition::blueprint_id()).0);
+            let address_reservation = address_reservation.unwrap_or_else(|| {
+                Runtime::allocate_component_address(Ignition::blueprint_id()).0
+            });
 
             let ignition = {
                 let InitializationParameters {
@@ -598,8 +599,7 @@ mod ignition {
                     })
                     .unwrap_or(Decimal::MAX);
                 assert!(
-                    pool_reported_value_of_user_resource_in_protocol_resource
-                        <= maximum_amount,
+                    pool_reported_value_of_user_resource_in_protocol_resource <= maximum_amount,
                     "Amount provided by Ignition exceeds the maximum allowed at the current price. Provided: {}, Maximum allowed: {}",
                     pool_reported_value_of_user_resource_in_protocol_resource,
                     maximum_amount

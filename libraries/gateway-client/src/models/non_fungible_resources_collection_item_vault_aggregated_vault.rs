@@ -33,12 +33,15 @@ pub struct NonFungibleResourcesCollectionItemVaultAggregatedVault {
     )]
     pub next_cursor: Option<Option<String>>,
     #[serde(rename = "items")]
-    pub items: Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
+    pub items:
+        Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
 }
 
 impl NonFungibleResourcesCollectionItemVaultAggregatedVault {
     pub fn new(
-        items: Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
+        items: Vec<
+            crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem,
+        >,
     ) -> NonFungibleResourcesCollectionItemVaultAggregatedVault {
         NonFungibleResourcesCollectionItemVaultAggregatedVault {
             total_count: None,

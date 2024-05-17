@@ -136,7 +136,7 @@ where
         "ignition",
         "simple-oracle",
         "ociswap-v1-adapter-v1",
-        "caviarnine-v1-adapter-v1",
+        "caviarnine-v1-adapter-v2",
     ];
 
     const RESOURCE_DIVISIBILITIES: ResourceInformation<u8> =
@@ -194,7 +194,7 @@ impl ScryptoTestEnv {
             .map(|address| rule!(require(address)))?;
 
         // Publishing the various packages to the testing environment
-        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v2_package] =
             Self::PACKAGE_NAMES
                 .map(|name| Self::publish_package(name, &mut env).unwrap());
 
@@ -447,42 +447,46 @@ impl ScryptoTestEnv {
             let defiplaza_v2_adapter_v1_package =
                 Self::publish_package("defiplaza-v2-adapter-v1", &mut env)?;
 
-            let defiplaza_v2_pools = resource_addresses.try_map(|resource_address| {
-                let mut defiplaza_pool = DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
-                    OwnerRole::None,
-                    *resource_address,
-                    XRD,
-                    // This pair config is obtained from DefiPlaza's
-                    // repo.
-                    PairConfig {
-                        k_in: dec!("0.4"),
-                        k_out: dec!("1"),
-                        fee: dec!("0"),
-                        decay_factor: dec!("0.9512"),
-                    },
-                    dec!(1),
-                    defiplaza_v2_pool_package,
-                    &mut env,
-                )?;
+            let defiplaza_v2_pools =
+                resource_addresses.try_map(|resource_address| {
+                    let mut defiplaza_pool =
+                    DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
+                        OwnerRole::None,
+                        *resource_address,
+                        XRD,
+                        // This pair config is obtained from DefiPlaza's
+                        // repo.
+                        PairConfig {
+                            k_in: dec!("0.4"),
+                            k_out: dec!("1"),
+                            fee: dec!("0"),
+                            decay_factor: dec!("0.9512"),
+                        },
+                        dec!(1),
+                        defiplaza_v2_pool_package,
+                        &mut env,
+                    )?;
 
-                let resource_x =
-                    ResourceManager(*resource_address).mint_fungible(dec!(100_000_000), &mut env)?;
-                let resource_y =
-                    ResourceManager(XRD).mint_fungible(dec!(100_000_000), &mut env)?;
+                    let resource_x = ResourceManager(*resource_address)
+                        .mint_fungible(dec!(100_000_000), &mut env)?;
+                    let resource_y = ResourceManager(XRD)
+                        .mint_fungible(dec!(100_000_000), &mut env)?;
 
-                let (_, change1) = defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
-                let (_, change2) = defiplaza_pool.add_liquidity(resource_y, None, &mut env)?;
-                let change_amount1 = change1
-                    .map(|bucket| bucket.amount(&mut env).unwrap())
-                    .unwrap_or_default();
-                assert_eq!(change_amount1, dec!(0));
-                let change_amount2 = change2
-                    .map(|bucket| bucket.amount(&mut env).unwrap())
-                    .unwrap_or_default();
-                assert_eq!(change_amount2, dec!(0));
+                    let (_, change1) = defiplaza_pool
+                        .add_liquidity(resource_x, None, &mut env)?;
+                    let (_, change2) = defiplaza_pool
+                        .add_liquidity(resource_y, None, &mut env)?;
+                    let change_amount1 = change1
+                        .map(|bucket| bucket.amount(&mut env).unwrap())
+                        .unwrap_or_default();
+                    assert_eq!(change_amount1, dec!(0));
+                    let change_amount2 = change2
+                        .map(|bucket| bucket.amount(&mut env).unwrap())
+                        .unwrap_or_default();
+                    assert_eq!(change_amount2, dec!(0));
 
-                Ok::<_, RuntimeError>(defiplaza_pool)
-            })?;
+                    Ok::<_, RuntimeError>(defiplaza_pool)
+                })?;
 
             (
                 defiplaza_v2_pool_package,
@@ -541,13 +545,13 @@ impl ScryptoTestEnv {
             defiplaza_v2_adapter_v1_package,
             &mut env,
         )?;
-        let caviarnine_v1_adapter_v1 = CaviarnineV1Adapter::instantiate(
+        let mut caviarnine_v1_adapter_v2 = CaviarnineV1Adapter::instantiate(
             rule!(allow_all),
             rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
-            caviarnine_v1_adapter_v1_package,
+            caviarnine_v1_adapter_v2_package,
             &mut env,
         )?;
 
@@ -570,6 +574,16 @@ impl ScryptoTestEnv {
                 .collect::<IndexMap<_, _>>(),
             &mut env,
         )?;
+
+        for pool in caviarnine_v1_pools.iter() {
+            let address = ComponentAddress::try_from(pool).unwrap();
+            caviarnine_v1_adapter_v2
+                .upsert_preferred_total_number_of_higher_and_lower_bins(
+                    address,
+                    30u32 * 2u32,
+                    &mut env,
+                )?;
+        }
 
         // Submitting some dummy prices to the oracle to get things going.
         resource_addresses.try_map(|resource_address| {
@@ -687,7 +701,7 @@ impl ScryptoTestEnv {
                     caviarnine_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: caviarnine_v1_adapter_v1.try_into().unwrap(),
+                    adapter: caviarnine_v1_adapter_v2.try_into().unwrap(),
                     allowed_pools: caviarnine_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
@@ -733,8 +747,8 @@ impl ScryptoTestEnv {
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,
                 pools: caviarnine_v1_pools,
-                adapter_package: caviarnine_v1_adapter_v1_package,
-                adapter: caviarnine_v1_adapter_v1,
+                adapter_package: caviarnine_v1_adapter_v2_package,
+                adapter: caviarnine_v1_adapter_v2,
                 liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         })
@@ -785,7 +799,10 @@ impl ScryptoUnitEnv {
                                                 substate_updates: substates
                                                     .into_iter()
                                                     .map(|(db_sort_key, value)| {
-                                                        (db_sort_key, DatabaseUpdate::Set(value))
+                                                        (
+                                                            db_sort_key,
+                                                            DatabaseUpdate::Set(value),
+                                                        )
                                                     })
                                                     .collect(),
                                             },
@@ -814,7 +831,7 @@ impl ScryptoUnitEnv {
         let protocol_manager_rule = rule!(require(protocol_manager_badge));
         let protocol_owner_rule = rule!(require(protocol_owner_badge));
 
-        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v2_package] =
             Self::PACKAGE_NAMES.map(|package_name| {
                 let (code, definition) =
                     package_loader::PackageLoader::get(package_name);
@@ -838,41 +855,44 @@ impl ScryptoUnitEnv {
         let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, defiplaza_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
                 ledger
-                .execute_manifest(
-                    ManifestBuilder::new()
-                        .lock_fee_from_faucet()
-                        .call_function(
-                            RESOURCE_PACKAGE,
-                            NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
-                            NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
-                            NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
-                                owner_role: OwnerRole::None,
-                                track_total_supply: true,
-                                non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt<AnyValue>>(),
-                                entries: vec![],
-                                resource_roles: NonFungibleResourceRoles {
-                                    mint_roles: mint_roles! {
-                                        minter => rule!(allow_all);
-                                        minter_updater => rule!(allow_all);
+                    .execute_manifest(
+                        ManifestBuilder::new()
+                            .lock_fee_from_faucet()
+                            .call_function(
+                                RESOURCE_PACKAGE,
+                                NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
+                                NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
+                                NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
+                                    owner_role: OwnerRole::None,
+                                    track_total_supply: true,
+                                    non_fungible_schema:
+                                        NonFungibleDataSchema::new_local_without_self_package_replacement::<
+                                            LiquidityReceipt<AnyValue>,
+                                        >(),
+                                    entries: vec![],
+                                    resource_roles: NonFungibleResourceRoles {
+                                        mint_roles: mint_roles! {
+                                            minter => rule!(allow_all);
+                                            minter_updater => rule!(allow_all);
+                                        },
+                                        burn_roles: burn_roles! {
+                                            burner => rule!(allow_all);
+                                            burner_updater => rule!(allow_all);
+                                        },
+                                        ..Default::default()
                                     },
-                                    burn_roles: burn_roles! {
-                                        burner => rule!(allow_all);
-                                        burner_updater => rule!(allow_all);
-                                    },
-                                    ..Default::default()
+                                    metadata: Default::default(),
+                                    address_reservation: Default::default(),
                                 },
-                                metadata: Default::default(),
-                                address_reservation: Default::default(),
-                            },
-                        )
-                        .build(),
-                    vec![],
-                )
-                .expect_commit_success()
-                .new_resource_addresses()
-                .first()
-                .copied()
-                .unwrap()
+                            )
+                            .build(),
+                        vec![],
+                    )
+                    .expect_commit_success()
+                    .new_resource_addresses()
+                    .first()
+                    .copied()
+                    .unwrap()
             });
 
         let ociswap_v1_pools = resource_addresses.map(|resource_address| {
@@ -1265,8 +1285,7 @@ impl ScryptoUnitEnv {
                             simple_oracle,
                             configuration
                                 .maximum_allowed_price_staleness_in_seconds_seconds,
-                            configuration
-                                .maximum_allowed_relative_price_difference,
+                            configuration.maximum_allowed_relative_price_difference,
                             InitializationParametersManifest::default(),
                             None::<ManifestAddressReservation>,
                         ),
@@ -1280,12 +1299,12 @@ impl ScryptoUnitEnv {
             .copied()
             .unwrap();
 
-        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter_v1] =
+        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter_v2] =
             [
                 (ociswap_v1_adapter_v1_package, "OciswapV1Adapter"),
                 (ociswap_v2_adapter_v1_package, "OciswapV2Adapter"),
                 (defiplaza_v2_adapter_v1_package, "DefiPlazaV2Adapter"),
-                (caviarnine_v1_adapter_v1_package, "CaviarnineV1Adapter"),
+                (caviarnine_v1_adapter_v2_package, "CaviarnineV1Adapter"),
             ]
             .map(|(package_address, blueprint_name)| {
                 ledger
@@ -1343,25 +1362,31 @@ impl ScryptoUnitEnv {
 
         // Cache the addresses of the various Caviarnine pools.
         ledger
-            .execute_manifest(
-                TransactionManifestV1 {
-                    instructions: std::iter::once(InstructionV1::CallMethod {
-                        address: FAUCET.into(),
-                        method_name: "lock_fee".into(),
-                        args: manifest_args!(dec!(100)).into(),
-                    })
-                    .chain(caviarnine_v1_pools.iter().map(|address| {
-                        InstructionV1::CallMethod {
-                            address: caviarnine_v1_adapter_v1.into(),
-                            method_name: "preload_pool_information".to_owned(),
-                            args: manifest_args!(address).into(),
-                        }
-                    }))
-                    .collect(),
-                    blobs: Default::default(),
-                },
-                vec![],
-            )
+            .execute_manifest_without_auth(TransactionManifestV1 {
+                instructions: std::iter::once(InstructionV1::CallMethod {
+                    address: FAUCET.into(),
+                    method_name: "lock_fee".into(),
+                    args: manifest_args!(dec!(100)).into(),
+                })
+                .chain(caviarnine_v1_pools.iter().map(|address| {
+                    InstructionV1::CallMethod {
+                        address: caviarnine_v1_adapter_v2.into(),
+                        method_name: "preload_pool_information".to_owned(),
+                        args: manifest_args!(address).into(),
+                    }
+                }))
+                .chain(caviarnine_v1_pools.iter().map(|address| {
+                    InstructionV1::CallMethod {
+                        address: caviarnine_v1_adapter_v2.into(),
+                        method_name:
+                            "upsert_preferred_total_number_of_higher_and_lower_bins"
+                                .to_owned(),
+                        args: manifest_args!(address, 30u32 * 2u32).into(),
+                    }
+                }))
+                .collect(),
+                blobs: Default::default(),
+            })
             .expect_commit_success();
 
         {
@@ -1455,7 +1480,7 @@ impl ScryptoUnitEnv {
                             "PlazaPair",
                         ),
                         (
-                            caviarnine_v1_adapter_v1,
+                            caviarnine_v1_adapter_v2,
                             caviarnine_v1_pools,
                             caviarnine_v1_liquidity_receipt_resource,
                             caviarnine_v1_package,
@@ -1539,8 +1564,8 @@ impl ScryptoUnitEnv {
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,
                 pools: caviarnine_v1_pools,
-                adapter_package: caviarnine_v1_adapter_v1_package,
-                adapter: caviarnine_v1_adapter_v1,
+                adapter_package: caviarnine_v1_adapter_v2_package,
+                adapter: caviarnine_v1_adapter_v2,
                 liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         }

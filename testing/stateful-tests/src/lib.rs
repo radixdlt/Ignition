@@ -19,6 +19,7 @@ use address_macros::*;
 use common::prelude::Volatility::*;
 use common::prelude::*;
 use extend::*;
+use package_loader::PackageLoader;
 use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
 use radix_common::prelude::*;
@@ -64,7 +65,7 @@ where
         &mut StatefulLedgerSimulator<'_>,
     ) -> O,
 {
-    let publishing_receipt = publishing_receipt();
+    let mut publishing_receipt = publishing_receipt().clone();
 
     // Creating the database and the necessary overlays to run the tests.
     let overlayed_state_manager_database =
@@ -166,9 +167,125 @@ where
     let test_account =
         AccountAndControllingKey::new_virtual_account(test_account_private_key);
 
+    // Publishing v2 of the Caviarnine adapter.
+    let (wasm, package_definition) =
+        PackageLoader::get("caviarnine-v1-adapter-v2");
+    let caviarnine_v1_adapter_v2_package_address = ledger
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .publish_package_advanced(
+                    None,
+                    wasm,
+                    package_definition,
+                    MetadataInit::default(),
+                    Default::default(),
+                )
+                .build(),
+            EnabledModules::for_notarized_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
+        )
+        .expect_commit_success()
+        .new_package_addresses()
+        .first()
+        .copied()
+        .unwrap();
+
+    let caviarnine_v1_adapter_v2 = ledger
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                /* Instantiating a new component */
+                .allocate_global_address(
+                    caviarnine_v1_adapter_v2_package_address,
+                    "CaviarnineV1Adapter",
+                    "reservation",
+                    "named_address",
+                )
+                .then(|builder| {
+                    let reservation = builder.address_reservation("reservation");
+                    let named_address = builder.named_address("named_address");
+
+                    builder
+                        .call_function(
+                            caviarnine_v1_adapter_v2_package_address,
+                            "CaviarnineV1Adapter",
+                            "instantiate",
+                            (
+                                rule!(require(publishing_receipt.badges.protocol_manager_badge)),
+                                rule!(require(publishing_receipt.badges.protocol_owner_badge)),
+                                MetadataInit::default(),
+                                OwnerRole::default(),
+                                Some(reservation),
+                            ),
+                        )
+                        /* Register it in Ignition as the Adapter for C9 */
+                        .call_method(
+                            publishing_receipt.components.protocol_entities.ignition,
+                            "set_pool_adapter",
+                            (
+                                publishing_receipt
+                                    .exchange_information
+                                    .caviarnine_v1
+                                    .as_ref()
+                                    .unwrap()
+                                    .blueprint_id
+                                    .clone(),
+                                named_address,
+                            ),
+                        )
+                        /* Add all of the pool bin spans to the adapter */
+                        .then(|builder| {
+                            publishing_receipt
+                                .exchange_information
+                                .caviarnine_v1
+                                .as_ref()
+                                .unwrap()
+                                .pools
+                                .iter()
+                                .fold(builder, |builder, pool_address| {
+                                    builder.call_method(
+                                        named_address,
+                                        "upsert_preferred_total_number_of_higher_and_lower_bins",
+                                        (*pool_address, 30u32 * 2u32),
+                                    )
+                                })
+                        })
+                        /* Load all of the pool information into C9 adapter */
+                        .then(|builder| {
+                            publishing_receipt
+                                .exchange_information
+                                .caviarnine_v1
+                                .as_ref()
+                                .unwrap()
+                                .pools
+                                .iter()
+                                .fold(builder, |builder, pool_address| {
+                                    builder.call_method(
+                                        named_address,
+                                        "preload_pool_information",
+                                        (*pool_address,),
+                                    )
+                                })
+                        })
+                })
+                .build(),
+            EnabledModules::for_notarized_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
+        )
+        .expect_commit_success()
+        .new_component_addresses()
+        .first()
+        .copied()
+        .unwrap();
+    publishing_receipt
+        .components
+        .exchange_adapter_entities
+        .caviarnine_v1 = caviarnine_v1_adapter_v2;
+
     // We are now ready to execute the function callback and return its output
     // back
-    test_function(test_account, publishing_receipt, &mut ledger)
+    test_function(test_account, &publishing_receipt, &mut ledger)
 }
 
 /// This macro can be applied to any function to turn it into a test function
@@ -301,33 +418,33 @@ pub impl<'a> StatefulLedgerSimulator<'a> {
         let mut writer = SystemDatabaseWriter::new(db);
 
         writer
-                .write_typed_object_field(
-                    CONSENSUS_MANAGER.as_node_id(),
-                    ModuleId::Main,
-                    ConsensusManagerField::ProposerMilliTimestamp.field_index(),
-                    ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
-                        ProposerMilliTimestampSubstate {
-                            epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
-                        },
-                    ),
-                )
-                .unwrap();
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMilliTimestamp.field_index(),
+                ConsensusManagerProposerMilliTimestampFieldPayload::from_content_source(
+                    ProposerMilliTimestampSubstate {
+                        epoch_milli: maturity_instant.seconds_since_unix_epoch * 1000,
+                    },
+                ),
+            )
+            .unwrap();
 
         writer
-                .write_typed_object_field(
-                    CONSENSUS_MANAGER.as_node_id(),
-                    ModuleId::Main,
-                    ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
-                    ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
-                        ProposerMinuteTimestampSubstate {
-                            epoch_minute: i32::try_from(
-                                maturity_instant.seconds_since_unix_epoch / 60,
-                            )
-                            .unwrap(),
-                        },
-                    ),
-                )
-                .unwrap();
+            .write_typed_object_field(
+                CONSENSUS_MANAGER.as_node_id(),
+                ModuleId::Main,
+                ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
+                ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
+                    ProposerMinuteTimestampSubstate {
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
+                    },
+                ),
+            )
+            .unwrap();
     }
 }
 

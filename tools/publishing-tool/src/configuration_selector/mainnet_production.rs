@@ -44,7 +44,7 @@ pub fn mainnet_production(
                 usdc: Volatility::NonVolatile,
                 usdt: Volatility::NonVolatile,
             },
-            // This is a mapping of the reward rate in months to the upfront 
+            // This is a mapping of the reward rate in months to the upfront
             // reward percentage.
             reward_rates: indexmap! {
                 LockupPeriod::from_months(9).unwrap() => dec!(0.125),  // 12.5%
@@ -58,7 +58,7 @@ pub fn mainnet_production(
             allow_closing_liquidity_positions: false,
             // The maximum allowed price staleness is 60 seconds
             maximum_allowed_price_staleness_in_seconds: 60,
-            // The maximum allowed price difference percentage is 5% from the 
+            // The maximum allowed price difference percentage is 5% from the
             // oracle price.
             maximum_allowed_price_difference_percentage: dec!(0.05),
             entities_metadata: Entities {
@@ -105,7 +105,7 @@ pub fn mainnet_production(
             "icon_url".to_owned() => MetadataValue::Url(UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"))
         },
         transaction_configuration: TransactionConfiguration {
-            // Whoever notarizes this transaction will also be handling the 
+            // Whoever notarizes this transaction will also be handling the
             // payment of fees for it.
             notary: clone_private_key(notary_private_key),
             fee_payer_information: AccountAndControllingKey::new_virtual_account(
@@ -129,7 +129,7 @@ pub fn mainnet_production(
             },
             protocol_manager_badge: BadgeHandling::CreateAndSend {
                 // When we initially deploy we should send the protocol manager
-                // badge to the notary's account address. 
+                // badge to the notary's account address.
                 account_address: notary_account_address,
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Manager", updatable;
@@ -142,7 +142,7 @@ pub fn mainnet_production(
             },
             protocol_owner_badge: BadgeHandling::CreateAndSend {
                 // When we initially deploy we should send the protocol manager
-                // badge to the notary's account address. 
+                // badge to the notary's account address.
                 account_address: notary_account_address,
                 metadata_init: metadata_init! {
                     "name" => "Ignition Protocol Owner", updatable;
@@ -157,7 +157,7 @@ pub fn mainnet_production(
         // The address of the user resources. These have been obtained from the
         // dapp definition of the instabridge application found here:
         // https://dashboard.radixdlt.com/account/account_rdx1cxamqz2f03s8g6smfz32q2gr3prhwh3gqdkdk93d8q8srp8d38cs7e/metadata
-        // and have been verified against the addresses we have seen on the 
+        // and have been verified against the addresses we have seen on the
         // exchanges.
         user_resources: UserResourceIndexedData {
             bitcoin: UserResourceHandling::UseExisting {
@@ -243,7 +243,7 @@ pub fn mainnet_production(
             },
         },
         exchange_information: ExchangeIndexedData {
-            // No ociswap v2 currently on mainnet. So, we set this to be None. 
+            // No ociswap v2 currently on mainnet. So, we set this to be None.
             // When they are live the protocol manager can add support for them
             // in Ignition manually and outside of the publishing process.
             ociswap_v2: None,
@@ -290,7 +290,7 @@ pub fn mainnet_production(
                         "tags" => vec!["lp token"], updatable;
                         "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
                         "DEX" => "DefiPlaza", updatable;
-                        // I have confirmed this with DefiPlaza to be the 
+                        // I have confirmed this with DefiPlaza to be the
                         // correct link.
                         "redeem_url" => UncheckedUrl::of("https://radix.defiplaza.net/ignition"), updatable;
                     },
@@ -339,7 +339,7 @@ pub fn mainnet_production(
                         "tags" => vec!["lp token"], updatable;
                         "icon_url" => UncheckedUrl::of("https://assets.radixdlt.com/icons/icon-Ignition-LP.png"), updatable;
                         "DEX" => "Caviarnine", updatable;
-                        // I have confirmed this with Caviarnine to be the 
+                        // I have confirmed this with Caviarnine to be the
                         // correct link.
                         "redeem_url" => UncheckedUrl::of("https://www.caviarnine.com/ignition"), updatable;
                     },

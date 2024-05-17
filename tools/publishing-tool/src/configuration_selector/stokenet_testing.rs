@@ -94,9 +94,9 @@ pub fn stokenet_testing(
         },
         transaction_configuration: TransactionConfiguration {
             notary: clone_private_key(notary_private_key),
-            fee_payer_information: AccountAndControllingKey::new_virtual_account(
-                clone_private_key(notary_private_key),
-            ),
+            fee_payer_information: AccountAndControllingKey::new_virtual_account(clone_private_key(
+                notary_private_key,
+            )),
         },
         // TODO: Determine where they should be sent to.
         badges: BadgeIndexedData {
@@ -234,10 +234,9 @@ pub fn stokenet_testing(
                     usdt: PoolHandling::Create,
                 },
                 liquidity_receipt: LiquidityReceiptHandling::CreateNew {
-                    non_fungible_schema:
-                        NonFungibleDataSchema::new_local_without_self_package_replacement::<
-                            LiquidityReceipt<AnyValue>,
-                        >(),
+                    non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<
+                        LiquidityReceipt<AnyValue>,
+                    >(),
                     metadata: metadata_init! {
                         "name" => "Ignition LP: Ociswap", updatable;
                         "description" => "Represents a particular contribution of liquidity to Ociswap through the Ignition liquidity incentives program. See the redeem_url metadata for where to redeem these NFTs.", updatable;
@@ -254,20 +253,13 @@ pub fn stokenet_testing(
         },
         additional_information: AdditionalInformation {
             ociswap_v2_registry_component_and_dapp_definition: Some((
-                component_address!(
-                    "component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"
-                ),
-                component_address!(
-                    "account_tdx_2_12yhfrtak5j0pmaju5l3p752wpye4z4nzua679ypns0094hmu66p2yk"
-                ),
+                component_address!("component_tdx_2_1cpwm3sjxr48gmsnh7lgmh5de3eqqzthqkazztc4qv6n3fvedgjepwk"),
+                component_address!("account_tdx_2_12yhfrtak5j0pmaju5l3p752wpye4z4nzua679ypns0094hmu66p2yk"),
             )),
         },
-        additional_operation_flags:
-            AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
+        additional_operation_flags: AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE
             .union(AdditionalOperationFlags::PROVIDE_INITIAL_IGNITION_LIQUIDITY)
-            .union(
-                AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE
-            )
+            .union(AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE),
     }
     // cSpell:enable
 }

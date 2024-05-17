@@ -27,7 +27,7 @@ pub use radix_engine::system::system_modules::auth::*;
 pub use radix_engine_interface::prelude::*;
 pub use scrypto_test::prelude::*;
 
-pub use ::caviarnine_v1_adapter_v1::adapter_test::*;
+pub use ::caviarnine_v1_adapter_v2::adapter_test::*;
 pub use ::defiplaza_v2_adapter_v1::adapter_test::*;
 pub use ::ignition::ignition_test::*;
 pub use ::ignition::*;
@@ -35,7 +35,7 @@ pub use ::ociswap_v1_adapter_v1::adapter_test::*;
 pub use ::ociswap_v2_adapter_v1::adapter_test::*;
 pub use ::simple_oracle::simple_oracle_test::*;
 
-pub use ::caviarnine_v1_adapter_v1::*;
+pub use ::caviarnine_v1_adapter_v2::*;
 pub use ::defiplaza_v2_adapter_v1::*;
 pub use ::ociswap_v1_adapter_v1::*;
 pub use ::ociswap_v2_adapter_v1::*;

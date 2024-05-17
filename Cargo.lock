@@ -367,6 +367,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "caviarnine-v1-adapter-v2"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "ports-interface",
+ "radix-common",
+ "radix-engine-interface",
+ "radix-transactions",
+ "sbor",
+ "scrypto",
+ "scrypto-interface",
+ "scrypto-math",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3275,7 +3290,7 @@ dependencies = [
 name = "tests"
 version = "0.1.0"
 dependencies = [
- "caviarnine-v1-adapter-v1",
+ "caviarnine-v1-adapter-v2",
  "common",
  "defiplaza-v2-adapter-v1",
  "extend",

@@ -30,7 +30,7 @@ defiplaza-v2-adapter-v1 = { path = "../../packages/defiplaza-v2-adapter-v1", fea
     "test",
     "manifest-builder-stubs"
 ] }
-caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
+caviarnine-v1-adapter-v2 = { path = "../../packages/caviarnine-v1-adapter-v2", features = [
     "test",
     "manifest-builder-stubs"
 ] }

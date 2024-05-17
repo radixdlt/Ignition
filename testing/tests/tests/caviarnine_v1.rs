@@ -279,8 +279,10 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
-                            .unwrap(),
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
                     },
                 ),
             )
@@ -461,7 +463,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         .unwrap();
     assert_eq!(
         adapter_information.bin_contributions.len(),
-        (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
+        (30 * 2 + 1) as usize
     );
 
     Ok(())
@@ -926,6 +928,19 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
         .copied()
         .unwrap();
 
+    ledger
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    caviarnine_v1.adapter,
+                    "upsert_preferred_total_number_of_higher_and_lower_bins",
+                    (pool_address, 30u32 * 2u32),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
     // We're allowed to contribute to 200 bins. So, we will contribute to all of
     // them. This ensures that the maximum amount of price range is covered by
     // our liquidity.
@@ -1116,8 +1131,10 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
-                            .unwrap(),
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
                     },
                 ),
             )

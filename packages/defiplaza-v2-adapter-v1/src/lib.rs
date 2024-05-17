@@ -322,18 +322,15 @@ pub mod adapter {
                     shortage_asset_pool_units,
                     surplus_asset_pool_units,
                 ]),
-                change: change
-                    .map(IndexedBuckets::from_bucket)
-                    .unwrap_or_default(),
+                change: change.map(IndexedBuckets::from_bucket).unwrap_or_default(),
                 others: vec![],
-                adapter_specific_information:
-                    DefiPlazaV2AdapterSpecificInformation {
-                        original_targets: indexmap! {
-                            shortage_asset_resource_address => shortage_asset_original_target,
-                            surplus_asset_resource_address => surplus_asset_original_target
-                        },
-                    }
-                    .into(),
+                adapter_specific_information: DefiPlazaV2AdapterSpecificInformation {
+                    original_targets: indexmap! {
+                        shortage_asset_resource_address => shortage_asset_original_target,
+                        surplus_asset_resource_address => surplus_asset_original_target
+                    },
+                }
+                .into(),
             }
         }
 

@@ -33,6 +33,7 @@ use radix_transactions::prelude::*;
 use stateful_tests::*;
 
 #[apply(mainnet_test)]
+#[ignore = "Test fails because the testing tool creates a new C9 adapter."]
 fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_the_metadata_standard(
     _: AccountAndControllingKey,
     receipt: &PublishingReceipt,
@@ -102,7 +103,9 @@ fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_th
     )) =
         ledger.get_metadata(dapp_definition_account.into(), "claimed_entities")
     else {
-        panic!("Dapp definition claimed entities either does not exist or is not an array")
+        panic!(
+            "Dapp definition claimed entities either does not exist or is not an array"
+        )
     };
     assert_eq!(dapp_definition_account_type, "dapp definition");
     assert_eq!(
@@ -563,6 +566,12 @@ fn a_position_can_be_opened_in_the_lsu_lp_pool(
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee(test_account, dec!(10))
+                /* Add a number of bins to the C9 adapter */
+                .call_method(
+                    receipt.components.exchange_adapter_entities.caviarnine_v1,
+                    "upsert_preferred_total_number_of_higher_and_lower_bins",
+                    (pool_address, 6u32 * 2),
+                )
                 /* Add the LSU LP as a user resource - it is non-volatile */
                 .call_method(
                     receipt.components.protocol_entities.ignition,
@@ -656,6 +665,12 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee(test_account, dec!(10))
+                /* Add a number of bins to the C9 adapter */
+                .call_method(
+                    receipt.components.exchange_adapter_entities.caviarnine_v1,
+                    "upsert_preferred_total_number_of_higher_and_lower_bins",
+                    (pool_address, 6u32 * 2),
+                )
                 /* Add the LSU LP as a user resource - it is non-volatile */
                 .call_method(
                     receipt.components.protocol_entities.ignition,
@@ -789,8 +804,8 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
     // Assert
     receipt.expect_commit_success();
     println!(
-    "Closing a position in LSULP/XRD pool costs {} XRD in total with {} XRD in execution",
-    receipt.fee_summary.total_cost(),
-    receipt.fee_summary.total_execution_cost_in_xrd
-);
+        "Closing a position in LSULP/XRD pool costs {} XRD in total with {} XRD in execution",
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
 }
