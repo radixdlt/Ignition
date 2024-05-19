@@ -19,6 +19,7 @@ members = [
     "libraries/address-macros",
     # Tools
     "tools/publishing-tool",
+    "tools/publishing-tool-2",
     "tools/package-dumper",
     # Tests
     "testing/tests",
