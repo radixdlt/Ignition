@@ -50,9 +50,7 @@ pub struct StateEntityFungibleResourceVaultsPageResponse {
 impl StateEntityFungibleResourceVaultsPageResponse {
     pub fn new(
         ledger_state: crate::models::LedgerState,
-        items: Vec<
-            crate::models::FungibleResourcesCollectionItemVaultAggregatedVaultItem,
-        >,
+        items: Vec<crate::models::FungibleResourcesCollectionItemVaultAggregatedVaultItem>,
         address: String,
         resource_address: String,
     ) -> StateEntityFungibleResourceVaultsPageResponse {

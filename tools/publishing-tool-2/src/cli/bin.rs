@@ -20,7 +20,7 @@
 mod publish;
 
 use clap::Parser;
-use publishing_tool::error::*;
+use publishing_tool_2::error::*;
 use radix_common::prelude::*;
 
 fn main() -> Result<(), Error> {

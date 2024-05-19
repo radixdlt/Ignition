@@ -17,10 +17,10 @@
 
 use crate::*;
 use clap::Parser;
-use publishing_tool::configuration_selector::*;
-use publishing_tool::network_connection_provider::*;
-use publishing_tool::publishing::*;
-use publishing_tool::utils::*;
+use publishing_tool_2::configuration_selector::*;
+use publishing_tool_2::network_connection_provider::*;
+use publishing_tool_2::publishing::*;
+use publishing_tool_2::utils::*;
 use radix_common::prelude::*;
 use radix_transactions::prelude::*;
 use state_manager::ActualStateManagerDatabase;
@@ -89,8 +89,9 @@ impl Publish {
                 retries: 10,
             },
         );
-        let receipt = publish(&configuration, &mut gateway_network_provider)?;
-        writeln!(f, "{}", to_json(&receipt, &network_definition))
-            .map_err(Error::IoError)
+        // let receipt = publish(&configuration, &mut gateway_network_provider)?;
+        // writeln!(f, "{}", to_json(&receipt, &network_definition))
+        //     .map_err(Error::IoError)
+        Ok(())
     }
 }

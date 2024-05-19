@@ -36,8 +36,7 @@ pub struct StateEntityNonFungibleResourceVaultsPageResponse {
     )]
     pub next_cursor: Option<Option<String>>,
     #[serde(rename = "items")]
-    pub items:
-        Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
+    pub items: Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
 
     #[serde(rename = "address")]
     pub address: String,
@@ -49,9 +48,7 @@ pub struct StateEntityNonFungibleResourceVaultsPageResponse {
 impl StateEntityNonFungibleResourceVaultsPageResponse {
     pub fn new(
         ledger_state: crate::models::LedgerState,
-        items: Vec<
-            crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem,
-        >,
+        items: Vec<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
         address: String,
         resource_address: String,
     ) -> StateEntityNonFungibleResourceVaultsPageResponse {

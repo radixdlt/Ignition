@@ -2129,10 +2129,9 @@ name = "publishing-tool-2"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.5.0",
- "caviarnine-v1-adapter-v1",
+ "caviarnine-v1-adapter-v2",
  "clap",
  "common",
- "defiplaza-v2-adapter-v1",
  "env_logger",
  "gateway-client",
  "hex",
@@ -2141,8 +2140,6 @@ dependencies = [
  "itertools 0.12.1",
  "log",
  "macro_rules_attribute",
- "ociswap-v1-adapter-v1",
- "ociswap-v2-adapter-v1",
  "package-loader",
  "radix-common",
  "radix-engine",

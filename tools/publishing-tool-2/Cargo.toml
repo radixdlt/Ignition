@@ -20,16 +20,7 @@ ignition = { path = "../../packages/ignition" }
 package-loader = { path = "../../libraries/package-loader" }
 gateway-client = { path = "../../libraries/gateway-client" }
 
-ociswap-v1-adapter-v1 = { path = "../../packages/ociswap-v1-adapter-v1", features = [
-    "manifest-builder-stubs",
-] }
-ociswap-v2-adapter-v1 = { path = "../../packages/ociswap-v2-adapter-v1", features = [
-    "manifest-builder-stubs",
-] }
-defiplaza-v2-adapter-v1 = { path = "../../packages/defiplaza-v2-adapter-v1", features = [
-    "manifest-builder-stubs",
-] }
-caviarnine-v1-adapter-v1 = { path = "../../packages/caviarnine-v1-adapter-v1", features = [
+caviarnine-v1-adapter-v2 = { path = "../../packages/caviarnine-v1-adapter-v2", features = [
     "manifest-builder-stubs",
 ] }
 

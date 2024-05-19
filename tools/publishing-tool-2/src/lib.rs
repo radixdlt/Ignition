@@ -15,6 +15,13 @@
 // specific language governing permissions and limitations
 // under the License.
 
+// TODO: Remove this crate.
+//! This is a temporary tool that we will be using to deploy Ignition with
+//! different user resources and it is a duplicate of the publishing-tool. The
+//! main reason why it is a duplicate is because an approach that uses Rust
+//! generics seems possible to achieve but difficult and the easiest way to do
+//! this now would be to copy this crate.
+
 pub mod configuration_selector;
 pub mod database_overlay;
 pub mod error;

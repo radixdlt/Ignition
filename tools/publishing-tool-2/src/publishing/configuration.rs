@@ -26,8 +26,9 @@ pub struct PublishingConfiguration {
     /// The configuration of the Ignition protocol.
     pub protocol_configuration: ProtocolConfiguration,
 
-    /// The metadata to use for the dapp definition that is created.
-    pub dapp_definition_metadata: IndexMap<String, MetadataValue>,
+    /// The handling of the dApp definition - controls whether a new dApp
+    /// definition should be created or not.
+    pub dapp_definition: DappDefinitionHandling,
 
     /// Contains configurations for the transactions that will be submitted
     /// such as the notary and the account to get the fees from. Information
@@ -58,14 +59,16 @@ pub struct PublishingConfiguration {
     pub exchange_information: ExchangeIndexedData<
         Option<ExchangeInformation<PoolHandling, LiquidityReceiptHandling>>,
     >,
+}
 
-    /// Additional information that doesn't quite fit into any of the above
-    /// categories nicely.
-    pub additional_information: AdditionalInformation,
-
-    /// Bit flags for additional operations that can be done by the publishing
-    /// logic during the publishing process.
-    pub additional_operation_flags: AdditionalOperationFlags,
+#[derive(Debug, Clone, ScryptoSbor)]
+pub enum DappDefinitionHandling {
+    UseExistingOneWayLink {
+        component_address: ComponentAddress,
+    },
+    CreateNew {
+        metadata: IndexMap<String, MetadataValue>,
+    },
 }
 
 #[derive(Debug, Clone, ScryptoSbor)]
@@ -81,29 +84,6 @@ pub struct PublishingReceipt {
     pub badges: BadgeIndexedData<ResourceAddress>,
 }
 
-bitflags::bitflags! {
-    /// Additional operations that the publishing process can be instructed to
-    /// perform.
-    #[repr(transparent)]
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct AdditionalOperationFlags: u8 {
-        /// Submits prices to the oracle that are just one for all of the assets
-        /// supported in the deployment.
-        const SUBMIT_ORACLE_PRICES_OF_ONE = 0b00000001;
-
-        /// Provide initial liquidity to Ignition. How this is done depends on
-        /// the selected protocol resource. If it is XRD then the publisher will
-        /// attempt to get the XRD from the faucet. If otherwise then it will
-        /// attempt to mint it.
-        const PROVIDE_INITIAL_IGNITION_LIQUIDITY = 0b00000010;
-
-        /// Provides initial liquidity to ociswap v2 pools by minting the user
-        /// asset. If the protocol asset is mintable then it mints them in the
-        /// process and if they're not then it gets them from the faucet.
-        const PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE = 0b00000100;
-    }
-}
-
 #[derive(Debug, Clone, ScryptoSbor)]
 pub struct ProtocolConfigurationReceipt {
     pub protocol_resource: ResourceAddress,
@@ -116,11 +96,6 @@ pub struct ProtocolConfigurationReceipt {
     pub user_resources: UserResourceIndexedData<ResourceAddress>,
     pub registered_pools:
         ExchangeIndexedData<Option<UserResourceIndexedData<ComponentAddress>>>,
-}
-
-pub struct AdditionalInformation {
-    pub ociswap_v2_registry_component_and_dapp_definition:
-        Option<(ComponentAddress, ComponentAddress)>,
 }
 
 pub struct ProtocolConfiguration {
@@ -178,8 +153,6 @@ pub struct ProtocolIndexedData<T> {
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ScryptoSbor,
 )]
 pub struct ExchangeIndexedData<T> {
-    pub ociswap_v2: T,
-    pub defiplaza_v2: T,
     pub caviarnine_v1: T,
 }
 
@@ -188,10 +161,7 @@ pub struct ExchangeIndexedData<T> {
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, ScryptoSbor,
 )]
 pub struct UserResourceIndexedData<T> {
-    pub bitcoin: T,
-    pub ethereum: T,
-    pub usdc: T,
-    pub usdt: T,
+    pub lsu_lp_resource: T,
 }
 
 #[apply(name_indexed_struct)]
@@ -253,7 +223,7 @@ pub enum PackageHandling {
     /// The package already exists on the desired network.
     UseExisting {
         /// The address of the package on the network and
-        package_address: BlueprintId,
+        blueprint_id: BlueprintId,
     },
 }
 

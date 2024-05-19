@@ -23,8 +23,7 @@ pub struct StateEntityDetailsResponseNonFungibleVaultDetails {
     #[serde(rename = "resource_address")]
     pub resource_address: String,
     #[serde(rename = "balance")]
-    pub balance:
-        Box<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
+    pub balance: Box<crate::models::NonFungibleResourcesCollectionItemVaultAggregatedVaultItem>,
 }
 
 impl StateEntityDetailsResponseNonFungibleVaultDetails {

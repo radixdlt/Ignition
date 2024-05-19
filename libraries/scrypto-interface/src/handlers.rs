@@ -317,10 +317,8 @@ fn generate_scrypto_test_stub(
                         parse_quote!(::radix_engine_interface::prelude::PackageAddress),
                     );
                 }
-                arguments.add_argument_to_end(
-                    Ident::new("env", ident.span()),
-                    parse_quote!(&mut Y),
-                );
+                arguments
+                    .add_argument_to_end(Ident::new("env", ident.span()), parse_quote!(&mut Y));
 
                 let inner = if arguments.is_function() {
                     quote! {
@@ -443,17 +441,12 @@ fn generate_manifest_builder_stub(
                 } else {
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
-                        parse_quote!(
-                            impl ::radix_transactions::builder::ResolvableGlobalAddress
-                        ),
+                        parse_quote!(impl ::radix_transactions::builder::ResolvableGlobalAddress),
                     );
                 }
 
-                let fn_ident = format_ident!(
-                    "{}_{}",
-                    struct_ident.to_string().to_snake_case(),
-                    ident
-                );
+                let fn_ident =
+                    format_ident!("{}_{}", struct_ident.to_string().to_snake_case(), ident);
 
                 arguments.manifest_arguments().map(|arguments| {
                     quote! {
@@ -502,9 +495,7 @@ fn generate_manifest_builder_stub(
                 } else {
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
-                        parse_quote!(
-                            impl ::radix_transactions::builder::ResolvableGlobalAddress
-                        ),
+                        parse_quote!(impl ::radix_transactions::builder::ResolvableGlobalAddress),
                     );
 
                     let original_arguments = original_arguments
@@ -522,11 +513,8 @@ fn generate_manifest_builder_stub(
                     }
                 };
 
-                let fn_ident = format_ident!(
-                    "{}_{}",
-                    struct_ident.to_string().to_snake_case(),
-                    ident
-                );
+                let fn_ident =
+                    format_ident!("{}_{}", struct_ident.to_string().to_snake_case(), ident);
 
                 let arguments = arguments.manifest_arguments()?;
                 Ok(quote! {

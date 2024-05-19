@@ -337,9 +337,8 @@ mod ignition {
             // If no address reservation is provided then reserve an address to
             // globalize the component to - this is to provide us with a non
             // branching way of globalizing the component.
-            let address_reservation = address_reservation.unwrap_or_else(|| {
-                Runtime::allocate_component_address(Ignition::blueprint_id()).0
-            });
+            let address_reservation = address_reservation
+                .unwrap_or_else(|| Runtime::allocate_component_address(Ignition::blueprint_id()).0);
 
             let ignition = {
                 let InitializationParameters {

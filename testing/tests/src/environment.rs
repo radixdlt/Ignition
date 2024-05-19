@@ -447,46 +447,41 @@ impl ScryptoTestEnv {
             let defiplaza_v2_adapter_v1_package =
                 Self::publish_package("defiplaza-v2-adapter-v1", &mut env)?;
 
-            let defiplaza_v2_pools =
-                resource_addresses.try_map(|resource_address| {
-                    let mut defiplaza_pool =
-                    DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
-                        OwnerRole::None,
-                        *resource_address,
-                        XRD,
-                        // This pair config is obtained from DefiPlaza's
-                        // repo.
-                        PairConfig {
-                            k_in: dec!("0.4"),
-                            k_out: dec!("1"),
-                            fee: dec!("0"),
-                            decay_factor: dec!("0.9512"),
-                        },
-                        dec!(1),
-                        defiplaza_v2_pool_package,
-                        &mut env,
-                    )?;
+            let defiplaza_v2_pools = resource_addresses.try_map(|resource_address| {
+                let mut defiplaza_pool = DefiPlazaV2PoolInterfaceScryptoTestStub::instantiate_pair(
+                    OwnerRole::None,
+                    *resource_address,
+                    XRD,
+                    // This pair config is obtained from DefiPlaza's
+                    // repo.
+                    PairConfig {
+                        k_in: dec!("0.4"),
+                        k_out: dec!("1"),
+                        fee: dec!("0"),
+                        decay_factor: dec!("0.9512"),
+                    },
+                    dec!(1),
+                    defiplaza_v2_pool_package,
+                    &mut env,
+                )?;
 
-                    let resource_x = ResourceManager(*resource_address)
-                        .mint_fungible(dec!(100_000_000), &mut env)?;
-                    let resource_y = ResourceManager(XRD)
-                        .mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_x = ResourceManager(*resource_address)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_y = ResourceManager(XRD).mint_fungible(dec!(100_000_000), &mut env)?;
 
-                    let (_, change1) = defiplaza_pool
-                        .add_liquidity(resource_x, None, &mut env)?;
-                    let (_, change2) = defiplaza_pool
-                        .add_liquidity(resource_y, None, &mut env)?;
-                    let change_amount1 = change1
-                        .map(|bucket| bucket.amount(&mut env).unwrap())
-                        .unwrap_or_default();
-                    assert_eq!(change_amount1, dec!(0));
-                    let change_amount2 = change2
-                        .map(|bucket| bucket.amount(&mut env).unwrap())
-                        .unwrap_or_default();
-                    assert_eq!(change_amount2, dec!(0));
+                let (_, change1) = defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
+                let (_, change2) = defiplaza_pool.add_liquidity(resource_y, None, &mut env)?;
+                let change_amount1 = change1
+                    .map(|bucket| bucket.amount(&mut env).unwrap())
+                    .unwrap_or_default();
+                assert_eq!(change_amount1, dec!(0));
+                let change_amount2 = change2
+                    .map(|bucket| bucket.amount(&mut env).unwrap())
+                    .unwrap_or_default();
+                assert_eq!(change_amount2, dec!(0));
 
-                    Ok::<_, RuntimeError>(defiplaza_pool)
-                })?;
+                Ok::<_, RuntimeError>(defiplaza_pool)
+            })?;
 
             (
                 defiplaza_v2_pool_package,
@@ -799,10 +794,7 @@ impl ScryptoUnitEnv {
                                                 substate_updates: substates
                                                     .into_iter()
                                                     .map(|(db_sort_key, value)| {
-                                                        (
-                                                            db_sort_key,
-                                                            DatabaseUpdate::Set(value),
-                                                        )
+                                                        (db_sort_key, DatabaseUpdate::Set(value))
                                                     })
                                                     .collect(),
                                             },
@@ -1283,8 +1275,7 @@ impl ScryptoUnitEnv {
                             protocol_manager_rule,
                             XRD,
                             simple_oracle,
-                            configuration
-                                .maximum_allowed_price_staleness_in_seconds_seconds,
+                            configuration.maximum_allowed_price_staleness_in_seconds_seconds,
                             configuration.maximum_allowed_relative_price_difference,
                             InitializationParametersManifest::default(),
                             None::<ManifestAddressReservation>,
@@ -1368,22 +1359,25 @@ impl ScryptoUnitEnv {
                     method_name: "lock_fee".into(),
                     args: manifest_args!(dec!(100)).into(),
                 })
-                .chain(caviarnine_v1_pools.iter().map(|address| {
-                    InstructionV1::CallMethod {
-                        address: caviarnine_v1_adapter_v2.into(),
-                        method_name: "preload_pool_information".to_owned(),
-                        args: manifest_args!(address).into(),
-                    }
-                }))
-                .chain(caviarnine_v1_pools.iter().map(|address| {
-                    InstructionV1::CallMethod {
-                        address: caviarnine_v1_adapter_v2.into(),
-                        method_name:
-                            "upsert_preferred_total_number_of_higher_and_lower_bins"
+                .chain(
+                    caviarnine_v1_pools
+                        .iter()
+                        .map(|address| InstructionV1::CallMethod {
+                            address: caviarnine_v1_adapter_v2.into(),
+                            method_name: "preload_pool_information".to_owned(),
+                            args: manifest_args!(address).into(),
+                        }),
+                )
+                .chain(
+                    caviarnine_v1_pools
+                        .iter()
+                        .map(|address| InstructionV1::CallMethod {
+                            address: caviarnine_v1_adapter_v2.into(),
+                            method_name: "upsert_preferred_total_number_of_higher_and_lower_bins"
                                 .to_owned(),
-                        args: manifest_args!(address, 30u32 * 2u32).into(),
-                    }
-                }))
+                            args: manifest_args!(address, 30u32 * 2u32).into(),
+                        }),
+                )
                 .collect(),
                 blobs: Default::default(),
             })

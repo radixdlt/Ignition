@@ -103,9 +103,7 @@ fn all_ignition_entities_are_linked_to_the_dapp_definition_in_accordance_with_th
     )) =
         ledger.get_metadata(dapp_definition_account.into(), "claimed_entities")
     else {
-        panic!(
-            "Dapp definition claimed entities either does not exist or is not an array"
-        )
+        panic!("Dapp definition claimed entities either does not exist or is not an array")
     };
     assert_eq!(dapp_definition_account_type, "dapp definition");
     assert_eq!(

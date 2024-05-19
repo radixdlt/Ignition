@@ -17,10 +17,8 @@
 
 #![allow(clippy::arithmetic_side_effects, clippy::too_many_arguments)]
 
-use defiplaza_v2_adapter_v1::*;
 use ignition::{InitializationParametersManifest, PoolBlueprintInformation};
 use itertools::*;
-use ociswap_v2_adapter_v1::OciswapV2PoolInterfaceManifestBuilderExtensionTrait;
 use package_loader::*;
 use radix_common::prelude::*;
 use radix_engine::blueprints::package::*;
@@ -87,86 +85,95 @@ pub fn publish<N: NetworkConnectionProvider>(
         &signer_private_keys,
     );
 
-    // Creating the dApp definition account. The owner role will be set to the
-    // ephemeral private key and then switched to the protocol owner and manager
-    // at the end
-    let dapp_definition_account = {
-        let manifest = ManifestBuilder::new()
-            .allocate_global_address(
-                ACCOUNT_PACKAGE,
-                ACCOUNT_BLUEPRINT,
-                "reservation",
-                "named_address",
-            )
-            .then(|builder| {
-                let reservation = builder.address_reservation("reservation");
-                let named_address = builder.named_address("named_address");
+    let dapp_definition_account = match configuration.dapp_definition {
+        DappDefinitionHandling::UseExistingOneWayLink { component_address } => {
+            component_address
+        }
 
-                let mut builder = builder
-                    .call_function(
-                        ACCOUNT_PACKAGE,
-                        ACCOUNT_BLUEPRINT,
-                        ACCOUNT_CREATE_ADVANCED_IDENT,
-                        AccountCreateAdvancedManifestInput {
-                            address_reservation: Some(reservation),
-                            owner_role: OwnerRole::Updatable(rule!(require(
-                                NonFungibleGlobalId::from_public_key(
-                                    &ephemeral_private_key.public_key()
-                                )
-                            ))),
-                        },
-                    )
-                    .call_metadata_method(
-                        named_address,
-                        METADATA_SET_IDENT,
-                        MetadataSetInput {
-                            key: "account_type".to_owned(),
-                            value: MetadataValue::String(
-                                "dapp definition".to_owned(),
-                            ),
-                        },
-                    )
-                    .call_metadata_method(
-                        named_address,
-                        METADATA_SET_IDENT,
-                        MetadataSetInput {
-                            key: "claimed_websites".to_owned(),
-                            value: MetadataValue::OriginArray(vec![]),
-                        },
-                    )
-                    .call_metadata_method(
-                        named_address,
-                        METADATA_SET_IDENT,
-                        MetadataSetInput {
-                            key: "dapp_definitions".to_owned(),
-                            value: MetadataValue::GlobalAddressArray(vec![]),
-                        },
-                    );
+        // Creating the dApp definition account. The owner role will be set to
+        // the ephemeral private key and then switched to the protocol owner and
+        // manager at the end.
+        DappDefinitionHandling::CreateNew { ref metadata } => {
+            let manifest = ManifestBuilder::new()
+                .allocate_global_address(
+                    ACCOUNT_PACKAGE,
+                    ACCOUNT_BLUEPRINT,
+                    "reservation",
+                    "named_address",
+                )
+                .then(|builder| {
+                    let reservation =
+                        builder.address_reservation("reservation");
+                    let named_address = builder.named_address("named_address");
 
-                for (key, value) in
-                    configuration.dapp_definition_metadata.iter()
-                {
-                    builder = builder.call_metadata_method(
-                        named_address,
-                        METADATA_SET_IDENT,
-                        MetadataSetInput {
-                            key: key.to_owned(),
-                            value: value.clone(),
-                        },
-                    )
-                }
+                    let mut builder = builder
+                        .call_function(
+                            ACCOUNT_PACKAGE,
+                            ACCOUNT_BLUEPRINT,
+                            ACCOUNT_CREATE_ADVANCED_IDENT,
+                            AccountCreateAdvancedManifestInput {
+                                address_reservation: Some(reservation),
+                                owner_role: OwnerRole::Updatable(rule!(
+                                    require(
+                                        NonFungibleGlobalId::from_public_key(
+                                            &ephemeral_private_key.public_key()
+                                        )
+                                    )
+                                )),
+                            },
+                        )
+                        .call_metadata_method(
+                            named_address,
+                            METADATA_SET_IDENT,
+                            MetadataSetInput {
+                                key: "account_type".to_owned(),
+                                value: MetadataValue::String(
+                                    "dapp definition".to_owned(),
+                                ),
+                            },
+                        )
+                        .call_metadata_method(
+                            named_address,
+                            METADATA_SET_IDENT,
+                            MetadataSetInput {
+                                key: "claimed_websites".to_owned(),
+                                value: MetadataValue::OriginArray(vec![]),
+                            },
+                        )
+                        .call_metadata_method(
+                            named_address,
+                            METADATA_SET_IDENT,
+                            MetadataSetInput {
+                                key: "dapp_definitions".to_owned(),
+                                value: MetadataValue::GlobalAddressArray(
+                                    vec![],
+                                ),
+                            },
+                        );
 
-                builder
-            })
-            .build();
+                    for (key, value) in metadata.iter() {
+                        builder = builder.call_metadata_method(
+                            named_address,
+                            METADATA_SET_IDENT,
+                            MetadataSetInput {
+                                key: key.to_owned(),
+                                value: value.clone(),
+                            },
+                        )
+                    }
 
-        execution_service
-            .execute_manifest(manifest.clone())?
-            .new_entities
-            .new_component_addresses
-            .first()
-            .copied()
-            .expect("Must succeed!")
+                    builder
+                })
+                .build();
+
+            execution_service
+                .execute_manifest(manifest.clone())?
+                .new_entities
+                .new_component_addresses
+                .first()
+                .copied()
+                .expect("Must succeed!")
+        }
     };
 
     // Handling the creation of the user resources if they need to be created.
@@ -511,7 +518,9 @@ pub fn publish<N: NetworkConnectionProvider>(
             .into_map()
             .into_iter()
             .filter_map(|(key, value)| {
-                if let PackageHandling::UseExisting { package_address } = value
+                if let PackageHandling::UseExisting {
+                    blueprint_id: package_address,
+                } = value
                 {
                     Some((key.to_owned(), package_address.clone()))
                 } else {
@@ -552,25 +561,6 @@ pub fn publish<N: NetworkConnectionProvider>(
     };
 
     let resolved_exchange_data = ExchangeIndexedData {
-        ociswap_v2: handle_ociswap_v2_exchange_information(
-            &mut execution_service,
-            configuration.exchange_information.ociswap_v2.as_ref(),
-            dapp_definition_account,
-            &resolved_rules,
-            &resolved_package_global_caller_rules,
-            &resolved_user_resources,
-            configuration.protocol_configuration.protocol_resource,
-            &configuration.additional_information,
-        )?,
-        defiplaza_v2: handle_defiplaza_v2_exchange_information(
-            &mut execution_service,
-            configuration.exchange_information.defiplaza_v2.as_ref(),
-            dapp_definition_account,
-            &resolved_rules,
-            &resolved_package_global_caller_rules,
-            &resolved_user_resources,
-            configuration.protocol_configuration.protocol_resource,
-        )?,
         caviarnine_v1: handle_caviarnine_v1_exchange_information(
             &mut execution_service,
             configuration.exchange_information.caviarnine_v1.as_ref(),
@@ -828,283 +818,37 @@ pub fn publish<N: NetworkConnectionProvider>(
         exchange_adapter_entities: resolved_adapter_component_addresses,
     };
 
-    // Submitting the defiplaza pool pair config to the adapter
-    {
-        if let Some(ref defiplaza_v2_exchange_information) =
-            resolved_exchange_data.defiplaza_v2
-        {
-            let pair_config = execution_service
-                .with_network_connection_provider(|provider| {
-                    defiplaza_v2_exchange_information.pools.try_map(|address| {
-                        provider.read_component_state::<PlazaPair>(*address)
-                    })
-                })?;
-
-            let pair_config_map = defiplaza_v2_exchange_information
-                .pools
-                .zip(pair_config)
-                .iter()
-                .map(|(pool_address, plaza_pair)| {
-                    (*pool_address, plaza_pair.config)
-                })
-                .collect::<IndexMap<_, _>>();
-
-            let manifest = ManifestBuilder::new()
-                .create_proof_from_account_of_amount(
-                    resolved_badges.protocol_manager_badge.0,
-                    resolved_badges.protocol_manager_badge.1,
-                    dec!(1),
-                )
-                .call_method(
-                    resolved_adapter_component_addresses.defiplaza_v2,
-                    "add_pair_configs",
-                    (pair_config_map,),
-                )
-                .build();
-            execution_service.execute_manifest(manifest)?;
-        }
-    }
-
     // Caching the information of the Caviarnine pools
     {
         if let Some(ExchangeInformation { pools, .. }) =
             resolved_exchange_data.caviarnine_v1
         {
-            let instructions = pools
-                .iter()
-                .map(|address| InstructionV1::CallMethod {
-                    address: resolved_adapter_component_addresses
-                        .caviarnine_v1
-                        .into(),
-                    method_name: "preload_pool_information".to_owned(),
-                    args: to_manifest_value(&(*address,)).expect("Can't fail!"),
-                })
-                .collect::<Vec<_>>();
-            let manifest = TransactionManifestV1 {
-                instructions,
-                blobs: Default::default(),
-            };
-            execution_service.execute_manifest(manifest)?;
-        }
-    }
-
-    // Setting the dApp definition metadata
-    {
-        let claimed_entities = resolved_badges
-            .iter()
-            .map(|(_, address)| GlobalAddress::from(*address))
-            .chain(resolved_blueprint_ids.exchange_adapter_entities.iter().map(
-                |blueprint_id| {
-                    GlobalAddress::from(blueprint_id.package_address)
-                },
-            ))
-            .chain(resolved_blueprint_ids.protocol_entities.iter().map(
-                |blueprint_id| {
-                    GlobalAddress::from(blueprint_id.package_address)
-                },
-            ))
-            .chain(resolved_exchange_data.iter().filter_map(|information| {
-                information.as_ref().map(|information| {
-                    GlobalAddress::from(information.liquidity_receipt)
-                })
-            }))
-            .chain(
-                resolved_entity_component_addresses
-                    .exchange_adapter_entities
-                    .iter()
-                    .map(|component_address| {
-                        GlobalAddress::from(*component_address)
-                    }),
-            )
-            .chain(
-                resolved_entity_component_addresses
-                    .protocol_entities
-                    .iter()
-                    .map(|component_address| {
-                        GlobalAddress::from(*component_address)
-                    }),
-            )
-            .collect::<Vec<_>>();
-
-        let manifest = ManifestBuilder::new()
-            .create_proof_from_account_of_amount(
-                resolved_badges.protocol_owner_badge.0,
-                resolved_badges.protocol_owner_badge.1,
-                dec!(1),
-            )
-            .set_metadata(
-                dapp_definition_account,
-                "claimed_entities",
-                claimed_entities,
-            )
-            .set_owner_role(
-                dapp_definition_account,
-                resolved_rules.protocol_owner_badge.clone(),
-            )
-            .lock_owner_role(dapp_definition_account)
-            .build();
-        execution_service.execute_manifest(manifest)?;
-    }
-
-    // Processing the additional operations specified in the publishing config
-    {
-        // Submitting prices to the oracle with (user_asset, protocol_asset)
-        // and (protocol_asset, user_asset) where the price of both is equal
-        // to one.
-        if configuration
-            .additional_operation_flags
-            .contains(AdditionalOperationFlags::SUBMIT_ORACLE_PRICES_OF_ONE)
-        {
-            let price_updates = resolved_user_resources
-                .iter()
-                .copied()
-                .flat_map(|address| {
-                    [
-                        (
-                            address,
-                            configuration
-                                .protocol_configuration
-                                .protocol_resource,
-                        ),
-                        (
-                            configuration
-                                .protocol_configuration
-                                .protocol_resource,
-                            address,
-                        ),
-                    ]
-                })
-                .map(|address_pair| (address_pair, dec!(1)))
-                .collect::<IndexMap<_, _>>();
-
             let manifest = ManifestBuilder::new()
-                .create_proof_from_account_of_amount(
-                    resolved_badges.oracle_manager_badge.0,
-                    resolved_badges.oracle_manager_badge.1,
-                    dec!(1),
-                )
-                .call_method(
-                    resolved_entity_component_addresses
-                        .protocol_entities
-                        .simple_oracle,
-                    "set_price_batch",
-                    (price_updates,),
-                )
-                .build();
-            execution_service.execute_manifest(manifest)?;
-        }
-
-        // Seeding Ignition with the initial set of XRD if requested.
-        if configuration.additional_operation_flags.contains(
-            AdditionalOperationFlags::PROVIDE_INITIAL_IGNITION_LIQUIDITY,
-        ) {
-            let total_amount_of_protocol_resource = dec!(10_000);
-            let mut manifest_builder = ManifestBuilder::new()
                 .create_proof_from_account_of_amount(
                     resolved_badges.protocol_owner_badge.0,
                     resolved_badges.protocol_owner_badge.1,
                     dec!(1),
-                );
-            if configuration.protocol_configuration.protocol_resource == XRD {
-                manifest_builder = manifest_builder.get_free_xrd_from_faucet()
-            } else {
-                manifest_builder = manifest_builder.mint_fungible(
-                    configuration.protocol_configuration.protocol_resource,
-                    total_amount_of_protocol_resource,
                 )
-            }
-
-            let manifest = manifest_builder
-                .take_from_worktop(
-                    XRD,
-                    total_amount_of_protocol_resource / 2,
-                    "volatile",
-                )
-                .take_from_worktop(
-                    XRD,
-                    total_amount_of_protocol_resource / 2,
-                    "non_volatile",
-                )
-                .with_name_lookup(|builder, _| {
-                    let volatile = builder.bucket("volatile");
-                    let non_volatile = builder.bucket("non_volatile");
-
-                    builder
-                        .call_method(
-                            resolved_entity_component_addresses
-                                .protocol_entities
-                                .ignition,
-                            "deposit_protocol_resources",
-                            (volatile, common::prelude::Volatility::Volatile),
+                .then(|builder| {
+                    pools.iter().fold(builder, |builder, pool| {
+                        builder.call_method(
+                            resolved_adapter_component_addresses.caviarnine_v1,
+                            "preload_pool_information",
+                            (pool,),
                         )
-                        .call_method(
-                            resolved_entity_component_addresses
-                                .protocol_entities
-                                .ignition,
-                            "deposit_protocol_resources",
-                            (
-                                non_volatile,
-                                common::prelude::Volatility::NonVolatile,
-                            ),
+                    })
+                })
+                .then(|builder| {
+                    pools.iter().fold(builder, |builder, pool| {
+                        builder.call_method(
+                            resolved_adapter_component_addresses.caviarnine_v1,
+                            "upsert_preferred_total_number_of_higher_and_lower_bins",
+                            (pool, 7u32 * 2u32),
                         )
+                    })
                 })
                 .build();
             execution_service.execute_manifest(manifest)?;
-        }
-
-        // Contributing initial liquidity to Ociswap if requested
-        if configuration.additional_operation_flags.contains(
-            AdditionalOperationFlags::PROVIDE_INITIAL_LIQUIDITY_TO_OCISWAP_BY_MINTING_USER_RESOURCE,
-        ) {
-            if let Some(ExchangeInformation { pools, .. }) = resolved_exchange_data.ociswap_v2 {
-                for (pool_address, user_resource_address) in
-                    pools.zip_borrowed(&resolved_user_resources).iter()
-                {
-                    let (pool_address, user_resource_address) =
-                        (*pool_address, **user_resource_address);
-
-                    let mut manifest_builder = ManifestBuilder::new();
-                    if configuration.protocol_configuration.protocol_resource == XRD {
-                        manifest_builder = manifest_builder.get_free_xrd_from_faucet()
-                    } else {
-                        manifest_builder = manifest_builder.mint_fungible(
-                            configuration.protocol_configuration.protocol_resource,
-                            dec!(10_000),
-                        )
-                    }
-                    let manifest = manifest_builder
-                        .mint_fungible(user_resource_address, dec!(10_000))
-                        .take_all_from_worktop(
-                            configuration.protocol_configuration.protocol_resource,
-                            "protocol",
-                        )
-                        .take_all_from_worktop(user_resource_address, "user")
-                        .then(|builder| {
-                            let protocol_resource = builder.bucket("protocol");
-                            let user_resource = builder.bucket("user");
-
-                            let (x_bucket, y_bucket) =
-                                if configuration.protocol_configuration.protocol_resource
-                                    < user_resource_address
-                                {
-                                    (protocol_resource, user_resource)
-                                } else {
-                                    (user_resource, protocol_resource)
-                                };
-
-                            builder.ociswap_v2_pool_add_liquidity(
-                                pool_address,
-                                -3921i32,
-                                9942i32,
-                                x_bucket,
-                                y_bucket,
-                            )
-                        })
-                        .try_deposit_entire_worktop_or_abort(ephemeral_account, None)
-                        .build();
-                    execution_service.execute_manifest(manifest)?;
-                }
-            }
         }
     }
 
@@ -1178,220 +922,6 @@ pub fn publish<N: NetworkConnectionProvider>(
         user_resources: resolved_user_resources,
         badges: resolved_badges.map(|(_, address)| *address),
     })
-}
-
-fn handle_ociswap_v2_exchange_information<N: NetworkConnectionProvider>(
-    execution_service: &mut ExecutionService<N>,
-    exchange_information: Option<
-        &ExchangeInformation<PoolHandling, LiquidityReceiptHandling>,
-    >,
-    dapp_definition: ComponentAddress,
-    badge_rules: &BadgeIndexedData<AccessRule>,
-    entity_package_caller_rules: &Entities<AccessRule>,
-    user_resources: &UserResourceIndexedData<ResourceAddress>,
-    protocol_resource: ResourceAddress,
-    additional_information: &AdditionalInformation,
-) -> Result<
-    Option<ExchangeInformation<ComponentAddress, ResourceAddress>>,
-    ExecutionServiceError<<N as NetworkConnectionProvider>::Error>,
-> {
-    // No ociswap registry component is passed even through it is needed.
-    let AdditionalInformation {
-        ociswap_v2_registry_component_and_dapp_definition:
-            Some((
-                ociswap_v2_registry_component,
-                ociswap_v2_dapp_definition_account,
-            )),
-    } = additional_information
-    else {
-        return Ok(None);
-    };
-
-    match exchange_information {
-        Some(exchange_information) => {
-            // Create the liquidity receipt if it needs to be created.
-            let liquidity_receipt = match exchange_information.liquidity_receipt
-            {
-                LiquidityReceiptHandling::CreateNew {
-                    ref non_fungible_schema,
-                    ref metadata,
-                } => handle_liquidity_receipt_creation(
-                    execution_service,
-                    non_fungible_schema,
-                    metadata,
-                    dapp_definition,
-                    badge_rules,
-                    entity_package_caller_rules,
-                )?,
-                LiquidityReceiptHandling::UseExisting { resource_address } => {
-                    resource_address
-                }
-            };
-
-            // Creating the liquidity pools that need to be created
-            let pools =
-                exchange_information.pools.zip(*user_resources).try_map(
-                    |(pool_handling, user_resource_address)| -> Result<
-                        ComponentAddress,
-                        ExecutionServiceError<
-                            <N as NetworkConnectionProvider>::Error,
-                        >,
-                    > {
-                        let (resource_x, resource_y) =
-                            if *user_resource_address > protocol_resource {
-                                (protocol_resource, *user_resource_address)
-                            } else {
-                                (*user_resource_address, protocol_resource)
-                            };
-
-                        match pool_handling {
-                            PoolHandling::Create => {
-                                let manifest = ManifestBuilder::new()
-                                    .call_function(
-                                        exchange_information
-                                            .blueprint_id
-                                            .package_address,
-                                        exchange_information
-                                            .blueprint_id
-                                            .blueprint_name
-                                            .clone(),
-                                        "instantiate",
-                                        (
-                                            resource_x,
-                                            resource_y,
-                                            pdec!(1.4142135624),
-                                            dec!(0.01),
-                                            dec!(0.009),
-                                            ociswap_v2_registry_component,
-                                            Vec::<(
-                                                ComponentAddress,
-                                                ManifestBucket,
-                                            )>::new(
-                                            ),
-                                            ociswap_v2_dapp_definition_account,
-                                        ),
-                                    )
-                                    .build();
-
-                                Ok(execution_service
-                                    .execute_manifest(manifest)?
-                                    .new_entities
-                                    .new_component_addresses
-                                    .first()
-                                    .copied()
-                                    .unwrap())
-                            }
-                            PoolHandling::UseExisting { pool_address } => {
-                                Ok(*pool_address)
-                            }
-                        }
-                    },
-                )?;
-
-            Ok(Some(ExchangeInformation {
-                blueprint_id: exchange_information.blueprint_id.clone(),
-                pools,
-                liquidity_receipt,
-            }))
-        }
-        None => Ok(None),
-    }
-}
-
-fn handle_defiplaza_v2_exchange_information<N: NetworkConnectionProvider>(
-    execution_service: &mut ExecutionService<N>,
-    exchange_information: Option<
-        &ExchangeInformation<PoolHandling, LiquidityReceiptHandling>,
-    >,
-    dapp_definition: ComponentAddress,
-    badge_rules: &BadgeIndexedData<AccessRule>,
-    entity_package_caller_rules: &Entities<AccessRule>,
-    user_resources: &UserResourceIndexedData<ResourceAddress>,
-    protocol_resource: ResourceAddress,
-) -> Result<
-    Option<ExchangeInformation<ComponentAddress, ResourceAddress>>,
-    ExecutionServiceError<<N as NetworkConnectionProvider>::Error>,
-> {
-    match exchange_information {
-        Some(exchange_information) => {
-            // Create the liquidity receipt if it needs to be created.
-            let liquidity_receipt = match exchange_information.liquidity_receipt
-            {
-                LiquidityReceiptHandling::CreateNew {
-                    ref non_fungible_schema,
-                    ref metadata,
-                } => handle_liquidity_receipt_creation(
-                    execution_service,
-                    non_fungible_schema,
-                    metadata,
-                    dapp_definition,
-                    badge_rules,
-                    entity_package_caller_rules,
-                )?,
-                LiquidityReceiptHandling::UseExisting { resource_address } => {
-                    resource_address
-                }
-            };
-
-            // Creating the liquidity pools that need to be created
-            let pools =
-                exchange_information.pools.zip(*user_resources).try_map(
-                    |(pool_handling, user_resource_address)| -> Result<
-                        ComponentAddress,
-                        ExecutionServiceError<
-                            <N as NetworkConnectionProvider>::Error,
-                        >,
-                    > {
-                        match pool_handling {
-                            PoolHandling::Create => {
-                                let manifest = ManifestBuilder::new()
-                                    .call_function(
-                                        exchange_information
-                                            .blueprint_id
-                                            .package_address,
-                                        exchange_information
-                                            .blueprint_id
-                                            .blueprint_name
-                                            .clone(),
-                                        "instantiate_pair",
-                                        (
-                                            OwnerRole::None,
-                                            user_resource_address,
-                                            protocol_resource,
-                                            PairConfig {
-                                                k_in: dec!(1),
-                                                k_out: dec!(1.5),
-                                                fee: dec!(0.01),
-                                                decay_factor: dec!(0.9995),
-                                            },
-                                            dec!(1),
-                                        ),
-                                    )
-                                    .build();
-
-                                Ok(execution_service
-                                    .execute_manifest(manifest)?
-                                    .new_entities
-                                    .new_component_addresses
-                                    .first()
-                                    .copied()
-                                    .unwrap())
-                            }
-                            PoolHandling::UseExisting { pool_address } => {
-                                Ok(*pool_address)
-                            }
-                        }
-                    },
-                )?;
-
-            Ok(Some(ExchangeInformation {
-                blueprint_id: exchange_information.blueprint_id.clone(),
-                pools,
-                liquidity_receipt,
-            }))
-        }
-        None => Ok(None),
-    }
 }
 
 fn handle_caviarnine_v1_exchange_information<N: NetworkConnectionProvider>(

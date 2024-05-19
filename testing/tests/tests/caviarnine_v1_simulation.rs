@@ -1068,10 +1068,8 @@ fn test_effect_of_price_action_on_fees(
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(
-                            maturity_instant.seconds_since_unix_epoch / 60,
-                        )
-                        .unwrap(),
+                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
+                            .unwrap(),
                     },
                 ),
             )
@@ -1230,10 +1228,8 @@ mod mainnet_state {
         let decoder = AddressBech32Decoder::new(&network_definition);
 
         let pools = ResourceInformation {
-            bitcoin:
-                "component_rdx1cr4nrgchhqe9etjmyl6cvefc9mjpyxlu72xt0l0hdfjw3tm4z8esln",
-            ethereum:
-                "component_rdx1crennqxtn9axwfj4juccy9le0jw6m0fuyzdfu7vs5834f9nwtk5352",
+            bitcoin: "component_rdx1cr4nrgchhqe9etjmyl6cvefc9mjpyxlu72xt0l0hdfjw3tm4z8esln",
+            ethereum: "component_rdx1crennqxtn9axwfj4juccy9le0jw6m0fuyzdfu7vs5834f9nwtk5352",
             usdc: "component_rdx1czg0xynqq0kgfh9n4lpjtw2dtjxczdregez8vtwht6x3h0v9jzxg70",
             usdt: "component_rdx1czaa66y5nal99hsqwj3vkcvdv00q8g8dtrxjy82rfcj9g4pffxc4r4",
         };

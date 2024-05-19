@@ -241,10 +241,8 @@ fn can_close_a_liquidity_position_in_ociswap_that_fits_into_fee_limits() {
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(
-                            maturity_instant.seconds_since_unix_epoch / 60,
-                        )
-                        .unwrap(),
+                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
+                            .unwrap(),
                     },
                 ),
             )

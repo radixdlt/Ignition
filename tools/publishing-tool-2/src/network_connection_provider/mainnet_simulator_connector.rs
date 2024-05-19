@@ -24,6 +24,9 @@ use radix_engine::vm::*;
 use radix_engine_interface::prelude::*;
 use radix_substate_store_interface::db_key_mapper::*;
 use radix_transactions::prelude::*;
+use radix_transactions::validation::NotarizedTransactionValidator;
+use radix_transactions::validation::TransactionValidator;
+use radix_transactions::validation::ValidationConfig;
 use scrypto_test::prelude::*;
 use state_manager::store::*;
 
@@ -93,9 +96,18 @@ impl<'s> NetworkConnectionProvider for SimulatorNetworkConnector<'s> {
             MainnetSimulatorError::NotarizedTransactionRawFormatError,
         )?;
 
-        let transaction_receipt = self
-            .ledger_simulator
-            .execute_notarized_transaction(&raw_transaction);
+        let validator = NotarizedTransactionValidator::new(
+            ValidationConfig::default(self.network_definition.id),
+        );
+        let validated = validator
+            .validate_from_raw(&raw_transaction)
+            .expect("Expected raw transaction to be valid");
+        let transaction_receipt = self.ledger_simulator.execute_transaction(
+            validated.get_executable(),
+            ExecutionConfig::for_notarized_transaction(
+                self.network_definition.clone(),
+            ),
+        );
 
         let execution_receipt = match transaction_receipt.result {
             TransactionResult::Commit(CommitResult {
