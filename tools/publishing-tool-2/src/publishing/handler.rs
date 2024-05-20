@@ -472,7 +472,7 @@ pub fn publish<N: NetworkConnectionProvider>(
         }
 
         // Creating transactions of the batches
-        let mut addresses_map = IndexMap::<String, BlueprintId>::new();
+        let mut blueprint_id_map = IndexMap::<String, BlueprintId>::new();
         for batch in batches {
             let mut manifest_builder = ManifestBuilder::new();
             for (_, (code, definition, metadata, _)) in batch.iter() {
@@ -488,7 +488,7 @@ pub fn publish<N: NetworkConnectionProvider>(
             }
             let manifest = manifest_builder.build();
 
-            addresses_map.extend(
+            blueprint_id_map.extend(
                 execution_service
                     .execute_manifest(manifest.clone())?
                     .new_entities
@@ -512,31 +512,29 @@ pub fn publish<N: NetworkConnectionProvider>(
             );
         }
 
-        let addresses_map = configuration
+        let blueprint_id_map = configuration
             .packages
             .protocol_entities
             .into_map()
             .into_iter()
+            .chain(configuration.packages.exchange_adapter_entities.into_map())
             .filter_map(|(key, value)| {
-                if let PackageHandling::UseExisting {
-                    blueprint_id: package_address,
-                } = value
-                {
-                    Some((key.to_owned(), package_address.clone()))
+                if let PackageHandling::UseExisting { blueprint_id } = value {
+                    Some((key.to_owned(), blueprint_id.clone()))
                 } else {
                     None
                 }
             })
-            .chain(addresses_map)
+            .chain(blueprint_id_map)
             .collect::<IndexMap<_, _>>();
 
         Entities {
             protocol_entities: ProtocolIndexedData::from_map(
-                addresses_map.clone(),
+                blueprint_id_map.clone(),
             )
             .expect("Can't fail!"),
             exchange_adapter_entities: ExchangeIndexedData::from_map(
-                addresses_map,
+                blueprint_id_map,
             )
             .expect("Can't fail!"),
         }
@@ -638,54 +636,57 @@ pub fn publish<N: NetworkConnectionProvider>(
     };
 
     // Instantiating the oracle component
-    let oracle_component_address = {
-        let mut metadata_init = configuration
-            .protocol_configuration
-            .entities_metadata
-            .protocol_entities
-            .simple_oracle
-            .clone();
+    let oracle_component_address = match configuration.oracle_handling {
+        OracleHandling::UseExisting { component_address } => component_address,
+        OracleHandling::CreateNew => {
+            let mut metadata_init = configuration
+                .protocol_configuration
+                .entities_metadata
+                .protocol_entities
+                .simple_oracle
+                .clone();
 
-        metadata_init.data.insert(
-            "dapp_definition".to_owned(),
-            KeyValueStoreInitEntry {
-                value: Some(MetadataValue::GlobalAddress(
-                    dapp_definition_account.into(),
-                )),
-                lock: false,
-            },
-        );
+            metadata_init.data.insert(
+                "dapp_definition".to_owned(),
+                KeyValueStoreInitEntry {
+                    value: Some(MetadataValue::GlobalAddress(
+                        dapp_definition_account.into(),
+                    )),
+                    lock: false,
+                },
+            );
 
-        let manifest = ManifestBuilder::new()
-            .call_function(
-                resolved_blueprint_ids
-                    .protocol_entities
-                    .simple_oracle
-                    .package_address,
-                resolved_blueprint_ids
-                    .protocol_entities
-                    .simple_oracle
-                    .blueprint_name
-                    .clone(),
-                "instantiate",
-                (
-                    resolved_rules.oracle_manager_badge.clone(),
-                    metadata_init,
-                    OwnerRole::Fixed(
-                        resolved_rules.protocol_owner_badge.clone(),
+            let manifest = ManifestBuilder::new()
+                .call_function(
+                    resolved_blueprint_ids
+                        .protocol_entities
+                        .simple_oracle
+                        .package_address,
+                    resolved_blueprint_ids
+                        .protocol_entities
+                        .simple_oracle
+                        .blueprint_name
+                        .clone(),
+                    "instantiate",
+                    (
+                        resolved_rules.oracle_manager_badge.clone(),
+                        metadata_init,
+                        OwnerRole::Fixed(
+                            resolved_rules.protocol_owner_badge.clone(),
+                        ),
+                        None::<ManifestAddressReservation>,
                     ),
-                    None::<ManifestAddressReservation>,
-                ),
-            )
-            .build();
+                )
+                .build();
 
-        execution_service
-            .execute_manifest(manifest)?
-            .new_entities
-            .new_component_addresses
-            .first()
-            .copied()
-            .unwrap()
+            execution_service
+                .execute_manifest(manifest)?
+                .new_entities
+                .new_component_addresses
+                .first()
+                .copied()
+                .unwrap()
+        }
     };
 
     // Instantiating the Ignition component
@@ -825,8 +826,8 @@ pub fn publish<N: NetworkConnectionProvider>(
         {
             let manifest = ManifestBuilder::new()
                 .create_proof_from_account_of_amount(
-                    resolved_badges.protocol_owner_badge.0,
-                    resolved_badges.protocol_owner_badge.1,
+                    resolved_badges.protocol_manager_badge.0,
+                    resolved_badges.protocol_manager_badge.1,
                     dec!(1),
                 )
                 .then(|builder| {

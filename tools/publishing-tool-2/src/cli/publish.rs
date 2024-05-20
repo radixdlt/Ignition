@@ -23,7 +23,7 @@ use publishing_tool_2::publishing::*;
 use publishing_tool_2::utils::*;
 use radix_common::prelude::*;
 use radix_transactions::prelude::*;
-use state_manager::ActualStateManagerDatabase;
+use state_manager::*;
 use std::path::*;
 
 #[derive(Parser, Debug)]
@@ -89,9 +89,8 @@ impl Publish {
                 retries: 10,
             },
         );
-        // let receipt = publish(&configuration, &mut gateway_network_provider)?;
-        // writeln!(f, "{}", to_json(&receipt, &network_definition))
-        //     .map_err(Error::IoError)
-        Ok(())
+        let receipt = publish(&configuration, &mut gateway_network_provider)?;
+        writeln!(f, "{}", to_json(&receipt, &network_definition))
+            .map_err(Error::IoError)
     }
 }

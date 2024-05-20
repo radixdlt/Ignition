@@ -86,6 +86,7 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
                 GatewayExecutorError::TransactionHashBech32mEncoderError,
             )?
         };
+        println!("{intent_hash_string}");
 
         for _ in 0..self.polling_configuration.retries {
             let transaction_status_response = transaction_status(

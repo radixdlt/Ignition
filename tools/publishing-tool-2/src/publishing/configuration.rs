@@ -59,6 +59,16 @@ pub struct PublishingConfiguration {
     pub exchange_information: ExchangeIndexedData<
         Option<ExchangeInformation<PoolHandling, LiquidityReceiptHandling>>,
     >,
+
+    /// Defines how the tool should handle the oracle and whether it should
+    /// instantiate a new one or make use of an existing one.
+    pub oracle_handling: OracleHandling,
+}
+
+#[derive(Debug, Clone, ScryptoSbor)]
+pub enum OracleHandling {
+    UseExisting { component_address: ComponentAddress },
+    CreateNew,
 }
 
 #[derive(Debug, Clone, ScryptoSbor)]

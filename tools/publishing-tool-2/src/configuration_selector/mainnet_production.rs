@@ -198,5 +198,10 @@ pub fn mainnet_production(
                 },
             }),
         },
+        oracle_handling: OracleHandling::UseExisting {
+            component_address: component_address!(
+                "component_rdx1cr3psyfptwkktqusfg8ngtupr4wwfg32kz2xvh9tqh4c7pwkvlk2kn"
+            )
+        }
     }
 }
