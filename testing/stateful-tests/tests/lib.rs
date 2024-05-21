@@ -544,111 +544,19 @@ fn log_reported_price_from_defiplaza_pool(
 }
 
 #[apply(mainnet_test)]
-fn a_position_can_be_opened_in_the_lsu_lp_pool(
-    AccountAndControllingKey {
-        account_address: test_account,
-        controlling_key: test_account_private_key,
-    }: AccountAndControllingKey,
-    receipt: &PublishingReceipt,
-    ledger: &mut StatefulLedgerSimulator<'_>,
-) {
-    // Arrange
-    let pool_address = component_address!(
-        "component_rdx1crdhl7gel57erzgpdz3l3vr64scslq4z7vd0xgna6vh5fq5fnn9xas"
-    );
-    let lsu_lp_resource = resource_address!(
-        "resource_rdx1thksg5ng70g9mmy9ne7wz0sc7auzrrwy7fmgcxzel2gvp8pj0xxfmf"
-    );
-
-    ledger
-        .execute_manifest_without_auth(
-            ManifestBuilder::new()
-                .lock_fee(test_account, dec!(10))
-                /* Add a number of bins to the C9 adapter */
-                .call_method(
-                    receipt.components.exchange_adapter_entities.caviarnine_v1,
-                    "upsert_preferred_total_number_of_higher_and_lower_bins",
-                    (pool_address, 6u32 * 2),
-                )
-                /* Add the LSU LP as a user resource - it is non-volatile */
-                .call_method(
-                    receipt.components.protocol_entities.ignition,
-                    "insert_user_resource_volatility",
-                    (lsu_lp_resource, Volatility::NonVolatile),
-                )
-                /* Adding the pool to the list of allowed pools in Ignition */
-                .call_method(
-                    receipt.components.protocol_entities.ignition,
-                    "add_allowed_pool",
-                    (pool_address,),
-                )
-                /* Submitting a price point to the oracle for the LSU LP */
-                .call_method(
-                    receipt.components.protocol_entities.simple_oracle,
-                    "set_price",
-                    (lsu_lp_resource, XRD, dec!(1)),
-                )
-                /* Mint the LSU/LP resource. This is because we dont have LSUs */
-                .mint_fungible(lsu_lp_resource, 100_000)
-                /* Deposit the resources into the test account */
-                .deposit_batch(test_account)
-                .build(),
-        )
-        .expect_commit_success();
-
-    let current_epoch = ledger.get_current_epoch();
-
-    // Act
-    let transaction = TransactionBuilder::new()
-        .header(TransactionHeaderV1 {
-            network_id: 0xf2,
-            start_epoch_inclusive: current_epoch,
-            end_epoch_exclusive: current_epoch.after(10).unwrap(),
-            nonce: ledger.next_transaction_nonce(),
-            notary_public_key: test_account_private_key.public_key(),
-            notary_is_signatory: true,
-            tip_percentage: 0,
-        })
-        .manifest(
-            ManifestBuilder::new()
-                .lock_fee(test_account, dec!(10))
-                .withdraw_from_account(test_account, lsu_lp_resource, 100_000)
-                .take_all_from_worktop(lsu_lp_resource, "bucket")
-                .with_bucket("bucket", |builder, bucket| {
-                    builder.call_method(
-                        receipt.components.protocol_entities.ignition,
-                        "open_liquidity_position",
-                        (
-                            bucket,
-                            pool_address,
-                            LockupPeriod::from_months(9).unwrap(),
-                        ),
-                    )
-                })
-                .deposit_batch(test_account)
-                .build(),
-        )
-        .notarize(&test_account_private_key)
-        .build();
-    let receipt =
-        ledger.execute_notarized_transaction(&transaction.to_raw().unwrap());
-
-    // Assert
-    receipt.expect_commit_success();
-    println!(
-        "Opening a position in LSULP/XRD pool costs {} XRD in total with {} XRD in execution",
-        receipt.fee_summary.total_cost(),
-        receipt.fee_summary.total_execution_cost_in_xrd
-    );
-}
-
-#[apply(mainnet_test)]
 fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
     AccountAndControllingKey {
         account_address: test_account,
         controlling_key: test_account_private_key,
     }: AccountAndControllingKey,
-    receipt: &PublishingReceipt,
+    PublishingReceipt {
+        components:
+            Entities {
+                protocol_entities: ProtocolIndexedData { simple_oracle, .. },
+                ..
+            },
+        ..
+    }: &PublishingReceipt,
     ledger: &mut StatefulLedgerSimulator<'_>,
 ) {
     // Arrange
@@ -658,35 +566,42 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
     let lsu_lp_resource = resource_address!(
         "resource_rdx1thksg5ng70g9mmy9ne7wz0sc7auzrrwy7fmgcxzel2gvp8pj0xxfmf"
     );
+    let ignition_component = component_address!(
+        "component_rdx1cqtpf3tah2u9h4tdj35fx7u3wku0j2y7xzsaxcc7nhvdenkaqhfg56"
+    );
+    let liquidity_receipt = resource_address!(
+        "resource_rdx1nf0s0v9m8e2mcck3gyp6n4zudqx2yfdyhh6mj3xf3fkfrqtt0auw0p"
+    );
 
     ledger
         .execute_manifest_without_auth(
             ManifestBuilder::new()
                 .lock_fee(test_account, dec!(10))
-                /* Add a number of bins to the C9 adapter */
-                .call_method(
-                    receipt.components.exchange_adapter_entities.caviarnine_v1,
-                    "upsert_preferred_total_number_of_higher_and_lower_bins",
-                    (pool_address, 6u32 * 2),
-                )
-                /* Add the LSU LP as a user resource - it is non-volatile */
-                .call_method(
-                    receipt.components.protocol_entities.ignition,
-                    "insert_user_resource_volatility",
-                    (lsu_lp_resource, Volatility::NonVolatile),
-                )
-                /* Adding the pool to the list of allowed pools in Ignition */
-                .call_method(
-                    receipt.components.protocol_entities.ignition,
-                    "add_allowed_pool",
-                    (pool_address,),
-                )
                 /* Submitting a price point to the oracle for the LSU LP */
-                .call_method(
-                    receipt.components.protocol_entities.simple_oracle,
-                    "set_price",
-                    (lsu_lp_resource, XRD, dec!(1)),
-                )
+                .call_method(*simple_oracle, "set_price", (lsu_lp_resource, XRD, dec!(1)))
+                /* Fund Ignition */
+                .mint_fungible(XRD, dec!(200_000_000_000_000))
+                .take_from_worktop(XRD, dec!(100_000_000_000_000), "volatile")
+                .take_from_worktop(XRD, dec!(100_000_000_000_000), "non_volatile")
+                .with_name_lookup(|builder, _| {
+                    let volatile = builder.bucket("volatile");
+                    let non_volatile = builder.bucket("non_volatile");
+
+                    builder
+                        .call_method(
+                            ignition_component,
+                            "deposit_protocol_resources",
+                            (volatile, Volatility::Volatile),
+                        )
+                        .call_method(
+                            ignition_component,
+                            "deposit_protocol_resources",
+                            (non_volatile, Volatility::NonVolatile),
+                        )
+                })
+                /* Start Ignition */
+                .call_method(ignition_component, "set_is_open_position_enabled", (true,))
+                .call_method(ignition_component, "set_is_close_position_enabled", (true,))
                 /* Mint the LSU/LP resource. This is because we dont have LSUs */
                 .mint_fungible(lsu_lp_resource, 100_000)
                 /* Deposit the resources into the test account */
@@ -713,7 +628,7 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
                 .take_all_from_worktop(lsu_lp_resource, "bucket")
                 .with_bucket("bucket", |builder, bucket| {
                     builder.call_method(
-                        receipt.components.protocol_entities.ignition,
+                        ignition_component,
                         "open_liquidity_position",
                         (
                             bucket,
@@ -744,7 +659,7 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
             ManifestBuilder::new()
                 .lock_fee(test_account, dec!(10))
                 .call_method(
-                    receipt.components.protocol_entities.simple_oracle,
+                    *simple_oracle,
                     "set_price",
                     (lsu_lp_resource, XRD, dec!(1)),
                 )
@@ -765,28 +680,11 @@ fn a_position_can_be_opened_and_closed_in_the_lsu_lp_pool(
         .manifest(
             ManifestBuilder::new()
                 .lock_fee(test_account, dec!(10))
-                .withdraw_from_account(
-                    test_account,
-                    receipt
-                        .exchange_information
-                        .caviarnine_v1
-                        .as_ref()
-                        .unwrap()
-                        .liquidity_receipt,
-                    dec!(1),
-                )
-                .take_all_from_worktop(
-                    receipt
-                        .exchange_information
-                        .caviarnine_v1
-                        .as_ref()
-                        .unwrap()
-                        .liquidity_receipt,
-                    "bucket",
-                )
+                .withdraw_from_account(test_account, liquidity_receipt, dec!(1))
+                .take_all_from_worktop(liquidity_receipt, "bucket")
                 .with_bucket("bucket", |builder, bucket| {
                     builder.call_method(
-                        receipt.components.protocol_entities.ignition,
+                        ignition_component,
                         "close_liquidity_position",
                         (bucket,),
                     )
