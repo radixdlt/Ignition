@@ -19,11 +19,9 @@
 
 mod blueprint_interface;
 mod tick_math;
-mod tick_selector;
 
 pub use crate::blueprint_interface::*;
 pub use crate::tick_math::*;
-pub use crate::tick_selector::*;
 
 use common::prelude::*;
 use ports_interface::prelude::*;
@@ -40,7 +38,11 @@ macro_rules! define_error {
         )*
     ) => {
         $(
-            const $name: &'static str = concat!("[Caviarnine v1 Adapter v1]", " ", $item);
+            const $name: &'static str = concat!(
+                "[Caviarnine v1 Adapter v2]",
+                " ",
+                $item
+            );
         )*
     };
 }
@@ -51,6 +53,9 @@ define_error! {
     NO_PRICE_ERROR => "Pool has no price.";
     OVERFLOW_ERROR => "Overflow error.";
     INVALID_NUMBER_OF_BUCKETS => "Invalid number of buckets.";
+    POOL_HAS_NO_BIN_CONFIG
+        => "The provided pool does not a configured bin setup";
+    NO_ACTIVE_AMOUNTS => "No active amounts found for pool";
 }
 
 macro_rules! pool {
@@ -61,28 +66,32 @@ macro_rules! pool {
     };
 }
 
-/// The total number of bins that we will be using on the left and the right
-/// excluding the one in the middle. This number, in addition to the bin span
-/// of the pool determines how much upside and downside we're covering. The
-/// upside and downside we should cover is a business decision and its 20x up
-/// and down. To calculate how much bins are needed (on each side) we can do
-/// the following:
-///
-/// ```math
-/// bins_required = floor(log(value = multiplier, base = 1.0005) / (2 * bin_span))
-/// ```
-///
-/// In the case of a bin span of 50, the amount of bins we want to contribute to
-/// on each side is 60 bins (60L and 60R). Therefore, the amount of bins to
-/// contribute to is dependent on the bin span of the pool. However, in this
-/// implementation we assume pools of a fixed bin span of 50 since we can't find
-/// the number of bins required in Scrypto due to a missing implementation of a
-/// function for computing the log.
-pub const PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS: u32 = 30 * 2;
-
 #[blueprint_with_traits]
-#[types(ComponentAddress, PoolInformation, Decimal, PreciseDecimal)]
+#[types(ComponentAddress, PoolInformation, ContributionBinConfiguration)]
 pub mod adapter {
+    enable_method_auth! {
+        roles {
+            protocol_owner => updatable_by: [protocol_owner];
+            protocol_manager => updatable_by: [protocol_manager, protocol_owner];
+        },
+        methods {
+            /* Protected */
+            upsert_pool_contribution_bin_configuration
+                => restrict_to: [protocol_manager, protocol_owner];
+
+            /* Public */
+            liquidity_receipt_data => PUBLIC;
+            price_and_active_tick => PUBLIC;
+            open_liquidity_position => PUBLIC;
+            close_liquidity_position => PUBLIC;
+            price => PUBLIC;
+            resource_addresses => PUBLIC;
+            // This can be public because there is nothing that requires trust
+            // about the user input.
+            preload_pool_information => PUBLIC;
+        }
+    }
+
     struct CaviarnineV1Adapter {
         /// A cache of the information of the pool, this is done so that we do
         /// not need to query the pool's information each time. Note: I would've
@@ -90,12 +99,19 @@ pub mod adapter {
         /// we're pretty much forced to cache this data to get some fee gains.
         pool_information_cache:
             KeyValueStore<ComponentAddress, PoolInformation>,
+
+        /// A map that stores the bin range that contributions should go to for
+        /// a given pool. The key is the pool's component address and the value
+        /// is the start and end bins where the end bin must be strictly larger
+        /// than the start bin and can't be equal.
+        pool_contribution_bin_configuration:
+            KeyValueStore<ComponentAddress, ContributionBinConfiguration>,
     }
 
     impl CaviarnineV1Adapter {
         pub fn instantiate(
-            _: AccessRule,
-            _: AccessRule,
+            protocol_manager_rule: AccessRule,
+            protocol_owner_rule: AccessRule,
             metadata_init: MetadataInit,
             owner_role: OwnerRole,
             address_reservation: Option<GlobalAddressReservation>,
@@ -112,6 +128,8 @@ pub mod adapter {
             Self {
                 pool_information_cache: KeyValueStore::new_with_registered_type(
                 ),
+                pool_contribution_bin_configuration:
+                    KeyValueStore::new_with_registered_type(),
             }
             .instantiate()
             .prepare_to_globalize(owner_role)
@@ -119,8 +137,21 @@ pub mod adapter {
                 init: metadata_init,
                 roles: Default::default(),
             })
+            .roles(roles! {
+                protocol_manager => protocol_manager_rule;
+                protocol_owner => protocol_owner_rule;
+            })
             .with_address(address_reservation)
             .globalize()
+        }
+
+        pub fn upsert_pool_contribution_bin_configuration(
+            &mut self,
+            pool: ComponentAddress,
+            configuration: ContributionBinConfiguration,
+        ) {
+            self.pool_contribution_bin_configuration
+                .insert(pool, configuration)
         }
 
         pub fn preload_pool_information(
@@ -260,77 +291,45 @@ pub mod adapter {
             let amount_x = bucket_x.amount();
             let amount_y = bucket_y.amount();
 
-            // Select the bins that we will contribute to.
+            // The bins to contribute to are determined based on the input of
+            // the manager of the adapter. If an entry is not found for the pool
+            // then throw an error.
             let (price, active_tick) = self
                 .price_and_active_tick(pool_address, Some(pool_information))
                 .expect(NO_PRICE_ERROR);
+            let ContributionBinConfiguration {
+                start_tick: lowest_tick,
+                end_tick: highest_tick,
+            } = *self
+                .pool_contribution_bin_configuration
+                .get(&pool_address)
+                .expect(POOL_HAS_NO_BIN_CONFIG);
+            let lower_ticks = (lowest_tick..active_tick)
+                .step_by(bin_span as _)
+                .collect::<Vec<_>>();
+            let higher_ticks = (active_tick..=highest_tick)
+                .step_by(bin_span as _)
+                .collect::<Vec<_>>();
 
-            let SelectedTicks {
-                higher_ticks,
-                lower_ticks,
-                lowest_tick,
-                highest_tick,
-                ..
-            } = SelectedTicks::select(
-                active_tick,
-                bin_span,
-                PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS,
-            );
+            // Calculating the liquidity value (L) based on the bins to add
+            // liquidity to and also calculate the amounts of the X and Y tokens
+            // that can be contributed based on the L.
+            let (amount_x_to_contribute, amount_y_to_contribute) = {
+                let current_price = price;
+                let lowest_price =
+                    tick_to_spot(lowest_tick).expect(OVERFLOW_ERROR);
+                let highest_price = highest_tick
+                    .checked_add(bin_span)
+                    .and_then(tick_to_spot)
+                    .expect(OVERFLOW_ERROR);
 
-            // This function does not dictate the exact shape that the liquidity
-            // should be in. The invariant that this function ensures is that
-            // the L (L = sqrt(k)) is equal in all of the bins we contribute to
-            // and we don't care what shape of liquidity that corresponds to.
-            // It turns out that the shape of liquidity in this case is a
-            // triangle. As in, a graph whose X axis is the bins and Y axis is
-            // the amounts would be triangular and a graph whose X axis is the
-            // bins and Y axis is the L would be flat.
-            //
-            // We do this for one main reason. We would like liquidity provided
-            // through Caviarnine to be modeled in the same was as Uniswap v2.
-            // In Uniswap v2 the K is the same at all price points. Therefore,
-            // we can say that to model liquidity in the same manner as Uniswap
-            // v2 in Caviarnine then we would need to have an equal K in all of
-            // the bins, this is the invariant described in the paragraph above.
-            //
-            // Recall that all bins below the current price contain only Y and
-            // all bins above the current price contain only X and the bin where
-            // the current price lies contains a mixture of both.
-            //
-            // The code that follows calculates the value of liquidity of the
-            // left side (all Y) and the value of liquidity of the right side
-            // (all X). Note that the equations used below are all derived from
-            // the following quadric equation:
-            //
-            // (sqrt(pa) / sqrt(pb) - 1) * L^2 + (x*sqrt(pa) + y / sqrt(pb)) * L + xy = 0
-            //
-            // The equation for the left side can be derived by using the
-            // knowledge that it is entirely made up of Y and therefore X is
-            // zero. Similarly, we can derive the equation for the right side of
-            // liquidity by setting Y to zero.
-            //
-            // The equations we derive match the equations derived in the paper
-            // linked below in equations 5 and 9.
-            // https://atiselsts.github.io/pdfs/uniswap-v3-liquidity-math.pdf
-            //
-            // Lets refer to the equation that finds the left side of liquidity
-            // as Ly and to the one that finds the right side of liquidity as
-            // Lx. We will use those named in some of the comments that follow.
-            let current_price = price;
-            let lowest_price = tick_to_spot(lowest_tick).expect(OVERFLOW_ERROR);
-            let highest_price = highest_tick
-                .checked_add(bin_span)
-                .and_then(tick_to_spot)
-                .expect(OVERFLOW_ERROR);
+                let current_price_sqrt =
+                    current_price.checked_sqrt().expect(OVERFLOW_ERROR);
+                let lowest_price_sqrt =
+                    lowest_price.checked_sqrt().expect(OVERFLOW_ERROR);
+                let highest_price_sqrt =
+                    highest_price.checked_sqrt().expect(OVERFLOW_ERROR);
 
-            let current_price_sqrt =
-                current_price.checked_sqrt().expect(OVERFLOW_ERROR);
-            let lowest_price_sqrt =
-                lowest_price.checked_sqrt().expect(OVERFLOW_ERROR);
-            let highest_price_sqrt =
-                highest_price.checked_sqrt().expect(OVERFLOW_ERROR);
-
-            let liquidity = {
                 // This is equation 9 from the paper I shared above. Applied
                 // between the current price and the lowest price which is the
                 // range in which there is only Y.
@@ -357,139 +356,121 @@ pub mod adapter {
 
                 // We define the liquidity as the minimum of the X and Y
                 // liquidity such that the position is always balanced.
-                min(liquidity_x, liquidity_y)
-            };
+                let liquidity = min(liquidity_x, liquidity_y);
 
-            // At this point, we have found the Lx and the Ly. This tells the
-            // liquidity value that should be in each of the bins. We now
-            // compute the exact amount that should go into each of the bins
-            // based on what's been calculated above. For this, we will derive
-            // an equation for x from Lx and an equation for y from Ly.
-
-            // The first one that we compute is how much should add to the
-            // currently active bin.
-            let (active_bin_amount_x, active_bin_amount_y) = {
-                let bin_lower_tick = active_tick;
-                let bin_higher_tick =
-                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
-
-                let bin_lower_price =
-                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
-                let bin_higher_price =
-                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
-
-                let bin_lower_price_sqrt =
-                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
-                let bin_higher_price_sqrt =
-                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
-
-                let amount_y = current_price_sqrt
-                    .checked_sub(bin_lower_price_sqrt)
-                    .and_then(|price_sqrt_difference| {
-                        price_sqrt_difference.checked_mul(liquidity)
-                    })
-                    .expect(OVERFLOW_ERROR);
-
-                let amount_x = bin_higher_price_sqrt
+                // Calculate the amount of X to contribute. This is found based
+                // on equation 5 from the paper.
+                let amount_x_to_contribute = highest_price_sqrt
                     .checked_sub(current_price_sqrt)
-                    .and_then(|price_sqrt_difference| {
-                        price_sqrt_difference.checked_mul(liquidity)
-                    })
+                    .and_then(|value| value.checked_mul(liquidity))
                     .and_then(|nominator| {
                         let denominator = current_price_sqrt
-                            .checked_mul(bin_higher_price_sqrt)?;
+                            .checked_mul(highest_price_sqrt)?;
 
                         nominator.checked_div(denominator)
                     })
                     .expect(OVERFLOW_ERROR);
 
-                (amount_x, amount_y)
+                // Calculate the amount of Y to contribute. This is found based
+                // on equation 9 from the paper.
+                let amount_y_to_contribute = current_price_sqrt
+                    .checked_sub(lowest_price_sqrt)
+                    .and_then(|value| value.checked_mul(liquidity))
+                    .expect(OVERFLOW_ERROR);
+
+                (amount_x_to_contribute, amount_y_to_contribute)
             };
 
-            let mut remaining_x = amount_x
-                .checked_sub(active_bin_amount_x)
-                .expect(OVERFLOW_ERROR);
-            let mut remaining_y = amount_y
-                .checked_sub(active_bin_amount_y)
-                .expect(OVERFLOW_ERROR);
-            let mut positions =
-                vec![(active_tick, active_bin_amount_x, active_bin_amount_y)];
+            // We need to calculate the amount of resources that need to go into
+            // each of the bins. We have some amount of bins with just Y tokens
+            // and some with just X tokens and exactly one bin that contains
+            // both X and Y. We will treat that one bin with both X and Y as
+            // being a partially filled bin.
+            let (
+                (number_of_lower_ticks, number_of_higher_ticks),
+                (percentage_x_in_active_bin, percentage_y_in_active_bin),
+            ) = {
+                let (amount_x_active, amount_y_active) =
+                    pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS);
+                // amount_y / (amount_x * price + amount_y)
+                let percentage_y_in_active_bin = amount_x_active
+                    .checked_mul(price)
+                    .and_then(|value| value.checked_add(amount_y_active))
+                    .and_then(|value| amount_y_active.checked_div(value))
+                    .expect(OVERFLOW_ERROR);
+                let percentage_x_in_active_bin = Decimal::ONE
+                    .checked_sub(percentage_y_in_active_bin)
+                    .expect(OVERFLOW_ERROR);
 
-            // Finding the amount of Y to contribute to each one of the lower
-            // bins (contain only Y).
-            for bin_lower_tick in lower_ticks.iter().copied() {
-                let bin_higher_tick =
-                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
+                // Compute the amount of higher and lower bins to contribute
+                // to.
+                (
+                    (
+                        Decimal::from(lower_ticks.len() as u64)
+                            .checked_add(percentage_y_in_active_bin)
+                            .expect(OVERFLOW_ERROR),
+                        Decimal::from(higher_ticks.len() as u64)
+                            .checked_add(percentage_x_in_active_bin)
+                            .expect(OVERFLOW_ERROR),
+                    ),
+                    (percentage_x_in_active_bin, percentage_y_in_active_bin),
+                )
+            };
 
-                let bin_lower_price =
-                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
-                let bin_higher_price =
-                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
+            // Compute the positions
+            let positions = {
+                // Computing the amount of resources that should go into each
+                // of the whole bins
+                let amount_y_into_each_whole_bin = amount_y_to_contribute
+                    .checked_div(number_of_lower_ticks)
+                    .expect(OVERFLOW_ERROR);
+                let amount_x_into_each_whole_bin = amount_x_to_contribute
+                    .checked_div(number_of_higher_ticks)
+                    .expect(OVERFLOW_ERROR);
 
-                let bin_lower_price_sqrt =
-                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
-                let bin_higher_price_sqrt =
-                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
-
-                // Calculating the amount - we use min here so that if any loss
-                // of precision happens we do not end up exceeding the amount
-                // that we have in total. The equation used here is derived from
-                // the equation we named as Ly above.
-                let amount = min(
-                    bin_higher_price_sqrt
-                        .checked_sub(bin_lower_price_sqrt)
-                        .and_then(|price_sqrt_difference| {
-                            price_sqrt_difference.checked_mul(liquidity)
+                // Computing the amount of resources that should go into the
+                // currently active bin.
+                let amount_y_into_active_bin = min(
+                    amount_y_into_each_whole_bin
+                        .checked_mul(Decimal::from(lower_ticks.len() as u64))
+                        .and_then(|value| {
+                            amount_y_to_contribute.checked_sub(value)
                         })
                         .expect(OVERFLOW_ERROR),
-                    remaining_y,
+                    amount_y_into_each_whole_bin
+                        .checked_mul(percentage_y_in_active_bin)
+                        .expect(OVERFLOW_ERROR),
                 );
-                remaining_y =
-                    remaining_y.checked_sub(amount).expect(OVERFLOW_ERROR);
-
-                positions.push((bin_lower_tick, dec!(0), amount));
-            }
-
-            // Finding the amount of X to contribute to each one of the higher
-            // bins (contain only X).
-            for bin_lower_tick in higher_ticks.iter().copied() {
-                let bin_higher_tick =
-                    bin_lower_tick.checked_add(bin_span).expect(OVERFLOW_ERROR);
-
-                let bin_lower_price =
-                    tick_to_spot(bin_lower_tick).expect(OVERFLOW_ERROR);
-                let bin_higher_price =
-                    tick_to_spot(bin_higher_tick).expect(OVERFLOW_ERROR);
-
-                let bin_lower_price_sqrt =
-                    bin_lower_price.checked_sqrt().expect(OVERFLOW_ERROR);
-                let bin_higher_price_sqrt =
-                    bin_higher_price.checked_sqrt().expect(OVERFLOW_ERROR);
-
-                // Calculating the amount - we use min here so that if any loss
-                // of precision happens we do not end up exceeding the amount
-                // that we have in total. The equation used here is derived from
-                // the equation we named as Lx above.
-                let amount = min(
-                    bin_higher_price_sqrt
-                        .checked_sub(bin_lower_price_sqrt)
-                        .and_then(|price_sqrt_difference| {
-                            price_sqrt_difference.checked_mul(liquidity)
-                        })
-                        .and_then(|nominator| {
-                            let denominator = bin_lower_price_sqrt
-                                .checked_mul(bin_higher_price_sqrt)?;
-
-                            nominator.checked_div(denominator)
+                let amount_x_into_active_bin = min(
+                    amount_x_into_each_whole_bin
+                        .checked_mul(Decimal::from(higher_ticks.len() as u64))
+                        .and_then(|value| {
+                            amount_x_to_contribute.checked_sub(value)
                         })
                         .expect(OVERFLOW_ERROR),
-                    remaining_x,
+                    amount_x_into_each_whole_bin
+                        .checked_mul(percentage_x_in_active_bin)
+                        .expect(OVERFLOW_ERROR),
                 );
-                remaining_x =
-                    remaining_x.checked_sub(amount).expect(OVERFLOW_ERROR);
 
-                positions.push((bin_lower_tick, amount, dec!(0)));
-            }
+                // Computing the positions - we start with the active tick
+                std::iter::once((
+                    active_tick,
+                    amount_x_into_active_bin,
+                    amount_y_into_active_bin,
+                ))
+                // Lower ticks
+                .chain(lower_ticks.iter().map(|tick| {
+                    (*tick, Decimal::ZERO, amount_y_into_each_whole_bin)
+                }))
+                // Higher ticks
+                .chain(higher_ticks.iter().map(|tick| {
+                    (*tick, amount_x_into_each_whole_bin, Decimal::ZERO)
+                }))
+                // Collect
+                .collect::<Vec<_>>()
+            };
+            info!("{positions:#?}");
 
             let (receipt, change_x, change_y) =
                 pool.add_liquidity(bucket_x, bucket_y, positions.clone());
@@ -1017,6 +998,11 @@ fn calculate_bin_amount_using_liquidity(
     Some((new_x, new_y))
 }
 
+#[derive(Clone, Copy, Debug, ScryptoSbor)]
+pub struct ContributionBinConfiguration {
+    pub start_tick: u32,
+    pub end_tick: u32,
+}
 #[cfg(test)]
 mod test {
     use super::*;
