@@ -339,6 +339,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "caviarnine-v1-adapter-v2"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "ports-interface",
+ "radix-engine-interface",
+ "sbor",
+ "scrypto",
+ "scrypto-interface",
+ "scrypto-math",
+ "transaction",
+]
+
+[[package]]
 name = "cc"
 version = "1.0.90"
 source = "registry+https://github.com/rust-lang/crates.io-index"
