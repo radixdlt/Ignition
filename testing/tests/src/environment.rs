@@ -132,11 +132,12 @@ where
     const PACKAGES_BINARY: &'static [u8] =
         include_bytes!(concat!(env!("OUT_DIR"), "/uncompressed_state.bin"));
 
-    const PACKAGE_NAMES: [&'static str; 4] = [
+    const PACKAGE_NAMES: [&'static str; 5] = [
         "ignition",
         "simple-oracle",
         "ociswap-v1-adapter-v1",
         "caviarnine-v1-adapter-v1",
+        "caviarnine-v1-adapter-v2",
     ];
 
     const RESOURCE_DIVISIBILITIES: ResourceInformation<u8> =
@@ -194,9 +195,15 @@ impl ScryptoTestEnv {
             .map(|address| rule!(require(address)))?;
 
         // Publishing the various packages to the testing environment
-        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package, caviarnine_v1_adapter_v2_package] =
             Self::PACKAGE_NAMES
                 .map(|name| Self::publish_package(name, &mut env).unwrap());
+        let caviarnine_v1_adapter_package = match configuration
+            .caviarnine_adapter_version
+        {
+            CaviarnineAdapterVersion::One => caviarnine_v1_adapter_v1_package,
+            CaviarnineAdapterVersion::Two => caviarnine_v1_adapter_v2_package,
+        };
 
         // Creating the various resources and their associated pools.
         let resource_addresses =
@@ -541,13 +548,13 @@ impl ScryptoTestEnv {
             defiplaza_v2_adapter_v1_package,
             &mut env,
         )?;
-        let caviarnine_v1_adapter_v1 = CaviarnineV1Adapter::instantiate(
+        let caviarnine_v1_adapter = CaviarnineV1Adapter::instantiate(
             rule!(allow_all),
             rule!(allow_all),
             Default::default(),
             OwnerRole::None,
             None,
-            caviarnine_v1_adapter_v1_package,
+            caviarnine_v1_adapter_package,
             &mut env,
         )?;
 
@@ -687,7 +694,7 @@ impl ScryptoTestEnv {
                     caviarnine_v1_package,
                 ),
                 PoolBlueprintInformation {
-                    adapter: caviarnine_v1_adapter_v1.try_into().unwrap(),
+                    adapter: caviarnine_v1_adapter.try_into().unwrap(),
                     allowed_pools: caviarnine_v1_pools
                         .iter()
                         .map(|pool| pool.try_into().unwrap())
@@ -733,8 +740,8 @@ impl ScryptoTestEnv {
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,
                 pools: caviarnine_v1_pools,
-                adapter_package: caviarnine_v1_adapter_v1_package,
-                adapter: caviarnine_v1_adapter_v1,
+                adapter_package: caviarnine_v1_adapter_package,
+                adapter: caviarnine_v1_adapter,
                 liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         })
@@ -814,7 +821,7 @@ impl ScryptoUnitEnv {
         let protocol_manager_rule = rule!(require(protocol_manager_badge));
         let protocol_owner_rule = rule!(require(protocol_owner_badge));
 
-        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package] =
+        let [ignition_package, simple_oracle_package, ociswap_v1_adapter_v1_package, caviarnine_v1_adapter_v1_package, caviarnine_v1_adapter_v2_package] =
             Self::PACKAGE_NAMES.map(|package_name| {
                 let (code, definition) =
                     package_loader::PackageLoader::get(package_name);
@@ -824,6 +831,12 @@ impl ScryptoUnitEnv {
                     OwnerRole::None,
                 )
             });
+        let caviarnine_v1_adapter_package = match configuration
+            .caviarnine_adapter_version
+        {
+            CaviarnineAdapterVersion::One => caviarnine_v1_adapter_v1_package,
+            CaviarnineAdapterVersion::Two => caviarnine_v1_adapter_v2_package,
+        };
 
         let resource_addresses =
             Self::RESOURCE_DIVISIBILITIES.map(|divisibility| {
@@ -1280,12 +1293,12 @@ impl ScryptoUnitEnv {
             .copied()
             .unwrap();
 
-        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter_v1] =
+        let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter] =
             [
                 (ociswap_v1_adapter_v1_package, "OciswapV1Adapter"),
                 (ociswap_v2_adapter_v1_package, "OciswapV2Adapter"),
                 (defiplaza_v2_adapter_v1_package, "DefiPlazaV2Adapter"),
-                (caviarnine_v1_adapter_v1_package, "CaviarnineV1Adapter"),
+                (caviarnine_v1_adapter_package, "CaviarnineV1Adapter"),
             ]
             .map(|(package_address, blueprint_name)| {
                 ledger
@@ -1352,7 +1365,7 @@ impl ScryptoUnitEnv {
                     })
                     .chain(caviarnine_v1_pools.iter().map(|address| {
                         InstructionV1::CallMethod {
-                            address: caviarnine_v1_adapter_v1.into(),
+                            address: caviarnine_v1_adapter.into(),
                             method_name: "preload_pool_information".to_owned(),
                             args: manifest_args!(address).into(),
                         }
@@ -1455,7 +1468,7 @@ impl ScryptoUnitEnv {
                             "PlazaPair",
                         ),
                         (
-                            caviarnine_v1_adapter_v1,
+                            caviarnine_v1_adapter,
                             caviarnine_v1_pools,
                             caviarnine_v1_liquidity_receipt_resource,
                             caviarnine_v1_package,
@@ -1539,8 +1552,8 @@ impl ScryptoUnitEnv {
             caviarnine_v1: DexEntities {
                 package: caviarnine_v1_package,
                 pools: caviarnine_v1_pools,
-                adapter_package: caviarnine_v1_adapter_v1_package,
-                adapter: caviarnine_v1_adapter_v1,
+                adapter_package: caviarnine_v1_adapter_package,
+                adapter: caviarnine_v1_adapter,
                 liquidity_receipt: caviarnine_v1_liquidity_receipt_resource,
             },
         }
@@ -1643,6 +1656,7 @@ pub struct Configuration {
     pub fees: Decimal,
     pub maximum_allowed_price_staleness_in_seconds_seconds: i64,
     pub maximum_allowed_relative_price_difference: Decimal,
+    pub caviarnine_adapter_version: CaviarnineAdapterVersion,
 }
 
 impl Default for Configuration {
@@ -1654,6 +1668,14 @@ impl Default for Configuration {
             maximum_allowed_price_staleness_in_seconds_seconds: 300i64,
             // 1%
             maximum_allowed_relative_price_difference: dec!(0.01),
+            // Version One.
+            caviarnine_adapter_version: CaviarnineAdapterVersion::One,
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum CaviarnineAdapterVersion {
+    One,
+    Two,
 }
