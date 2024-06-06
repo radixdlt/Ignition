@@ -461,7 +461,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         .unwrap();
     assert_eq!(
         adapter_information.bin_contributions.len(),
-        (PREFERRED_TOTAL_NUMBER_OF_HIGHER_AND_LOWER_BINS + 1) as usize
+        (30 * 2 + 1) as usize
     );
 
     Ok(())

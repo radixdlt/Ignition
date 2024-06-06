@@ -56,6 +56,8 @@ define_error! {
     POOL_HAS_NO_BIN_CONFIG
         => "The provided pool does not a configured bin setup";
     NO_ACTIVE_AMOUNTS => "No active amounts found for pool";
+    ACTIVE_TICK_IS_OUTSIDE_OF_ALLOWED_RANGE
+        => "Active tick is outside of allowed range";
 }
 
 macro_rules! pool {
@@ -304,12 +306,19 @@ pub mod adapter {
                 .pool_contribution_bin_configuration
                 .get(&pool_address)
                 .expect(POOL_HAS_NO_BIN_CONFIG);
+
             let lower_ticks = (lowest_tick..active_tick)
                 .step_by(bin_span as _)
                 .collect::<Vec<_>>();
-            let higher_ticks = (active_tick..=highest_tick)
+            let higher_ticks = ((active_tick + bin_span)..=highest_tick)
                 .step_by(bin_span as _)
                 .collect::<Vec<_>>();
+
+            // Ensure that the currently active tick is in the span of ticks
+            // that we're allowed to contribute to. If not then error out.
+            if active_tick > highest_tick || active_tick < lowest_tick {
+                panic!("{}", ACTIVE_TICK_IS_OUTSIDE_OF_ALLOWED_RANGE);
+            }
 
             // Calculating the liquidity value (L) based on the bins to add
             // liquidity to and also calculate the amounts of the X and Y tokens
@@ -378,7 +387,10 @@ pub mod adapter {
                     .and_then(|value| value.checked_mul(liquidity))
                     .expect(OVERFLOW_ERROR);
 
-                (amount_x_to_contribute, amount_y_to_contribute)
+                (
+                    min(amount_x_to_contribute, amount_x),
+                    min(amount_y_to_contribute, amount_y),
+                )
             };
 
             // We need to calculate the amount of resources that need to go into
@@ -421,6 +433,8 @@ pub mod adapter {
             let positions = {
                 // Computing the amount of resources that should go into each
                 // of the whole bins
+                info!("amount_x_to_contribute = {amount_x_to_contribute:?}");
+                info!("amount_y_to_contribute = {amount_y_to_contribute:?}");
                 let amount_y_into_each_whole_bin = amount_y_to_contribute
                     .checked_div(number_of_lower_ticks)
                     .expect(OVERFLOW_ERROR);
@@ -484,14 +498,17 @@ pub mod adapter {
 
             let adapter_specific_information =
                 CaviarnineV1AdapterSpecificInformation {
-                    bin_contributions: positions
+                    bin_contributions: pool
+                        .get_redemption_bin_values(
+                            receipt_global_id.local_id().clone(),
+                        )
                         .into_iter()
-                        .map(|(bin, amount_x, amount_y)| {
+                        .map(|(tick, resource_x, resource_y)| {
                             (
-                                bin,
+                                tick,
                                 ResourceIndexedData {
-                                    resource_x: amount_x,
-                                    resource_y: amount_y,
+                                    resource_x,
+                                    resource_y,
                                 },
                             )
                         })
@@ -998,7 +1015,7 @@ fn calculate_bin_amount_using_liquidity(
     Some((new_x, new_y))
 }
 
-#[derive(Clone, Copy, Debug, ScryptoSbor)]
+#[derive(Clone, Copy, Debug, ScryptoSbor, ManifestSbor)]
 pub struct ContributionBinConfiguration {
     pub start_tick: u32,
     pub end_tick: u32,

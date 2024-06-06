@@ -3290,7 +3290,7 @@ dependencies = [
 name = "tests"
 version = "0.1.0"
 dependencies = [
- "caviarnine-v1-adapter-v1",
+ "caviarnine-v1-adapter-v2",
  "common",
  "defiplaza-v2-adapter-v1",
  "extend",
