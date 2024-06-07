@@ -22,6 +22,7 @@ use extend::*;
 use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
 use radix_common::prelude::*;
+use radix_engine::system::system_db_reader::SystemDatabaseReader;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
 use radix_engine::vm::*;
@@ -51,7 +52,12 @@ fn get_database() -> &'static ActualStateManagerDatabase {
                 STATE_MANAGER_DATABASE_PATH_ENVIRONMENT_VARIABLE
             );
         };
-        ActualStateManagerDatabase::new_read_only(state_manager_database_path)
+        ActualStateManagerDatabase::new(
+            state_manager_database_path,
+            Default::default(),
+            &NetworkDefinition::mainnet(),
+        )
+        .unwrap()
     })
 }
 
@@ -290,6 +296,12 @@ pub impl<'a> StatefulLedgerSimulator<'a> {
             .notarize(notary_private_key)
             .build();
         self.execute_notarized_transaction(&transaction.to_raw().unwrap())
+    }
+
+    fn blueprint_id(&self, node_id: impl Into<NodeId>) -> BlueprintId {
+        SystemDatabaseReader::new(self.substate_db())
+            .get_blueprint_id(&node_id.into(), ModuleId::Main)
+            .unwrap()
     }
 }
 

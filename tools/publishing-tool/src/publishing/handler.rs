@@ -1561,7 +1561,7 @@ fn handle_liquidity_receipt_creation<N: NetworkConnectionProvider>(
                         metadata_setter_updater => badge_rules.protocol_owner_badge.clone();
                         metadata_locker => badge_rules.protocol_owner_badge.clone();
                         metadata_locker_updater => badge_rules.protocol_owner_badge.clone();
-                    }
+                    },
                 },
                 address_reservation: None,
             },

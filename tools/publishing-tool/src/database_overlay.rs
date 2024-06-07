@@ -125,38 +125,40 @@ impl<S: Borrow<D>, D: SubstateDatabase> SubstateDatabase
         }: &DbPartitionKey,
         sort_key: &DbSortKey,
     ) -> Option<DbSubstateValue> {
-        let overlay_lookup_result =
-            match self.overlay.node_updates.get(node_key) {
-                // This particular node key exists in the overlay and probably has
-                // some partitions written to the overlay.
-                Some(StagingNodeDatabaseUpdates { partition_updates }) => {
-                    match partition_updates.get(partition_num) {
-                        // This partition has some data written to the overlay
-                        Some(StagingPartitionDatabaseUpdates::Delta {
-                            substate_updates,
-                        }) => {
-                            match substate_updates.get(sort_key) {
-                                // The substate value is written to the overlay. It
-                                // is a database set so we return the new value.
-                                Some(DatabaseUpdate::Set(substate_value)) => {
-                                    OverlayLookupResult::Found(Some(
-                                        substate_value,
-                                    ))
-                                }
-                                // The substate value is written to the overlay. It
-                                // is a database delete so we return a `Found(None)`.
-                                Some(DatabaseUpdate::Delete) => {
-                                    OverlayLookupResult::Found(None)
-                                }
-                                // This particular substate was not written to the
-                                // overlay and should be read from the underlying
-                                // database.
-                                None => OverlayLookupResult::NotFound,
+        let overlay_lookup_result = match self
+            .overlay
+            .node_updates
+            .get(node_key)
+        {
+            // This particular node key exists in the overlay and probably has
+            // some partitions written to the overlay.
+            Some(StagingNodeDatabaseUpdates { partition_updates }) => {
+                match partition_updates.get(partition_num) {
+                    // This partition has some data written to the overlay
+                    Some(StagingPartitionDatabaseUpdates::Delta {
+                        substate_updates,
+                    }) => {
+                        match substate_updates.get(sort_key) {
+                            // The substate value is written to the overlay. It
+                            // is a database set so we return the new value.
+                            Some(DatabaseUpdate::Set(substate_value)) => {
+                                OverlayLookupResult::Found(Some(substate_value))
                             }
+                            // The substate value is written to the overlay. It
+                            // is a database delete so we return a `Found(None)`.
+                            Some(DatabaseUpdate::Delete) => {
+                                OverlayLookupResult::Found(None)
+                            }
+                            // This particular substate was not written to the
+                            // overlay and should be read from the underlying
+                            // database.
+                            None => OverlayLookupResult::NotFound,
                         }
-                        Some(StagingPartitionDatabaseUpdates::Reset {
-                            new_substate_values,
-                        }) => match new_substate_values.get(sort_key) {
+                    }
+                    Some(StagingPartitionDatabaseUpdates::Reset {
+                        new_substate_values,
+                    }) => {
+                        match new_substate_values.get(sort_key) {
                             // The substate value is written to the overlay.
                             Some(substate_value) => {
                                 OverlayLookupResult::Found(Some(substate_value))
@@ -170,17 +172,18 @@ impl<S: Borrow<D>, D: SubstateDatabase> SubstateDatabase
                             // value in the overlay and that the substate does not
                             // exist.
                             None => OverlayLookupResult::Found(None),
-                        },
-                        // This particular partition for the specified node key does
-                        // not exist in the overlay and should be read from the
-                        // underlying database.
-                        None => OverlayLookupResult::NotFound,
+                        }
                     }
+                    // This particular partition for the specified node key does
+                    // not exist in the overlay and should be read from the
+                    // underlying database.
+                    None => OverlayLookupResult::NotFound,
                 }
-                // This particular node key does not exist in the overlay. The
-                // substate must be read from the underlying database.
-                None => OverlayLookupResult::NotFound,
-            };
+            }
+            // This particular node key does not exist in the overlay. The
+            // substate must be read from the underlying database.
+            None => OverlayLookupResult::NotFound,
+        };
 
         match overlay_lookup_result {
             OverlayLookupResult::Found(substate_value) => {
@@ -396,10 +399,7 @@ fn merge_database_updates(
                         // now we must combine both the partition database
                         // updates together
                         Some(this_partition_database_updates) => {
-                            match (
-                                this_partition_database_updates,
-                                other_partition_database_updates,
-                            ) {
+                            match (this_partition_database_updates, other_partition_database_updates) {
                                 // This and other are both `Delta`. We insert
                                 // all entries in the other state updates into
                                 // this substate updates. This will also
@@ -413,7 +413,7 @@ fn merge_database_updates(
                                         substate_updates: other_substate_updates,
                                     },
                                 ) => this_substate_updates.extend(other_substate_updates),
-                                // We need to apply the delta on the reset. 
+                                // We need to apply the delta on the reset.
                                 (
                                     StagingPartitionDatabaseUpdates::Reset {
                                         new_substate_values: this_new_substate_values,
@@ -422,13 +422,10 @@ fn merge_database_updates(
                                         substate_updates: other_substate_updates,
                                     },
                                 ) => {
-                                    for (other_sort_key, other_database_update) in
-                                        other_substate_updates.into_iter()
-                                    {
+                                    for (other_sort_key, other_database_update) in other_substate_updates.into_iter() {
                                         match other_database_update {
                                             DatabaseUpdate::Set(other_substate_value) => {
-                                                this_new_substate_values
-                                                    .insert(other_sort_key, other_substate_value);
+                                                this_new_substate_values.insert(other_sort_key, other_substate_value);
                                             }
                                             DatabaseUpdate::Delete => {
                                                 this_new_substate_values.remove(&other_sort_key);

@@ -472,10 +472,9 @@ impl ScryptoTestEnv {
                     &mut env,
                 )?;
 
-                let resource_x =
-                    ResourceManager(*resource_address).mint_fungible(dec!(100_000_000), &mut env)?;
-                let resource_y =
-                    ResourceManager(XRD).mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_x = ResourceManager(*resource_address)
+                    .mint_fungible(dec!(100_000_000), &mut env)?;
+                let resource_y = ResourceManager(XRD).mint_fungible(dec!(100_000_000), &mut env)?;
 
                 let (_, change1) = defiplaza_pool.add_liquidity(resource_x, None, &mut env)?;
                 let (_, change2) = defiplaza_pool.add_liquidity(resource_y, None, &mut env)?;
@@ -851,41 +850,44 @@ impl ScryptoUnitEnv {
         let [ociswap_v1_liquidity_receipt_resource, ociswap_v2_liquidity_receipt_resource, defiplaza_v2_liquidity_receipt_resource, caviarnine_v1_liquidity_receipt_resource] =
             std::array::from_fn(|_| {
                 ledger
-                .execute_manifest(
-                    ManifestBuilder::new()
-                        .lock_fee_from_faucet()
-                        .call_function(
-                            RESOURCE_PACKAGE,
-                            NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
-                            NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
-                            NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
-                                owner_role: OwnerRole::None,
-                                track_total_supply: true,
-                                non_fungible_schema: NonFungibleDataSchema::new_local_without_self_package_replacement::<LiquidityReceipt<AnyValue>>(),
-                                entries: vec![],
-                                resource_roles: NonFungibleResourceRoles {
-                                    mint_roles: mint_roles! {
-                                        minter => rule!(allow_all);
-                                        minter_updater => rule!(allow_all);
+                    .execute_manifest(
+                        ManifestBuilder::new()
+                            .lock_fee_from_faucet()
+                            .call_function(
+                                RESOURCE_PACKAGE,
+                                NON_FUNGIBLE_RESOURCE_MANAGER_BLUEPRINT,
+                                NON_FUNGIBLE_RESOURCE_MANAGER_CREATE_RUID_WITH_INITIAL_SUPPLY_IDENT,
+                                NonFungibleResourceManagerCreateRuidWithInitialSupplyManifestInput {
+                                    owner_role: OwnerRole::None,
+                                    track_total_supply: true,
+                                    non_fungible_schema:
+                                        NonFungibleDataSchema::new_local_without_self_package_replacement::<
+                                            LiquidityReceipt<AnyValue>,
+                                        >(),
+                                    entries: vec![],
+                                    resource_roles: NonFungibleResourceRoles {
+                                        mint_roles: mint_roles! {
+                                            minter => rule!(allow_all);
+                                            minter_updater => rule!(allow_all);
+                                        },
+                                        burn_roles: burn_roles! {
+                                            burner => rule!(allow_all);
+                                            burner_updater => rule!(allow_all);
+                                        },
+                                        ..Default::default()
                                     },
-                                    burn_roles: burn_roles! {
-                                        burner => rule!(allow_all);
-                                        burner_updater => rule!(allow_all);
-                                    },
-                                    ..Default::default()
+                                    metadata: Default::default(),
+                                    address_reservation: Default::default(),
                                 },
-                                metadata: Default::default(),
-                                address_reservation: Default::default(),
-                            },
-                        )
-                        .build(),
-                    vec![],
-                )
-                .expect_commit_success()
-                .new_resource_addresses()
-                .first()
-                .copied()
-                .unwrap()
+                            )
+                            .build(),
+                        vec![],
+                    )
+                    .expect_commit_success()
+                    .new_resource_addresses()
+                    .first()
+                    .copied()
+                    .unwrap()
             });
 
         let ociswap_v1_pools = resource_addresses.map(|resource_address| {
@@ -1276,10 +1278,8 @@ impl ScryptoUnitEnv {
                             protocol_manager_rule,
                             XRD,
                             simple_oracle,
-                            configuration
-                                .maximum_allowed_price_staleness_in_seconds_seconds,
-                            configuration
-                                .maximum_allowed_relative_price_difference,
+                            configuration.maximum_allowed_price_staleness_in_seconds_seconds,
+                            configuration.maximum_allowed_relative_price_difference,
                             InitializationParametersManifest::default(),
                             None::<ManifestAddressReservation>,
                         ),

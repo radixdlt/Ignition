@@ -475,9 +475,7 @@ fn generate_manifest_builder_stub(
                 let inner = if arguments.is_function() {
                     arguments.add_argument_to_beginning(
                         Ident::new("blueprint_package_address", ident.span()),
-                        parse_quote!(
-                            ::radix_engine_interface::prelude::PackageAddress
-                        ),
+                        parse_quote!(::radix_engine_interface::prelude::PackageAddress),
                     );
 
                     let original_arguments = original_arguments
@@ -497,9 +495,7 @@ fn generate_manifest_builder_stub(
                 } else {
                     arguments.add_argument_to_beginning(
                         Ident::new("component_address", ident.span()),
-                        parse_quote!(
-                            impl ::radix_transactions::builder::ResolvableGlobalAddress
-                        ),
+                        parse_quote!(impl ::radix_transactions::builder::ResolvableGlobalAddress),
                     );
 
                     let original_arguments = original_arguments
@@ -517,11 +513,8 @@ fn generate_manifest_builder_stub(
                     }
                 };
 
-                let fn_ident = format_ident!(
-                    "{}_{}",
-                    struct_ident.to_string().to_snake_case(),
-                    ident
-                );
+                let fn_ident =
+                    format_ident!("{}_{}", struct_ident.to_string().to_snake_case(), ident);
 
                 let arguments = arguments.manifest_arguments()?;
                 Ok(quote! {
