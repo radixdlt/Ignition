@@ -598,8 +598,7 @@ mod ignition {
                     })
                     .unwrap_or(Decimal::MAX);
                 assert!(
-                    pool_reported_value_of_user_resource_in_protocol_resource
-                        <= maximum_amount,
+                    pool_reported_value_of_user_resource_in_protocol_resource <= maximum_amount,
                     "Amount provided by Ignition exceeds the maximum allowed at the current price. Provided: {}, Maximum allowed: {}",
                     pool_reported_value_of_user_resource_in_protocol_resource,
                     maximum_amount

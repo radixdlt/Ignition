@@ -2125,6 +2125,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "publishing-tool-2"
+version = "0.1.0"
+dependencies = [
+ "bitflags 2.5.0",
+ "caviarnine-v1-adapter-v2",
+ "clap",
+ "common",
+ "env_logger",
+ "gateway-client",
+ "hex",
+ "hex-literal",
+ "ignition",
+ "itertools 0.12.1",
+ "log",
+ "macro_rules_attribute",
+ "package-loader",
+ "radix-common",
+ "radix-engine",
+ "radix-engine-interface",
+ "radix-substate-store-interface",
+ "radix-transactions",
+ "rand 0.8.5",
+ "sbor",
+ "sbor-json",
+ "scrypto-test",
+ "serde_json",
+ "state-manager",
+]
+
+[[package]]
 name = "pulldown-cmark"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
