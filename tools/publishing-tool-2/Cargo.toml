@@ -44,5 +44,5 @@ workspace = true
 crate-type = ["cdylib", "lib"]
 
 [[bin]]
-name = "publishing-tool"
+name = "publishing-tool-2"
 path = "src/cli/bin.rs"

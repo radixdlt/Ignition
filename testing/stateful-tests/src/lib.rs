@@ -25,6 +25,7 @@ use radix_common::prelude::*;
 use radix_engine::system::system_db_reader::SystemDatabaseReader;
 use radix_engine::system::system_modules::*;
 use radix_engine::transaction::*;
+use radix_engine::updates::ProtocolVersion;
 use radix_engine::vm::*;
 use radix_engine_interface::blueprints::account::*;
 use radix_engine_interface::prelude::*;
@@ -77,6 +78,7 @@ where
 
     // Creating a test runner from the overlayed state manager database
     let (mut ledger, _) = LedgerSimulatorBuilder::new()
+        .with_protocol_version(ProtocolVersion::Babylon)
         .with_custom_database(overlayed_state_manager_database)
         .without_kernel_trace()
         .build_without_bootstrapping();

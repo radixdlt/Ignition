@@ -893,6 +893,7 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
             .notarize(&test_account_private_key)
             .build();
         let receipt = LedgerSimulatorBuilder::new()
+            .with_custom_protocol(|executor| executor.until_babylon())
             .with_custom_database(SubstateDatabaseOverlay::new_unmergeable(
                 ledger.substate_db(),
             ))
