@@ -36,6 +36,11 @@ fn can_open_a_simple_position_against_a_caviarnine_pool(
     protocol
         .ignition
         .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -81,6 +86,11 @@ fn liquidity_receipt_information_can_be_read_through_adapter(
     protocol
         .ignition
         .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -148,8 +158,8 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
                     (
                         caviarnine_v1.pools.bitcoin,
                         ContributionBinConfiguration {
-                            start_tick: 22000,
-                            end_tick: 27000,
+                            start_tick: 22100,
+                            end_tick: 27100,
                         },
                     ),
                 )
@@ -159,34 +169,33 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         )
         .expect_commit_success();
 
-    ledger
-        .execute_manifest_with_enabled_modules(
-            ManifestBuilder::new()
-                .lock_fee_from_faucet()
-                .withdraw_from_account(
-                    account_address,
-                    resources.bitcoin,
-                    dec!(100_000),
+    dbg!(ledger.execute_manifest_with_enabled_modules(
+        ManifestBuilder::new()
+            .lock_fee_from_faucet()
+            .withdraw_from_account(
+                account_address,
+                resources.bitcoin,
+                dec!(100_000),
+            )
+            .take_all_from_worktop(resources.bitcoin, "bitcoin")
+            .with_bucket("bitcoin", |builder, bucket| {
+                builder.call_method(
+                    protocol.ignition,
+                    "open_liquidity_position",
+                    (
+                        bucket,
+                        caviarnine_v1.pools.bitcoin,
+                        LockupPeriod::from_months(6).unwrap(),
+                    ),
                 )
-                .take_all_from_worktop(resources.bitcoin, "bitcoin")
-                .with_bucket("bitcoin", |builder, bucket| {
-                    builder.call_method(
-                        protocol.ignition,
-                        "open_liquidity_position",
-                        (
-                            bucket,
-                            caviarnine_v1.pools.bitcoin,
-                            LockupPeriod::from_months(6).unwrap(),
-                        ),
-                    )
-                })
-                .try_deposit_entire_worktop_or_abort(account_address, None)
-                .build(),
-            EnabledModules::for_test_transaction()
-                & !EnabledModules::AUTH
-                & !EnabledModules::COSTING,
-        )
-        .expect_commit_success();
+            })
+            .try_deposit_entire_worktop_or_abort(account_address, None)
+            .build(),
+        EnabledModules::for_test_transaction()
+            & !EnabledModules::AUTH
+            & !EnabledModules::COSTING,
+    ))
+    .expect_commit_success();
 
     // Act
     let receipt = ledger.construct_and_execute_notarized_transaction(
@@ -254,8 +263,8 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
                     (
                         caviarnine_v1.pools.bitcoin,
                         ContributionBinConfiguration {
-                            start_tick: 22000,
-                            end_tick: 27000,
+                            start_tick: 22100,
+                            end_tick: 27100,
                         },
                     ),
                 )
@@ -266,34 +275,33 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
         .expect_commit_success();
 
     for _ in 0..2 {
-        ledger
-            .execute_manifest_with_enabled_modules(
-                ManifestBuilder::new()
-                    .lock_fee_from_faucet()
-                    .withdraw_from_account(
-                        account_address,
-                        resources.bitcoin,
-                        dec!(100_000),
+        dbg!(ledger.execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .withdraw_from_account(
+                    account_address,
+                    resources.bitcoin,
+                    dec!(100_000),
+                )
+                .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                .with_bucket("bitcoin", |builder, bucket| {
+                    builder.call_method(
+                        protocol.ignition,
+                        "open_liquidity_position",
+                        (
+                            bucket,
+                            caviarnine_v1.pools.bitcoin,
+                            LockupPeriod::from_months(6).unwrap(),
+                        ),
                     )
-                    .take_all_from_worktop(resources.bitcoin, "bitcoin")
-                    .with_bucket("bitcoin", |builder, bucket| {
-                        builder.call_method(
-                            protocol.ignition,
-                            "open_liquidity_position",
-                            (
-                                bucket,
-                                caviarnine_v1.pools.bitcoin,
-                                LockupPeriod::from_months(6).unwrap(),
-                            ),
-                        )
-                    })
-                    .try_deposit_entire_worktop_or_abort(account_address, None)
-                    .build(),
-                EnabledModules::for_test_transaction()
-                    & !EnabledModules::AUTH
-                    & !EnabledModules::COSTING,
-            )
-            .expect_commit_success();
+                })
+                .try_deposit_entire_worktop_or_abort(account_address, None)
+                .build(),
+            EnabledModules::for_test_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
+        ))
+        .expect_commit_success();
     }
 
     let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
@@ -491,6 +499,11 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -552,6 +565,11 @@ fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -743,6 +761,11 @@ fn non_strict_testing_of_fees(
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -993,107 +1016,6 @@ fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
 }
 
 #[test]
-fn l_is_equal_between_left_and_right() -> Result<(), RuntimeError> {
-    // Arrange
-    let Environment {
-        environment: ref mut env,
-        mut protocol,
-        mut caviarnine_v1,
-        resources,
-        ..
-    } = ScryptoTestEnv::new_with_configuration(Configuration {
-        caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
-        ..Default::default()
-    })?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
-    protocol
-        .ignition
-        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
-
-    let bitcoin_bucket =
-        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
-    let pool = caviarnine_v1.pools.bitcoin;
-    let bin_span = pool.get_bin_span(env)?;
-
-    // Act
-    let (receipt, ..) = protocol.ignition.open_liquidity_position(
-        FungibleBucket(bitcoin_bucket),
-        pool.try_into().unwrap(),
-        LockupPeriod::from_months(6).unwrap(),
-        env,
-    )?;
-
-    // Assert
-    let data = caviarnine_v1.adapter.liquidity_receipt_data(
-        NonFungibleGlobalId::new(
-            receipt.0.resource_address(env)?,
-            receipt
-                .0
-                .non_fungible_local_ids(env)?
-                .first()
-                .unwrap()
-                .clone(),
-        ),
-        env,
-    )?;
-
-    let liquidity_y = data
-        .adapter_specific_information
-        .bin_contributions
-        .iter()
-        .map(|(tick, amounts)| {
-            let lower_price = tick_to_spot(*tick).unwrap();
-            let upper_price = if !amounts.resource_x.is_zero() {
-                pool.get_price(env).unwrap().unwrap()
-            } else {
-                tick_to_spot(*tick + bin_span).unwrap()
-            };
-
-            let lower_price_sqrt = lower_price.checked_sqrt().unwrap();
-            let upper_price_sqrt = upper_price.checked_sqrt().unwrap();
-            amounts.resource_y / (upper_price_sqrt - lower_price_sqrt)
-        })
-        .fold(Decimal::ZERO, |acc, item| acc + item);
-
-    let liquidity_x = data
-        .adapter_specific_information
-        .bin_contributions
-        .iter()
-        .map(|(tick, amounts)| {
-            let lower_price = if !amounts.resource_y.is_zero() {
-                pool.get_price(env).unwrap().unwrap()
-            } else {
-                tick_to_spot(*tick).unwrap()
-            };
-            let upper_price = tick_to_spot(*tick + bin_span).unwrap();
-
-            let lower_price_sqrt = lower_price.checked_sqrt().unwrap();
-            let upper_price_sqrt = upper_price.checked_sqrt().unwrap();
-
-            amounts.resource_x * (upper_price_sqrt * lower_price_sqrt)
-                / (upper_price_sqrt - lower_price_sqrt)
-        })
-        .fold(Decimal::ZERO, |acc, item| acc + item);
-
-    assert!(
-        std::cmp::min(liquidity_x, liquidity_y)
-            / std::cmp::max(liquidity_x, liquidity_y)
-            > dec!(0.99)
-    );
-
-    Ok(())
-}
-
-#[test]
 fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_price(
 ) -> Result<(), RuntimeError> {
     // Arrange
@@ -1107,6 +1029,11 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_pric
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -1172,6 +1099,11 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -1190,7 +1122,7 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_
     protocol.oracle.set_price(
         pool_price.base,
         pool_price.quote,
-        pool_price.price * dec!(1.05),
+        dbg!(pool_price.price) * dec!(1.05),
         env,
     )?;
 
@@ -1237,6 +1169,11 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_p
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(
@@ -1301,6 +1238,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
+
     caviarnine_v1
         .adapter
         .upsert_pool_contribution_bin_configuration(

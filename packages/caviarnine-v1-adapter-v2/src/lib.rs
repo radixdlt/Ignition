@@ -257,6 +257,7 @@ pub mod adapter {
     }
 
     impl PoolAdapterInterfaceTrait for CaviarnineV1Adapter {
+        #[allow(clippy::arithmetic_side_effects)]
         fn open_liquidity_position(
             &mut self,
             pool_address: ComponentAddress,
@@ -293,12 +294,11 @@ pub mod adapter {
             let amount_x = bucket_x.amount();
             let amount_y = bucket_y.amount();
 
-            // The bins to contribute to are determined based on the input of
-            // the manager of the adapter. If an entry is not found for the pool
-            // then throw an error.
+            // Select the bins that we will contribute to.
             let (price, active_tick) = self
                 .price_and_active_tick(pool_address, Some(pool_information))
                 .expect(NO_PRICE_ERROR);
+
             let ContributionBinConfiguration {
                 start_tick: lowest_tick,
                 end_tick: highest_tick,
@@ -320,174 +320,79 @@ pub mod adapter {
                 panic!("{}", ACTIVE_TICK_IS_OUTSIDE_OF_ALLOWED_RANGE);
             }
 
-            // Calculating the liquidity value (L) based on the bins to add
-            // liquidity to and also calculate the amounts of the X and Y tokens
-            // that can be contributed based on the L.
-            let (amount_x_to_contribute, amount_y_to_contribute) = {
-                let current_price = price;
-                let lowest_price =
-                    tick_to_spot(lowest_tick).expect(OVERFLOW_ERROR);
-                let highest_price = highest_tick
-                    .checked_add(bin_span)
-                    .and_then(tick_to_spot)
+            // Calculating how much should go into the currently active bin.
+            let (active_bin_position_amount_x, active_bin_position_amount_y) = {
+                // Calculating how much should go into each bin.
+                let position_amount_x =
+                    Decimal::from(higher_ticks.len() as u32)
+                        .checked_add(Decimal::ONE)
+                        .and_then(|value| amount_x.checked_div(value))
+                        .expect(OVERFLOW_ERROR);
+                let position_amount_y = Decimal::from(lower_ticks.len() as u32)
+                    .checked_add(Decimal::ONE)
+                    .and_then(|value| amount_y.checked_div(value))
                     .expect(OVERFLOW_ERROR);
 
-                let current_price_sqrt =
-                    current_price.checked_sqrt().expect(OVERFLOW_ERROR);
-                let lowest_price_sqrt =
-                    lowest_price.checked_sqrt().expect(OVERFLOW_ERROR);
-                let highest_price_sqrt =
-                    highest_price.checked_sqrt().expect(OVERFLOW_ERROR);
-
-                // This is equation 9 from the paper I shared above. Applied
-                // between the current price and the lowest price which is the
-                // range in which there is only Y.
-                let liquidity_y = current_price_sqrt
-                    .checked_sub(lowest_price_sqrt)
-                    .and_then(|sqrt_difference| {
-                        amount_y.checked_div(sqrt_difference)
-                    })
-                    .expect(OVERFLOW_ERROR);
-
-                // This is equation 5 from the paper I shared above. Applied
-                // between the current price and the highest price which is the
-                // range in which there is only X.
-                let liquidity_x = amount_x
-                    .checked_mul(current_price_sqrt)
-                    .and_then(|value| value.checked_mul(highest_price_sqrt))
-                    .and_then(|nominator| {
-                        let denominator = highest_price_sqrt
-                            .checked_sub(current_price_sqrt)?;
-
-                        nominator.checked_div(denominator)
-                    })
-                    .expect(OVERFLOW_ERROR);
-
-                // We define the liquidity as the minimum of the X and Y
-                // liquidity such that the position is always balanced.
-                let liquidity = min(liquidity_x, liquidity_y);
-
-                // Calculate the amount of X to contribute. This is found based
-                // on equation 5 from the paper.
-                let amount_x_to_contribute = highest_price_sqrt
-                    .checked_sub(current_price_sqrt)
-                    .and_then(|value| value.checked_mul(liquidity))
-                    .and_then(|nominator| {
-                        let denominator = current_price_sqrt
-                            .checked_mul(highest_price_sqrt)?;
-
-                        nominator.checked_div(denominator)
-                    })
-                    .expect(OVERFLOW_ERROR);
-
-                // Calculate the amount of Y to contribute. This is found based
-                // on equation 9 from the paper.
-                let amount_y_to_contribute = current_price_sqrt
-                    .checked_sub(lowest_price_sqrt)
-                    .and_then(|value| value.checked_mul(liquidity))
-                    .expect(OVERFLOW_ERROR);
-
-                (
-                    min(amount_x_to_contribute, amount_x),
-                    min(amount_y_to_contribute, amount_y),
-                )
-            };
-
-            // We need to calculate the amount of resources that need to go into
-            // each of the bins. We have some amount of bins with just Y tokens
-            // and some with just X tokens and exactly one bin that contains
-            // both X and Y. We will treat that one bin with both X and Y as
-            // being a partially filled bin.
-            let (
-                (number_of_lower_ticks, number_of_higher_ticks),
-                (percentage_x_in_active_bin, percentage_y_in_active_bin),
-            ) = {
-                let (amount_x_active, amount_y_active) =
+                // Adjusting the active bin amounts for the active bin ratio.
+                let (amount_in_active_bin_x, amount_in_active_bin_y) =
                     pool.get_active_amounts().expect(NO_ACTIVE_AMOUNTS);
-                // amount_y / (amount_x * price + amount_y)
-                let percentage_y_in_active_bin = amount_x_active
-                    .checked_mul(price)
-                    .and_then(|value| value.checked_add(amount_y_active))
-                    .and_then(|value| amount_y_active.checked_div(value))
+
+                let position_amount_y_required_for_amount_x = position_amount_x
+                    .checked_mul(amount_in_active_bin_y)
+                    .and_then(|value| value.checked_div(amount_in_active_bin_x))
                     .expect(OVERFLOW_ERROR);
-                let percentage_x_in_active_bin = Decimal::ONE
-                    .checked_sub(percentage_y_in_active_bin)
+                let position_amount_x_required_for_amount_y = position_amount_y
+                    .checked_mul(amount_in_active_bin_x)
+                    .and_then(|value| value.checked_div(amount_in_active_bin_y))
                     .expect(OVERFLOW_ERROR);
 
-                // Compute the amount of higher and lower bins to contribute
-                // to.
-                (
-                    (
-                        Decimal::from(lower_ticks.len() as u64)
-                            .checked_add(percentage_y_in_active_bin)
-                            .expect(OVERFLOW_ERROR),
-                        Decimal::from(higher_ticks.len() as u64)
-                            .checked_add(percentage_x_in_active_bin)
-                            .expect(OVERFLOW_ERROR),
-                    ),
-                    (percentage_x_in_active_bin, percentage_y_in_active_bin),
-                )
+                if position_amount_x_required_for_amount_y > position_amount_x {
+                    (position_amount_x, position_amount_y_required_for_amount_x)
+                } else {
+                    (position_amount_x_required_for_amount_y, position_amount_y)
+                }
             };
 
-            // Compute the positions
-            let positions = {
-                // Computing the amount of resources that should go into each
-                // of the whole bins
-                info!("amount_x_to_contribute = {amount_x_to_contribute:?}");
-                info!("amount_y_to_contribute = {amount_y_to_contribute:?}");
-                let amount_y_into_each_whole_bin = amount_y_to_contribute
-                    .checked_div(number_of_lower_ticks)
+            // Calculating the amount of resources that should go into each bin.
+            let (amount_x_in_each_bin, amount_y_in_each_bin) = {
+                let amount_x = amount_x
+                    .checked_sub(active_bin_position_amount_x)
                     .expect(OVERFLOW_ERROR);
-                let amount_x_into_each_whole_bin = amount_x_to_contribute
-                    .checked_div(number_of_higher_ticks)
+                let amount_y = amount_y
+                    .checked_sub(active_bin_position_amount_y)
                     .expect(OVERFLOW_ERROR);
 
-                // Computing the amount of resources that should go into the
-                // currently active bin.
-                let amount_y_into_active_bin = min(
-                    amount_y_into_each_whole_bin
-                        .checked_mul(Decimal::from(lower_ticks.len() as u64))
-                        .and_then(|value| {
-                            amount_y_to_contribute.checked_sub(value)
-                        })
-                        .expect(OVERFLOW_ERROR),
-                    amount_y_into_each_whole_bin
-                        .checked_mul(percentage_y_in_active_bin)
-                        .expect(OVERFLOW_ERROR),
-                );
-                let amount_x_into_active_bin = min(
-                    amount_x_into_each_whole_bin
-                        .checked_mul(Decimal::from(higher_ticks.len() as u64))
-                        .and_then(|value| {
-                            amount_x_to_contribute.checked_sub(value)
-                        })
-                        .expect(OVERFLOW_ERROR),
-                    amount_x_into_each_whole_bin
-                        .checked_mul(percentage_x_in_active_bin)
-                        .expect(OVERFLOW_ERROR),
-                );
+                let position_amount_x = amount_x
+                    .checked_div(higher_ticks.len() as u32)
+                    .expect(OVERFLOW_ERROR);
+                let position_amount_y = amount_y
+                    .checked_div(lower_ticks.len() as u32)
+                    .expect(OVERFLOW_ERROR);
 
-                // Computing the positions - we start with the active tick
-                std::iter::once((
-                    active_tick,
-                    amount_x_into_active_bin,
-                    amount_y_into_active_bin,
-                ))
-                // Lower ticks
-                .chain(lower_ticks.iter().map(|tick| {
-                    (*tick, Decimal::ZERO, amount_y_into_each_whole_bin)
-                }))
-                // Higher ticks
-                .chain(higher_ticks.iter().map(|tick| {
-                    (*tick, amount_x_into_each_whole_bin, Decimal::ZERO)
-                }))
-                // Collect
-                .collect::<Vec<_>>()
+                (position_amount_x, position_amount_y)
             };
-            info!("{positions:#?}");
 
+            // Computing the positions
+            let positions = std::iter::once((
+                active_tick,
+                active_bin_position_amount_x,
+                active_bin_position_amount_y,
+            ))
+            .chain(
+                lower_ticks
+                    .into_iter()
+                    .map(|tick| (tick, dec!(0), amount_y_in_each_bin)),
+            )
+            .chain(
+                higher_ticks
+                    .into_iter()
+                    .map(|tick| (tick, amount_x_in_each_bin, dec!(0))),
+            )
+            .collect::<Vec<_>>();
+
+            // Adding liquidity
             let (receipt, change_x, change_y) =
-                pool.add_liquidity(bucket_x, bucket_y, positions.clone());
+                pool.add_liquidity(bucket_x, bucket_y, positions);
 
             let receipt_global_id = {
                 let resource_address = receipt.resource_address();
@@ -503,12 +408,12 @@ pub mod adapter {
                             receipt_global_id.local_id().clone(),
                         )
                         .into_iter()
-                        .map(|(tick, resource_x, resource_y)| {
+                        .map(|(tick, amount_x, amount_y)| {
                             (
                                 tick,
                                 ResourceIndexedData {
-                                    resource_x,
-                                    resource_y,
+                                    resource_x: amount_x,
+                                    resource_y: amount_y,
                                 },
                             )
                         })
