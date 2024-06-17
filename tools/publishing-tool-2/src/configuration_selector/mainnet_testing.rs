@@ -87,6 +87,9 @@ pub fn mainnet_testing(
                     },
                 },
             },
+            matching_factors: UserResourceIndexedData {
+                lsu_lp_resource: dec!(0.4)
+            },
         },
         dapp_definition: DappDefinitionHandling::UseExistingOneWayLink {
             component_address: component_address!(

@@ -688,6 +688,32 @@ impl ScryptoTestEnv {
                 &mut env,
             )?;
 
+            for pool in ociswap_v1_pools
+                .iter()
+                .map(|item| ComponentAddress::try_from(item).unwrap())
+                .chain(
+                    ociswap_v2_pools
+                        .iter()
+                        .map(|item| ComponentAddress::try_from(item).unwrap()),
+                )
+                .chain(
+                    caviarnine_v1_pools
+                        .iter()
+                        .map(|item| ComponentAddress::try_from(item).unwrap()),
+                )
+                .chain(
+                    defiplaza_v2_pools
+                        .iter()
+                        .map(|item| ComponentAddress::try_from(item).unwrap()),
+                )
+            {
+                ignition.upsert_matching_factor(
+                    pool,
+                    Decimal::ONE,
+                    &mut env,
+                )?;
+            }
+
             ignition.insert_pool_information(
                 CaviarnineV1PoolInterfaceScryptoTestStub::blueprint_id(
                     caviarnine_v1_package,
@@ -1292,6 +1318,29 @@ impl ScryptoUnitEnv {
             .first()
             .copied()
             .unwrap();
+
+        // Submit the matching factor to Ignition
+        {
+            let manifest = ociswap_v1_pools
+                .iter()
+                .chain(ociswap_v2_pools.iter())
+                .chain(caviarnine_v1_pools.iter())
+                .chain(defiplaza_v2_pools.iter())
+                .fold(
+                    ManifestBuilder::new().lock_fee_from_faucet(),
+                    |builder, address| {
+                        builder.call_method(
+                            ignition,
+                            "upsert_matching_factor",
+                            (address, Decimal::ONE),
+                        )
+                    },
+                )
+                .build();
+            ledger
+                .execute_manifest_without_auth(manifest)
+                .expect_commit_success();
+        }
 
         let [ociswap_v1_adapter_v1, ociswap_v2_adapter_v1, defiplaza_v2_adapter_v1, caviarnine_v1_adapter] =
             [

@@ -132,6 +132,7 @@ pub struct ProtocolConfiguration {
     pub maximum_allowed_price_staleness_in_seconds: i64,
     pub maximum_allowed_price_difference_percentage: Decimal,
     pub entities_metadata: Entities<MetadataInit>,
+    pub matching_factors: UserResourceIndexedData<Decimal>,
 }
 
 pub struct TransactionConfiguration {

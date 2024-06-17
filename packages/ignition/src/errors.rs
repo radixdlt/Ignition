@@ -75,4 +75,7 @@ define_error! {
         => "Price staleness must be a positive or zero integer";
     INVALID_UPFRONT_REWARD_PERCENTAGE
         => "Upfront rewards must be positive or zero decimals";
+    NO_MATCHING_FACTOR_FOUND_FOR_POOL
+        => "Pool doesn't have a matching factor";
+    INVALID_MATCHING_FACTOR => "Invalid matching factor";
 }

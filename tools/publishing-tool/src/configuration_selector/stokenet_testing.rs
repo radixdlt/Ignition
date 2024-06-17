@@ -86,6 +86,12 @@ pub fn stokenet_testing(
                     },
                 },
             },
+            matching_factors: UserResourceIndexedData {
+                bitcoin: Decimal::ONE,
+                ethereum: Decimal::ONE,
+                usdc: Decimal::ONE,
+                usdt: Decimal::ONE
+            },
         },
         dapp_definition_metadata: indexmap! {
             "name".to_owned() => MetadataValue::String("Project Ignition".to_owned()),

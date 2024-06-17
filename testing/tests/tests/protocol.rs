@@ -1985,6 +1985,71 @@ fn forcefully_liquidated_resources_can_be_claimed_when_closing_liquidity_positio
     Ok(())
 }
 
+#[test]
+fn protocol_manager_cant_change_matching_factor() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+    env.enable_auth_module();
+
+    // Act
+    LocalAuthZone::push(
+        protocol.protocol_manager_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    let rtn = protocol.ignition.upsert_matching_factor(
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        Decimal::ONE,
+        env,
+    );
+
+    // Assert
+    matches!(
+        rtn,
+        Err(RuntimeError::SystemModuleError(
+            SystemModuleError::AuthError(AuthError::Unauthorized(..))
+        ))
+    );
+    Ok(())
+}
+
+#[test]
+fn protocol_owner_can_change_matching_factor() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        ociswap_v1,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        maximum_allowed_price_staleness_in_seconds_seconds: i64::MAX,
+        ..Default::default()
+    })?;
+    env.enable_auth_module();
+
+    // Act
+    LocalAuthZone::push(
+        protocol.protocol_owner_badge.create_proof_of_all(env)?,
+        env,
+    )?;
+    let rtn = protocol.ignition.upsert_matching_factor(
+        ociswap_v1.pools.bitcoin.try_into().unwrap(),
+        Decimal::ONE,
+        env,
+    );
+
+    // Assert
+    assert!(rtn.is_ok());
+    Ok(())
+}
+
 mod utils {
     use super::*;
 

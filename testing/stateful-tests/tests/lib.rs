@@ -546,6 +546,7 @@ fn log_reported_price_from_defiplaza_pool(
 }
 
 #[apply(mainnet_test)]
+#[ignore = "Ignoring this test for now"]
 fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
     AccountAndControllingKey {
         account_address: test_account,

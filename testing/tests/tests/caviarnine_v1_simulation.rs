@@ -115,6 +115,19 @@ fn can_open_and_close_positions_to_all_mainnet_caviarnine_pools() {
             .copied()
             .unwrap();
 
+        ledger
+            .execute_manifest_without_auth(
+                ManifestBuilder::new()
+                    .lock_fee_from_faucet()
+                    .call_method(
+                        protocol.ignition,
+                        "upsert_matching_factor",
+                        (pool_address, dec!(1)),
+                    )
+                    .build(),
+            )
+            .expect_commit_success();
+
         // Providing the liquidity to the pools.
         let (divisibility_x, divisibility_y) = if resource_x == XRD {
             (18, divisibility)

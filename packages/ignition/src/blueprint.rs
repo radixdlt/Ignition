@@ -94,6 +94,7 @@ type OracleAdapter = OracleAdapterInterfaceScryptoStub;
 #[types(
     Decimal,
     ResourceAddress,
+    ComponentAddress,
     NonFungibleGlobalId,
     BlueprintId,
     Vault,
@@ -167,6 +168,7 @@ mod ignition {
                 protocol_owner,
                 protocol_manager
             ];
+            upsert_matching_factor => restrict_to: [protocol_owner];
             deposit_protocol_resources => restrict_to: [protocol_owner];
             withdraw_protocol_resources => restrict_to: [protocol_owner];
             deposit_user_resources => restrict_to: [protocol_owner];
@@ -289,6 +291,14 @@ mod ignition {
         forced_liquidation_claims:
             KeyValueStore<NonFungibleGlobalId, Vec<Vault>>,
 
+        /// A map that stores the _matching factor_ for each pool which is a
+        /// [`Decimal`] between 0 and 1 that controls how much of the user's
+        /// contribution is matched by Ignition. For a given pool, if the user
+        /// provides X worth of a user resource and if the pool has a Y%
+        /// matching factor then the amount of protocol resources provided is
+        /// X • Y%.
+        matching_factor: KeyValueStore<ComponentAddress, Decimal>,
+
         /* Configuration */
         /// The upfront reward rates supported by the protocol. This is a map
         /// of the lockup period to the reward rate ratio. In this
@@ -349,6 +359,7 @@ mod ignition {
                     initial_non_volatile_protocol_resources,
                     initial_is_open_position_enabled,
                     initial_is_close_position_enabled,
+                    initial_matching_factors,
                 } = initialization_parameters;
 
                 let mut ignition = Self {
@@ -370,6 +381,7 @@ mod ignition {
                     ),
                     forced_liquidation_claims:
                         KeyValueStore::new_with_registered_type(),
+                    matching_factor: KeyValueStore::new_with_registered_type(),
                 };
 
                 if let Some(resource_volatility) =
@@ -416,6 +428,15 @@ mod ignition {
                         non_volatile_protocol_resources,
                         Volatility::NonVolatile,
                     )
+                }
+
+                if let Some(matching_factors) = initial_matching_factors {
+                    for (address, matching_factor) in
+                        matching_factors.into_iter()
+                    {
+                        ignition
+                            .upsert_matching_factor(address, matching_factor)
+                    }
                 }
 
                 ignition.is_open_position_enabled =
@@ -565,11 +586,15 @@ mod ignition {
                 (oracle_reported_price, pool_reported_price)
             };
 
-            let pool_reported_value_of_user_resource_in_protocol_resource =
-                pool_reported_price
-                    .exchange(user_resource_address, user_resource_amount)
-                    .expect(UNEXPECTED_ERROR)
-                    .1;
+            let matching_factor = *self
+                .matching_factor
+                .get(&pool_address)
+                .expect(NO_MATCHING_FACTOR_FOUND_FOR_POOL);
+
+            let matching_amount_of_protocol_resource = pool_reported_price
+                .exchange(user_resource_address, user_resource_amount)
+                .and_then(|(_, value)| value.checked_mul(matching_factor))
+                .expect(UNEXPECTED_ERROR);
 
             // An assertion added for safety - the pool reported value of the
             // resources must be less than (1 + padding_percentage) * oracle
@@ -589,6 +614,7 @@ mod ignition {
                             .1
                             .checked_mul(padding)
                     })
+                    .and_then(|value| value.checked_mul(matching_factor))
                     .and_then(|value| {
                         // 17 decimal places so that 9.99 (with 18 nines) rounds
                         // to 10. Essentially fixing for any small loss of
@@ -598,9 +624,9 @@ mod ignition {
                     })
                     .unwrap_or(Decimal::MAX);
                 assert!(
-                    pool_reported_value_of_user_resource_in_protocol_resource <= maximum_amount,
+                    matching_amount_of_protocol_resource <= maximum_amount,
                     "Amount provided by Ignition exceeds the maximum allowed at the current price. Provided: {}, Maximum allowed: {}",
-                    pool_reported_value_of_user_resource_in_protocol_resource,
+                    matching_amount_of_protocol_resource,
                     maximum_amount
                 );
             }
@@ -608,7 +634,7 @@ mod ignition {
             // Contribute the resources to the pool.
             let user_side_of_liquidity = bucket;
             let protocol_side_of_liquidity = self.withdraw_protocol_resources(
-                pool_reported_value_of_user_resource_in_protocol_resource,
+                matching_amount_of_protocol_resource,
                 WithdrawStrategy::Rounded(RoundingMode::ToZero),
                 volatility,
             );
@@ -637,7 +663,7 @@ mod ignition {
                 // underflow.
                 .expect(OVERFLOW_ERROR);
             let amount_of_protocol_tokens_contributed =
-                pool_reported_value_of_user_resource_in_protocol_resource
+                matching_amount_of_protocol_resource
                     .checked_sub(
                         change
                             .get(&self.protocol_resource.address())
@@ -1063,6 +1089,41 @@ mod ignition {
 
             // Return the buckets back
             bucket_returns
+        }
+
+        /// Updates the matching factor of a pool.
+        ///
+        /// This method updates the matching factor for a given pool after doing
+        /// a bounds check on it ensuring that it is in the range [0, 1]. This
+        /// performs an upsert operation meaning that if an entry already exists
+        /// then that entry will be overwritten.
+        ///
+        /// # Example Scenario
+        ///
+        /// We may want to dynamically control the matching factor of pools such
+        /// that we can update them at runtime instead of doing a new deployment
+        /// of Ignition.
+        ///
+        /// # Access
+        ///
+        /// Requires the `protocol_owner` roles.
+        ///
+        /// # Arguments
+        ///
+        /// * `component_address`: [`ComponentAddress`] - The address of the
+        /// pool to set the matching factor for.
+        /// * `matching_factor`: [`Decimal`] - The matching factor of the pool.
+        pub fn upsert_matching_factor(
+            &mut self,
+            component_address: ComponentAddress,
+            matching_factor: Decimal,
+        ) {
+            if matching_factor < Decimal::ZERO || matching_factor > Decimal::ONE
+            {
+                panic!("{}", INVALID_MATCHING_FACTOR)
+            }
+            self.matching_factor
+                .insert(component_address, matching_factor)
         }
 
         /// Updates the oracle adapter used by the protocol to a different
@@ -1998,6 +2059,9 @@ pub struct InitializationParameters {
     /// The initial control of whether the user is allowed to close a liquidity
     /// position or not. Defaults to [`false`] if not specified.
     pub initial_is_close_position_enabled: Option<bool>,
+
+    /// The initial map of matching factors to use in Ignition.
+    pub initial_matching_factors: Option<IndexMap<ComponentAddress, Decimal>>,
 }
 
 #[derive(Debug, PartialEq, Eq, ManifestSbor, Default)]
@@ -2026,4 +2090,7 @@ pub struct InitializationParametersManifest {
     /// The initial control of whether the user is allowed to close a liquidity
     /// position or not. Defaults to [`false`] if not specified.
     pub initial_is_close_position_enabled: Option<bool>,
+
+    /// The initial map of matching factors to use in Ignition.
+    pub initial_matching_factors: Option<IndexMap<ComponentAddress, Decimal>>,
 }

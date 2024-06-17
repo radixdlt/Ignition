@@ -777,6 +777,23 @@ pub fn publish<N: NetworkConnectionProvider>(
                         .protocol_configuration
                         .allow_closing_liquidity_positions,
                 ),
+                initial_matching_factors: Some(
+                    resolved_exchange_data
+                        .iter()
+                        .flat_map(|item| item.as_ref().map(|item| item.pools))
+                        .flat_map(|pools| {
+                            pools
+                                .zip(
+                                    configuration
+                                        .protocol_configuration
+                                        .matching_factors,
+                                )
+                                .iter()
+                                .map(|(address, factor)| (*address, *factor))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect(),
+                ),
             };
 
         let manifest = ManifestBuilder::new()

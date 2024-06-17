@@ -926,6 +926,19 @@ fn test_effect_of_price_action_on_fees(multiplier: i32, bin_span: u32) {
         .copied()
         .unwrap();
 
+    ledger
+        .execute_manifest_without_auth(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .call_method(
+                    protocol.ignition,
+                    "upsert_matching_factor",
+                    (pool_address, dec!(1)),
+                )
+                .build(),
+        )
+        .expect_commit_success();
+
     // We're allowed to contribute to 200 bins. So, we will contribute to all of
     // them. This ensures that the maximum amount of price range is covered by
     // our liquidity.
