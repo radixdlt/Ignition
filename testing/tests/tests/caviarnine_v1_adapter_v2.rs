@@ -1554,6 +1554,68 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     Ok(())
 }
 
+#[test]
+fn xrd_contributed_matches_the_matching_factor() -> Result<(), RuntimeError> {
+    // Arrange
+    let Environment {
+        environment: ref mut env,
+        mut protocol,
+        mut caviarnine_v1,
+        resources,
+        ..
+    } = ScryptoTestEnv::new_with_configuration(Configuration {
+        caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
+        ..Default::default()
+    })?;
+    protocol.ignition.upsert_matching_factor(
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        dec!(0.4),
+        env,
+    )?;
+    caviarnine_v1
+        .adapter
+        .upsert_pool_contribution_bin_configuration(
+            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+            ContributionBinConfiguration {
+                start_tick: 26900,
+                end_tick: 27100,
+            },
+            env,
+        )?;
+    protocol
+        .ignition
+        .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
+
+    let bitcoin_bucket =
+        ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
+
+    // Act
+    let (ignition_receipt, ..) = protocol.ignition.open_liquidity_position(
+        FungibleBucket(bitcoin_bucket),
+        caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+        LockupPeriod::from_months(6).unwrap(),
+        env,
+    )?;
+
+    // Assert
+    let ignition_receipt_data =
+        ResourceManager(caviarnine_v1.liquidity_receipt)
+            .get_non_fungible_data::<_, _, LiquidityReceipt<AnyValue>>(
+                ignition_receipt
+                    .0
+                    .non_fungible_local_ids(env)?
+                    .first()
+                    .unwrap()
+                    .clone(),
+                env,
+            )?;
+    let (price, _) = protocol.oracle.get_price(resources.bitcoin, XRD, env)?;
+    let matching_factor = ignition_receipt_data.protocol_contribution_amount
+        / (ignition_receipt_data.user_contribution_amount * price);
+    assert!(matching_factor < dec!(0.42) && matching_factor > dec!(0.4));
+    Ok(())
+}
+
 fn round_down_to_5_decimal_places(decimal: Decimal) -> Decimal {
     decimal
         .checked_round(5, RoundingMode::ToNegativeInfinity)
