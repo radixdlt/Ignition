@@ -45,13 +45,7 @@ pub fn mainnet_production(
             // This is a mapping of the reward rate in months to the upfront
             // reward percentage.
             reward_rates: indexmap! {
-                LockupPeriod::from_months(12).unwrap() => dec!(0.04),
-                LockupPeriod::from_months(13).unwrap() => dec!(0.0435),
-                LockupPeriod::from_months(14).unwrap() => dec!(0.0475),
-                LockupPeriod::from_months(15).unwrap() => dec!(0.052),
-                LockupPeriod::from_months(16).unwrap() => dec!(0.057),
-                LockupPeriod::from_months(17).unwrap() => dec!(0.063),
-                LockupPeriod::from_months(18).unwrap() => dec!(0.07),
+                LockupPeriod::from_months(6).unwrap() => dec!(0.04),
             },
             // When Ignition is first deployed nobody is allowed to open or
             // close positions.
@@ -88,7 +82,7 @@ pub fn mainnet_production(
                 },
             },
             matching_factors: UserResourceIndexedData {
-                lsu_lp_resource: dec!(0.4)
+                lsu_lp_resource: dec!(0.4),
             },
         },
         dapp_definition: DappDefinitionHandling::UseExistingOneWayLink {
@@ -136,13 +130,16 @@ pub fn mainnet_production(
         },
         packages: Entities {
             protocol_entities: ProtocolIndexedData {
-                ignition: PackageHandling::UseExisting {
-                    blueprint_id: BlueprintId {
-                        package_address: package_address!(
-                            "package_rdx1pksyy7cyun85mgnuqdv4z3wm68d3pkfwzfkqrchhsu358zpjjuv426"
-                        ),
-                        blueprint_name: "Ignition".to_owned(),
+                ignition: PackageHandling::LoadAndPublish {
+                    crate_package_name: "ignition".to_owned(),
+                    metadata: metadata_init! {
+                        "name" => "Ignition Package", updatable;
+                        "description" => "The implementation of the Ignition protocol.", updatable;
+                        "tags" => Vec::<String>::new(), updatable;
+                        // Dapp definition will be automatically added by the
+                        // publisher accordingly.
                     },
+                    blueprint_name: "Ignition".to_owned(),
                 },
                 simple_oracle: PackageHandling::UseExisting {
                     blueprint_id: BlueprintId {
@@ -214,9 +211,12 @@ pub fn mainnet_production(
                 dec!(1),
             )),
             configure_caviarnine_adapter_pool_configuration: Some(UserResourceIndexedData {
-                lsu_lp_resource: ContributionBinConfiguration {
-                    start_tick: 27033,
-                    end_tick: 27148,
+                lsu_lp_resource: indexmap! {
+                    LockupPeriod::from_months(6).unwrap()
+                        => ContributionBinConfiguration {
+                            start_tick: 27043,
+                            end_tick: 27101
+                        },
                 },
             }),
         },

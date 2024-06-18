@@ -646,6 +646,7 @@ mod ignition {
             } = adapter.open_liquidity_position(
                 pool_address,
                 (user_side_of_liquidity.0, protocol_side_of_liquidity.0),
+                lockup_period,
             );
 
             // Calculate the amount of resources that was actually contributed

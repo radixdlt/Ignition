@@ -372,6 +372,7 @@ fn contributions_to_ociswap_through_adapter_dont_fail_due_to_bucket_ordering(
         let result = ociswap_v1.adapter.open_liquidity_position(
             ociswap_v1.pools.bitcoin.try_into().unwrap(),
             buckets,
+            LockupPeriod::default(),
             env,
         );
         results.push(result.is_ok());

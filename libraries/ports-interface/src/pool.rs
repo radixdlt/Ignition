@@ -45,6 +45,7 @@ define_interface! {
             pool_address: ComponentAddress,
             #[manifest_type = "(ManifestBucket, ManifestBucket)"]
             buckets: (Bucket, Bucket),
+            lockup_period: LockupPeriod
         ) -> OpenLiquidityPositionOutput;
 
         /// Closes a liquidity position on the passed pool.

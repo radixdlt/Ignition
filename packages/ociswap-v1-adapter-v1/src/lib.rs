@@ -134,6 +134,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
+            _: LockupPeriod,
         ) -> OpenLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
 

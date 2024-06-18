@@ -185,6 +185,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
+            _: LockupPeriod,
         ) -> OpenLiquidityPositionOutput {
             // When opening a liquidity position we follow the algorithm that
             // Jazzer described to us:

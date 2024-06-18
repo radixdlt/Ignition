@@ -68,8 +68,16 @@ macro_rules! pool {
     };
 }
 
+type InnerKv = KeyValueStore<LockupPeriod, ContributionBinConfiguration>;
+
 #[blueprint_with_traits]
-#[types(ComponentAddress, PoolInformation, ContributionBinConfiguration)]
+#[types(
+    ComponentAddress,
+    PoolInformation,
+    ContributionBinConfiguration,
+    LockupPeriod,
+    InnerKv
+)]
 pub mod adapter {
     enable_method_auth! {
         roles {
@@ -106,8 +114,10 @@ pub mod adapter {
         /// a given pool. The key is the pool's component address and the value
         /// is the start and end bins where the end bin must be strictly larger
         /// than the start bin and can't be equal.
-        pool_contribution_bin_configuration:
-            KeyValueStore<ComponentAddress, ContributionBinConfiguration>,
+        pool_contribution_bin_configuration: KeyValueStore<
+            ComponentAddress,
+            KeyValueStore<LockupPeriod, ContributionBinConfiguration>,
+        >,
     }
 
     impl CaviarnineV1Adapter {
@@ -150,10 +160,20 @@ pub mod adapter {
         pub fn upsert_pool_contribution_bin_configuration(
             &mut self,
             pool: ComponentAddress,
+            lockup_period: LockupPeriod,
             configuration: ContributionBinConfiguration,
         ) {
-            self.pool_contribution_bin_configuration
-                .insert(pool, configuration)
+            let entry = self.pool_contribution_bin_configuration.get_mut(&pool);
+            match entry {
+                Some(kv_store) => kv_store.insert(lockup_period, configuration),
+                None => {
+                    drop(entry);
+                    let kv_store = KeyValueStore::new_with_registered_type();
+                    kv_store.insert(lockup_period, configuration);
+                    self.pool_contribution_bin_configuration
+                        .insert(pool, kv_store)
+                }
+            }
         }
 
         pub fn preload_pool_information(
@@ -262,6 +282,7 @@ pub mod adapter {
             &mut self,
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
+            lockup_period: LockupPeriod,
         ) -> OpenLiquidityPositionOutput {
             let mut pool = pool!(pool_address);
 
@@ -302,9 +323,10 @@ pub mod adapter {
             let ContributionBinConfiguration {
                 start_tick: lowest_tick,
                 end_tick: highest_tick,
-            } = *self
+            } = self
                 .pool_contribution_bin_configuration
                 .get(&pool_address)
+                .and_then(|value| value.get(&lockup_period).map(|value| *value))
                 .expect(POOL_HAS_NO_BIN_CONFIG);
 
             let lower_ticks = (lowest_tick..active_tick)
@@ -316,6 +338,7 @@ pub mod adapter {
 
             // Ensure that the currently active tick is in the span of ticks
             // that we're allowed to contribute to. If not then error out.
+            info!("active_tick = {active_tick}");
             if active_tick > highest_tick || active_tick < lowest_tick {
                 panic!("{}", ACTIVE_TICK_IS_OUTSIDE_OF_ALLOWED_RANGE);
             }
@@ -364,10 +387,10 @@ pub mod adapter {
 
                 let position_amount_x = amount_x
                     .checked_div(higher_ticks.len() as u32)
-                    .expect(OVERFLOW_ERROR);
+                    .unwrap_or(Decimal::ZERO);
                 let position_amount_y = amount_y
                     .checked_div(lower_ticks.len() as u32)
-                    .expect(OVERFLOW_ERROR);
+                    .unwrap_or(Decimal::ZERO);
 
                 (position_amount_x, position_amount_y)
             };

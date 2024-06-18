@@ -41,16 +41,19 @@ fn can_open_a_simple_position_against_a_caviarnine_pool(
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -91,16 +94,19 @@ fn liquidity_receipt_information_can_be_read_through_adapter(
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let bitcoin_bucket =
         ResourceManager(resources.bitcoin).mint_fungible(dec!(100), env)?;
@@ -127,7 +133,10 @@ fn liquidity_receipt_information_can_be_read_through_adapter(
     )?;
 
     // Assert
-    assert_eq!(data.adapter_specific_information.bin_contributions.len(), 3);
+    assert_eq!(
+        data.adapter_specific_information.bin_contributions.len(),
+        21
+    );
 
     Ok(())
 }
@@ -150,52 +159,61 @@ fn can_open_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
 
     ledger
         .execute_manifest_without_auth(
-            ManifestBuilder::new()
-                .lock_fee_from_faucet()
-                .call_method(
-                    caviarnine_v1.adapter,
-                    "upsert_pool_contribution_bin_configuration",
-                    (
-                        caviarnine_v1.pools.bitcoin,
-                        ContributionBinConfiguration {
-                            start_tick: 22100,
-                            end_tick: 27100,
-                        },
-                    ),
+            bin_configuration()
+                .iter()
+                .fold(
+                    ManifestBuilder::new().lock_fee_from_faucet(),
+                    |builder, (lockup_period, config)| {
+                        builder.call_method(
+                            caviarnine_v1.adapter,
+                            "upsert_pool_contribution_bin_configuration",
+                            (
+                                caviarnine_v1.pools.bitcoin,
+                                lockup_period,
+                                config,
+                            ),
+                        )
+                    },
                 )
                 .mint_fungible(resources.bitcoin, dec!(100_000_000_000_000))
                 .try_deposit_entire_worktop_or_abort(account_address, None)
+                .call_method(
+                    protocol.ignition,
+                    "add_reward_rate",
+                    (LockupPeriod::from_months(6).unwrap(), dec!(0.2)),
+                )
                 .build(),
         )
         .expect_commit_success();
 
-    dbg!(ledger.execute_manifest_with_enabled_modules(
-        ManifestBuilder::new()
-            .lock_fee_from_faucet()
-            .withdraw_from_account(
-                account_address,
-                resources.bitcoin,
-                dec!(100_000),
-            )
-            .take_all_from_worktop(resources.bitcoin, "bitcoin")
-            .with_bucket("bitcoin", |builder, bucket| {
-                builder.call_method(
-                    protocol.ignition,
-                    "open_liquidity_position",
-                    (
-                        bucket,
-                        caviarnine_v1.pools.bitcoin,
-                        LockupPeriod::from_months(6).unwrap(),
-                    ),
+    ledger
+        .execute_manifest_with_enabled_modules(
+            ManifestBuilder::new()
+                .lock_fee_from_faucet()
+                .withdraw_from_account(
+                    account_address,
+                    resources.bitcoin,
+                    dec!(100_000),
                 )
-            })
-            .try_deposit_entire_worktop_or_abort(account_address, None)
-            .build(),
-        EnabledModules::for_test_transaction()
-            & !EnabledModules::AUTH
-            & !EnabledModules::COSTING,
-    ))
-    .expect_commit_success();
+                .take_all_from_worktop(resources.bitcoin, "bitcoin")
+                .with_bucket("bitcoin", |builder, bucket| {
+                    builder.call_method(
+                        protocol.ignition,
+                        "open_liquidity_position",
+                        (
+                            bucket,
+                            caviarnine_v1.pools.bitcoin,
+                            LockupPeriod::from_months(6).unwrap(),
+                        ),
+                    )
+                })
+                .try_deposit_entire_worktop_or_abort(account_address, None)
+                .build(),
+            EnabledModules::for_test_transaction()
+                & !EnabledModules::AUTH
+                & !EnabledModules::COSTING,
+        )
+        .expect_commit_success();
 
     // Act
     let receipt = ledger.construct_and_execute_notarized_transaction(
@@ -255,21 +273,29 @@ fn can_close_a_liquidity_position_in_caviarnine_that_fits_into_fee_limits() {
 
     ledger
         .execute_manifest_without_auth(
-            ManifestBuilder::new()
-                .lock_fee_from_faucet()
-                .call_method(
-                    caviarnine_v1.adapter,
-                    "upsert_pool_contribution_bin_configuration",
-                    (
-                        caviarnine_v1.pools.bitcoin,
-                        ContributionBinConfiguration {
-                            start_tick: 22100,
-                            end_tick: 27100,
-                        },
-                    ),
+            bin_configuration()
+                .iter()
+                .fold(
+                    ManifestBuilder::new().lock_fee_from_faucet(),
+                    |builder, (lockup_period, config)| {
+                        builder.call_method(
+                            caviarnine_v1.adapter,
+                            "upsert_pool_contribution_bin_configuration",
+                            (
+                                caviarnine_v1.pools.bitcoin,
+                                lockup_period,
+                                config,
+                            ),
+                        )
+                    },
                 )
                 .mint_fungible(resources.bitcoin, dec!(100_000_000_000_000))
                 .try_deposit_entire_worktop_or_abort(account_address, None)
+                .call_method(
+                    protocol.ignition,
+                    "add_reward_rate",
+                    (LockupPeriod::from_months(6).unwrap(), dec!(0.2)),
+                )
                 .build(),
         )
         .expect_commit_success();
@@ -449,16 +475,19 @@ fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
             caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
             ..Default::default()
         })?;
-        caviarnine_v1
-            .adapter
-            .upsert_pool_contribution_bin_configuration(
-                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-                ContributionBinConfiguration {
-                    start_tick: 26900,
-                    end_tick: 27100,
-                },
-                env,
-            )?;
+        for (lockup_period, _) in bin_configuration().iter() {
+            caviarnine_v1
+                .adapter
+                .upsert_pool_contribution_bin_configuration(
+                    caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                    *lockup_period,
+                    ContributionBinConfiguration {
+                        start_tick: 27000,
+                        end_tick: 27100,
+                    },
+                    env,
+                )?;
+        }
 
         let xrd_bucket = ResourceManager(XRD).mint_fungible(dec!(1), env)?;
         let bitcoin_bucket =
@@ -473,6 +502,7 @@ fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
         let result = caviarnine_v1.adapter.open_liquidity_position(
             caviarnine_v1.pools.bitcoin.try_into().unwrap(),
             buckets,
+            LockupPeriod::from_months(6).unwrap(),
             env,
         );
         results.push(result.is_ok());
@@ -504,16 +534,19 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
     protocol
         .ignition
         .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
@@ -546,7 +579,7 @@ fn liquidity_receipt_includes_the_amount_of_liquidity_positions_we_expect_to_see
         .adapter_specific_information
         .as_typed::<CaviarnineV1AdapterSpecificInformation>()
         .unwrap();
-    assert_eq!(adapter_information.bin_contributions.len(), 3);
+    assert_eq!(adapter_information.bin_contributions.len(), 21);
 
     Ok(())
 }
@@ -570,16 +603,19 @@ fn contribution_amount_reported_in_receipt_nft_matches_caviarnine_state(
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
     protocol
         .ignition
         .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
@@ -766,16 +802,19 @@ fn non_strict_testing_of_fees(
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let pool_reported_price = caviarnine_v1
         .adapter
@@ -807,6 +846,7 @@ fn non_strict_testing_of_fees(
                     .mint_fungible(dec!(100_000), env)?,
                 ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
             ),
+            LockupPeriod::from_months(6).unwrap(),
             env,
         )?
         .pool_units
@@ -853,6 +893,7 @@ fn non_strict_testing_of_fees(
                         ResourceManager(XRD)
                             .mint_fungible(dec!(100_000), env)?,
                     ),
+                    LockupPeriod::from_months(6).unwrap(),
                     env,
                 )?
                 .pool_units;
@@ -860,7 +901,7 @@ fn non_strict_testing_of_fees(
     }
 
     env.set_current_time(Instant::new(
-        *LockupPeriod::from_months(12).unwrap().seconds() as i64,
+        *LockupPeriod::from_months(6).unwrap().seconds() as i64,
     ));
     let pool_reported_price = caviarnine_v1
         .adapter
@@ -952,16 +993,19 @@ fn price_and_active_tick_reported_by_adapter_must_match_whats_reported_by_pool(
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
     env.disable_limits_module();
 
     let bin_span = 100u32;
@@ -1034,16 +1078,19 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_same_as_pool_pric
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
     let user_resource = resources.bitcoin;
@@ -1104,16 +1151,19 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_higher_than_pool_
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
     let user_resource = resources.bitcoin;
@@ -1174,16 +1224,19 @@ fn user_resources_are_contributed_in_full_when_oracle_price_is_lower_than_pool_p
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let pool = ComponentAddress::try_from(caviarnine_v1.pools.bitcoin).unwrap();
     let user_resource = resources.bitcoin;
@@ -1239,16 +1292,19 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
         ..Default::default()
     })?;
 
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let user_resource = resources.bitcoin;
     let pool = caviarnine_v1.pools.bitcoin;
@@ -1268,6 +1324,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1346,16 +1403,19 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let user_resource = resources.bitcoin;
     let mut pool = caviarnine_v1.pools.bitcoin;
@@ -1379,6 +1439,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1457,16 +1518,19 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
         caviarnine_adapter_version: CaviarnineAdapterVersion::Two,
         ..Default::default()
     })?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
 
     let user_resource = resources.bitcoin;
     let mut pool = caviarnine_v1.pools.bitcoin;
@@ -1490,6 +1554,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::from_months(6).unwrap(),
         env,
     )?;
 
@@ -1572,16 +1637,19 @@ fn xrd_contributed_matches_the_matching_factor() -> Result<(), RuntimeError> {
         dec!(0.4),
         env,
     )?;
-    caviarnine_v1
-        .adapter
-        .upsert_pool_contribution_bin_configuration(
-            caviarnine_v1.pools.bitcoin.try_into().unwrap(),
-            ContributionBinConfiguration {
-                start_tick: 26900,
-                end_tick: 27100,
-            },
-            env,
-        )?;
+    for (lockup_period, _) in bin_configuration().iter() {
+        caviarnine_v1
+            .adapter
+            .upsert_pool_contribution_bin_configuration(
+                caviarnine_v1.pools.bitcoin.try_into().unwrap(),
+                *lockup_period,
+                ContributionBinConfiguration {
+                    start_tick: 26000,
+                    end_tick: 28000,
+                },
+                env,
+            )?;
+    }
     protocol
         .ignition
         .set_maximum_allowed_price_difference_percentage(dec!(0.50), env)?;
@@ -1620,4 +1688,20 @@ fn round_down_to_5_decimal_places(decimal: Decimal) -> Decimal {
     decimal
         .checked_round(5, RoundingMode::ToNegativeInfinity)
         .unwrap()
+}
+
+fn bin_configuration(
+) -> &'static IndexMap<LockupPeriod, ContributionBinConfiguration> {
+    static MAP: std::sync::OnceLock<
+        IndexMap<LockupPeriod, ContributionBinConfiguration>,
+    > = std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        indexmap! {
+            LockupPeriod::from_months(6).unwrap()
+                => ContributionBinConfiguration {
+                    start_tick: 27000,
+                    end_tick: 27101
+                },
+        }
+    })
 }

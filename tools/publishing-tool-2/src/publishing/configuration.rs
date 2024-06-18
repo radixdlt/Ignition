@@ -73,8 +73,11 @@ pub struct PublishingConfiguration {
 pub struct AdditionalSettings {
     pub fund_ignition_volatile: Option<(ComponentAddress, Decimal)>,
     pub fund_ignition_non_volatile: Option<(ComponentAddress, Decimal)>,
-    pub configure_caviarnine_adapter_pool_configuration:
-        Option<UserResourceIndexedData<ContributionBinConfiguration>>,
+    pub configure_caviarnine_adapter_pool_configuration: Option<
+        UserResourceIndexedData<
+            IndexMap<LockupPeriod, ContributionBinConfiguration>,
+        >,
+    >,
 }
 
 #[derive(Debug, Clone, ScryptoSbor)]

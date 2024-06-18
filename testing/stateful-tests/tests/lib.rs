@@ -18,11 +18,10 @@
 #![allow(clippy::arithmetic_side_effects)]
 
 use address_macros::*;
-use caviarnine_v1_adapter_v1::*;
 use common::prelude::*;
+use ignition::InitializationParametersManifest;
 use macro_rules_attribute::apply;
 use package_loader::*;
-use publishing_tool::database_overlay::*;
 use publishing_tool::publishing::*;
 use radix_common::prelude::*;
 use radix_engine::blueprints::consensus_manager::*;
@@ -32,7 +31,6 @@ use radix_engine::system::system_modules::*;
 use radix_engine_interface::blueprints::consensus_manager::*;
 use radix_engine_interface::prelude::*;
 use radix_transactions::prelude::*;
-use scrypto_test::ledger_simulator::*;
 use stateful_tests::*;
 
 #[apply(mainnet_test)]
@@ -546,8 +544,7 @@ fn log_reported_price_from_defiplaza_pool(
 }
 
 #[apply(mainnet_test)]
-#[ignore = "Ignoring this test for now"]
-fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
+fn lsu_lp_positions_can_be_opened_and_closed_and_fit_within_fee_limits(
     AccountAndControllingKey {
         account_address: test_account,
         controlling_key: test_account_private_key,
@@ -556,6 +553,10 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
     ledger: &mut StatefulLedgerSimulator<'_>,
 ) {
     // Arrange
+    let mut receipt = receipt.clone();
+    let caviarnine_exchange_information =
+        receipt.exchange_information.caviarnine_v1.unwrap();
+
     let pool_component_address = component_address!(
         "component_rdx1crdhl7gel57erzgpdz3l3vr64scslq4z7vd0xgna6vh5fq5fnn9xas"
     );
@@ -563,8 +564,114 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
         "resource_rdx1thksg5ng70g9mmy9ne7wz0sc7auzrrwy7fmgcxzel2gvp8pj0xxfmf"
     );
 
+    /* Publish a new Ignition package and create a new Ignition component */
+    {
+        let (wasm, package_definition) = PackageLoader::get("ignition");
+        receipt.packages.protocol_entities.ignition = ledger
+            .execute_manifest_without_auth(
+                ManifestBuilder::new()
+                    .lock_fee(test_account, dec!(1000))
+                    .publish_package_advanced(
+                        None,
+                        wasm,
+                        package_definition,
+                        MetadataInit::default(),
+                        Default::default(),
+                    )
+                    .build(),
+            )
+            .expect_commit_success()
+            .new_package_addresses()
+            .first()
+            .copied()
+            .unwrap();
+        receipt.components.protocol_entities.ignition = ledger
+            .execute_manifest_without_auth(
+                ManifestBuilder::new()
+                    .lock_fee(test_account, dec!(1000))
+                    .call_function(
+                        receipt.packages.protocol_entities.ignition,
+                        "Ignition",
+                        "instantiate",
+                        (
+                            MetadataInit::default(),
+                            OwnerRole::Fixed(rule!(require(
+                                receipt.badges.protocol_owner_badge
+                            ))),
+                            rule!(require(receipt.badges.protocol_owner_badge)),
+                            rule!(require(
+                                receipt.badges.protocol_manager_badge
+                            )),
+                            XRD,
+                            receipt.components.protocol_entities.simple_oracle,
+                            receipt
+                                .protocol_configuration
+                                .maximum_allowed_price_staleness_in_seconds,
+                            receipt
+                                .protocol_configuration
+                                .maximum_allowed_price_difference_percentage,
+                            InitializationParametersManifest {
+                                initial_pool_information: Some(
+                                    indexmap! {
+                                        caviarnine_exchange_information.blueprint_id
+                                            => ignition::PoolBlueprintInformation {
+                                                adapter: receipt
+                                                    .components
+                                                    .exchange_adapter_entities
+                                                    .caviarnine_v1,
+                                                allowed_pools: [pool_component_address].into(),
+                                                liquidity_receipt: caviarnine_exchange_information
+                                                    .liquidity_receipt,
+                                            }
+                                    }
+                                ),
+                                initial_user_resource_volatility: Some(
+                                    indexmap! {
+                                        lsulp_resource_address
+                                            => Volatility::NonVolatile
+                                    },
+                                ),
+                                initial_reward_rates: Some(lockup_periods()),
+                                initial_volatile_protocol_resources: None,
+                                initial_non_volatile_protocol_resources: None,
+                                initial_is_open_position_enabled: Some(true),
+                                initial_is_close_position_enabled: Some(true),
+                                initial_matching_factors: Some(indexmap! {
+                                    pool_component_address => dec!(0.4)
+                                }),
+                            },
+                            None::<ManifestAddressReservation>,
+                        ),
+                    )
+                    .build(),
+            )
+            .expect_commit_success()
+            .new_component_addresses()
+            .first()
+            .copied()
+            .unwrap();
+        ledger
+            .execute_manifest_without_auth(
+                ManifestBuilder::new()
+                    .lock_fee(test_account, dec!(1000))
+                    .set_role(
+                        caviarnine_exchange_information.liquidity_receipt,
+                        ModuleId::Main,
+                        "minter",
+                        rule!(allow_all),
+                    )
+                    .set_role(
+                        caviarnine_exchange_information.liquidity_receipt,
+                        ModuleId::Main,
+                        "burner",
+                        rule!(allow_all),
+                    )
+                    .build(),
+            )
+            .expect_commit_success();
+    }
+
     /* Update Ignition to use the other Caviarnine adapter */
-    println!("Publishing package");
     {
         let (wasm, package_definition) =
             PackageLoader::get("caviarnine-v1-adapter-v2");
@@ -634,17 +741,33 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
                         "add_allowed_pool",
                         (pool_component_address,),
                     )
-                    .call_method(
-                        adapter_component_address,
-                        "upsert_pool_contribution_bin_configuration",
-                        (pool_component_address, (27033u32, 27148u32)),
-                    )
+                    .then(|builder| {
+                        bin_configuration()
+                            .iter()
+                            .fold(builder, |builder, (lockup, config)| {
+                                builder.call_method(
+                                    adapter_component_address,
+                                    "upsert_pool_contribution_bin_configuration",
+                                    (pool_component_address, lockup, config),
+                                )
+                            })
+                    })
+                    .then(|builder| {
+                        lockup_periods()
+                            .into_iter()
+                            .fold(builder, |builder, (lockup, reward)| {
+                                builder.call_method(
+                                    receipt.components.protocol_entities.ignition,
+                                    "add_reward_rate",
+                                    (lockup, reward),
+                                )
+                            })
+                    })
                     .build(),
             )
             .expect_commit_success();
     }
 
-    println!("Funding ignition");
     ledger
         .execute_manifest_with_enabled_modules(
             ManifestBuilder::new()
@@ -686,8 +809,7 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
         .expect_commit_success();
 
     /* Open a liquidity position */
-    println!("Opening a liquidity position");
-    let lockup_period = LockupPeriod::from_months(12).unwrap();
+    let lockup_period = LockupPeriod::from_months(6).unwrap();
     {
         let current_epoch = ledger.get_current_epoch();
         let transaction = TransactionBuilder::new()
@@ -733,59 +855,11 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
         );
     }
 
-    println!("Doing things");
-    let mut active_tick = ledger
-        .execute_manifest_with_enabled_modules(
-            ManifestBuilder::new()
-                .caviarnine_v1_pool_get_active_tick(pool_component_address)
-                .build(),
-            EnabledModules::for_notarized_transaction()
-                & !EnabledModules::AUTH
-                & !EnabledModules::COSTING,
-        )
-        .expect_commit_success()
-        .output::<Option<u32>>(0)
-        .unwrap();
-    println!("Going into the while loop");
-    while active_tick < 27148u32 {
-        println!("active_tick = {active_tick}");
-        /* Perform a swap to push the price up */
-        ledger
-            .execute_manifest_with_enabled_modules(
-                ManifestBuilder::new()
-                    .mint_fungible(lsulp_resource_address, 1000)
-                    .take_all_from_worktop(lsulp_resource_address, "bucket")
-                    .with_bucket("bucket", |builder, bucket| {
-                        builder.caviarnine_v1_pool_swap(
-                            pool_component_address,
-                            bucket,
-                        )
-                    })
-                    .deposit_batch(test_account)
-                    .build(),
-                EnabledModules::for_notarized_transaction()
-                    & !EnabledModules::AUTH
-                    & !EnabledModules::COSTING,
-            )
-            .expect_commit_success();
-
-        active_tick = ledger
-            .execute_manifest_with_enabled_modules(
-                ManifestBuilder::new()
-                    .caviarnine_v1_pool_get_active_tick(pool_component_address)
-                    .build(),
-                EnabledModules::for_notarized_transaction()
-                    & !EnabledModules::AUTH
-                    & !EnabledModules::COSTING,
-            )
-            .expect_commit_success()
-            .output::<Option<u32>>(0)
-            .unwrap();
-
+    // Set the current time to be 6 months from now.
+    {
         let current_time = ledger.get_current_time(TimePrecisionV2::Minute);
-        let maturity_instant = current_time
-            .add_seconds(*lockup_period.seconds() as i64)
-            .unwrap();
+        let maturity_instant =
+            current_time.add_seconds(*lockup_period as i64).unwrap();
         let db = ledger.substate_db_mut();
         let mut writer = SystemDatabaseWriter::new(db);
 
@@ -809,13 +883,17 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
                 ConsensusManagerField::ProposerMinuteTimestamp.field_index(),
                 ConsensusManagerProposerMinuteTimestampFieldPayload::from_content_source(
                     ProposerMinuteTimestampSubstate {
-                        epoch_minute: i32::try_from(maturity_instant.seconds_since_unix_epoch / 60)
-                            .unwrap(),
+                        epoch_minute: i32::try_from(
+                            maturity_instant.seconds_since_unix_epoch / 60,
+                        )
+                        .unwrap(),
                     },
                 ),
             )
             .unwrap();
+    }
 
+    {
         let oracle = receipt.components.protocol_entities.simple_oracle;
         let (price, _) = ledger
             .execute_manifest_with_enabled_modules(
@@ -846,70 +924,83 @@ fn lsu_lp_positions_opened_at_current_bin_can_be_closed_at_any_bin(
                     & !EnabledModules::COSTING,
             )
             .expect_commit_success();
+    }
 
-        // Act
-        let current_epoch = ledger.get_current_epoch();
-        let transaction = TransactionBuilder::new()
-            .header(TransactionHeaderV1 {
-                network_id: 0xf2,
-                start_epoch_inclusive: current_epoch,
-                end_epoch_exclusive: current_epoch.after(10).unwrap(),
-                nonce: ledger.next_transaction_nonce(),
-                notary_public_key: test_account_private_key.public_key(),
-                notary_is_signatory: true,
-                tip_percentage: 0,
-            })
-            .manifest(
-                ManifestBuilder::new()
-                    .lock_fee(test_account, dec!(10))
-                    .withdraw_from_account(
-                        test_account,
-                        receipt
-                            .exchange_information
-                            .caviarnine_v1
-                            .as_ref()
-                            .unwrap()
-                            .liquidity_receipt,
-                        dec!(1),
-                    )
-                    .take_all_from_worktop(
-                        receipt
-                            .exchange_information
-                            .caviarnine_v1
-                            .as_ref()
-                            .unwrap()
-                            .liquidity_receipt,
-                        "bucket",
-                    )
-                    .with_bucket("bucket", |builder, bucket| {
-                        builder.call_method(
-                            receipt.components.protocol_entities.ignition,
-                            "close_liquidity_position",
-                            (bucket,),
-                        )
-                    })
-                    .deposit_batch(test_account)
-                    .build(),
-            )
-            .notarize(&test_account_private_key)
-            .build();
-        let receipt = LedgerSimulatorBuilder::new()
-            .with_custom_protocol(|executor| executor.until_babylon())
-            .with_custom_database(SubstateDatabaseOverlay::new_unmergeable(
-                ledger.substate_db(),
-            ))
-            .build_without_bootstrapping()
-            .0
-            .execute_notarized_transaction(&transaction.to_raw().unwrap());
+    let current_epoch = ledger.get_current_epoch();
 
-        // Assert
-        receipt.expect_commit_success();
-        println!(
-            "Closing a position in {} {} pool costs {} XRD in total with {} XRD in execution",
-            stringify!($exchange_ident),
-            stringify!($resource_ident),
-            receipt.fee_summary.total_cost(),
-            receipt.fee_summary.total_execution_cost_in_xrd
-        );
+    // Act
+    let transaction = TransactionBuilder::new()
+        .header(TransactionHeaderV1 {
+            network_id: 0xf2,
+            start_epoch_inclusive: current_epoch,
+            end_epoch_exclusive: current_epoch.after(10).unwrap(),
+            nonce: ledger.next_transaction_nonce(),
+            notary_public_key: test_account_private_key.public_key(),
+            notary_is_signatory: true,
+            tip_percentage: 0,
+        })
+        .manifest(
+            ManifestBuilder::new()
+                .lock_fee(test_account, dec!(10))
+                .withdraw_from_account(
+                    test_account,
+                    caviarnine_exchange_information.liquidity_receipt,
+                    dec!(1),
+                )
+                .take_all_from_worktop(
+                    caviarnine_exchange_information.liquidity_receipt,
+                    "bucket",
+                )
+                .with_bucket("bucket", |builder, bucket| {
+                    builder.call_method(
+                        receipt.components.protocol_entities.ignition,
+                        "close_liquidity_position",
+                        (bucket,),
+                    )
+                })
+                .deposit_batch(test_account)
+                .build(),
+        )
+        .notarize(&test_account_private_key)
+        .build();
+    let receipt =
+        ledger.execute_notarized_transaction(&transaction.to_raw().unwrap());
+
+    // Assert
+    receipt.expect_commit_success();
+    println!(
+        "Closing a position in {} {} pool costs {} XRD in total with {} XRD in execution",
+        stringify!($exchange_ident),
+        stringify!($resource_ident),
+        receipt.fee_summary.total_cost(),
+        receipt.fee_summary.total_execution_cost_in_xrd
+    );
+}
+
+fn bin_configuration(
+) -> &'static IndexMap<LockupPeriod, ContributionBinConfiguration> {
+    static MAP: std::sync::OnceLock<
+        IndexMap<LockupPeriod, ContributionBinConfiguration>,
+    > = std::sync::OnceLock::new();
+    MAP.get_or_init(|| {
+        indexmap! {
+            LockupPeriod::from_months(6).unwrap()
+                => ContributionBinConfiguration {
+                    start_tick: 27043,
+                    end_tick: 27101
+                },
+        }
+    })
+}
+
+#[derive(Clone, Copy, Debug, ScryptoSbor, ManifestSbor)]
+pub struct ContributionBinConfiguration {
+    pub start_tick: u32,
+    pub end_tick: u32,
+}
+
+fn lockup_periods() -> IndexMap<LockupPeriod, Decimal> {
+    indexmap! {
+        LockupPeriod::from_months(6).unwrap() => dec!(0.04),
     }
 }

@@ -53,12 +53,7 @@ fn get_database() -> &'static ActualStateManagerDatabase {
                 STATE_MANAGER_DATABASE_PATH_ENVIRONMENT_VARIABLE
             );
         };
-        ActualStateManagerDatabase::new(
-            state_manager_database_path,
-            Default::default(),
-            &NetworkDefinition::mainnet(),
-        )
-        .unwrap()
+        ActualStateManagerDatabase::new_read_only(state_manager_database_path)
     })
 }
 

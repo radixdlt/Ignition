@@ -404,6 +404,7 @@ fn contributions_to_caviarnine_through_adapter_dont_fail_due_to_bucket_ordering(
         let result = caviarnine_v1.adapter.open_liquidity_position(
             caviarnine_v1.pools.bitcoin.try_into().unwrap(),
             buckets,
+            LockupPeriod::default(),
             env,
         );
         results.push(result.is_ok());
@@ -687,6 +688,7 @@ fn non_strict_testing_of_fees(
                     .mint_fungible(dec!(100_000), env)?,
                 ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
             ),
+            LockupPeriod::default(),
             env,
         )?
         .pool_units
@@ -733,6 +735,7 @@ fn non_strict_testing_of_fees(
                         ResourceManager(XRD)
                             .mint_fungible(dec!(100_000), env)?,
                     ),
+                    LockupPeriod::default(),
                     env,
                 )?
                 .pool_units;
@@ -1534,6 +1537,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine(
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::default(),
         env,
     )?;
 
@@ -1634,6 +1638,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::default(),
         env,
     )?;
 
@@ -1734,6 +1739,7 @@ fn bin_amounts_reported_on_receipt_match_whats_reported_by_caviarnine_with_price
     } = caviarnine_v1.adapter.open_liquidity_position(
         pool.try_into().unwrap(),
         (user_resource_bucket, xrd_bucket),
+        LockupPeriod::default(),
         env,
     )?;
 

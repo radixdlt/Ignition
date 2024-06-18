@@ -1,0 +1,28 @@
+{
+  "manifest": "CALL_METHOD\n    Address(\"account_rdx129gevyk2dkt2zmm8rh2mtkqhdn3gnkyw3sxngjwccgaampfhjafv50\")\n    \"try_deposit_batch_or_abort\"\n    Expression(\"ENTIRE_WORKTOP\")\n    Enum<0u8>()\n;\n",
+  "blobs_hex": [],
+  "start_epoch_inclusive": 108597,
+  "end_epoch_exclusive": 108607,
+  "notary_public_key": {
+    "key_type": "EddsaEd25519",
+    "key_hex": "da9cf1363a2d9a7d15d63d28562768b61c94a935c1374d18224e27a8f98ade7b"
+  },
+  "notary_is_signatory": true,
+  "tip_percentage": 0,
+  "nonce": 198232210,
+  "signer_public_keys": [
+    {
+      "key_type": "EddsaEd25519",
+      "key_hex": "da9cf1363a2d9a7d15d63d28562768b61c94a935c1374d18224e27a8f98ade7b"
+    },
+    {
+      "key_type": "EddsaEd25519",
+      "key_hex": "0263adf695eabf6c18a7eb86088b03f93640f0f756aae5b3ec9a9761b9d3870a"
+    }
+  ],
+  "flags": {
+    "use_free_credit": true,
+    "assume_all_signature_proofs": false,
+    "skip_epoch_check": false
+  }
+}

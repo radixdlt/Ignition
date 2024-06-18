@@ -260,6 +260,12 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
                 skip_epoch_check: preview_intent.flags.skip_epoch_check,
             }),
         };
+        std::fs::write(
+            hex::encode(&blake2b_256_hash(
+                &serde_json::to_string_pretty(&request).unwrap().as_bytes(),
+            )),
+            serde_json::to_string_pretty(&request).unwrap(),
+        );
         let response = transaction_preview(&self.configuration, request)
             .map_err(GatewayExecutorError::TransactionPreviewError)?;
 

@@ -233,6 +233,7 @@ define_interface! {
             &mut self,
             pool_address: ComponentAddress,
             buckets: (Bucket, Bucket),
+            _: LockupPeriod
         ) -> OpenLiquidityPositionOutput;
         fn close_liquidity_position(
             &mut self,

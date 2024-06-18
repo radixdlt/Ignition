@@ -456,7 +456,7 @@ pub fn publish<N: NetworkConnectionProvider>(
 
             let size_if_code_is_added_to_batch = total_code_size + code.len();
             // Add to next batch
-            if size_if_code_is_added_to_batch > 980 * 1024 {
+            if size_if_code_is_added_to_batch > 900 * 1024 {
                 batches.push(vec![(
                     key.to_owned(),
                     (code, definition, metadata_init, blueprint_name),
@@ -882,17 +882,22 @@ pub fn publish<N: NetworkConnectionProvider>(
                     })
                 })
                 .then(|builder| {
-                    if let Some(config) = configuration
+                    if let Some(ref config) = configuration
                         .additional_settings
                         .configure_caviarnine_adapter_pool_configuration
                     {
-                        pools.zip(config).iter().fold(builder, |builder, args| {
-                            builder.call_method(
-                                resolved_adapter_component_addresses.caviarnine_v1,
-                                "upsert_pool_contribution_bin_configuration",
-                                args,
-                            )
-                        })
+                        pools.zip(config.clone()).iter().fold(
+                            builder,
+                            |builder, (pool, configs)| {
+                                configs.iter().fold(builder, |builder, (lockup, config)| {
+                                    builder.call_method(
+                                        resolved_adapter_component_addresses.caviarnine_v1,
+                                        "upsert_pool_contribution_bin_configuration",
+                                        (pool, lockup, config),
+                                    )
+                                })
+                            },
+                        )
                     } else {
                         builder
                     }

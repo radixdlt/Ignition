@@ -92,7 +92,7 @@ pub fn mainnet_testing(
                 bitcoin: Decimal::ONE,
                 ethereum: Decimal::ONE,
                 usdc: Decimal::ONE,
-                usdt: Decimal::ONE
+                usdt: Decimal::ONE,
             },
         },
         dapp_definition_metadata: indexmap! {
