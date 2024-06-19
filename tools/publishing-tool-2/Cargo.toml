@@ -26,6 +26,9 @@ caviarnine-v1-adapter-v2 = { path = "../../packages/caviarnine-v1-adapter-v2", f
 
 sbor-json = { workspace = true }
 
+reqwest = { version = "0.11.23", features = ["json", "blocking", "multipart"] }
+regex = { workspace = true }
+
 hex = { version = "0.4.3" }
 rand = { version = "0.8.5" }
 macro_rules_attribute = { version = "0.2.0" }

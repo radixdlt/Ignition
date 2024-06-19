@@ -333,7 +333,7 @@ fn contributions_to_ociswap_through_adapter_dont_fail_due_to_bucket_ordering(
         let result = ociswap_v2.adapter.open_liquidity_position(
             ociswap_v2.pools.bitcoin.try_into().unwrap(),
             buckets,
-            LockupPeriod::default(),
+            LockupPeriod::from_seconds(0),
             env,
         );
         results.push(result.is_ok());
@@ -479,7 +479,7 @@ fn non_strict_testing_of_fees(
                     .mint_fungible(dec!(100_000), env)?,
                 ResourceManager(XRD).mint_fungible(dec!(100_000), env)?,
             ),
-            LockupPeriod::default(),
+            LockupPeriod::from_seconds(0),
             env,
         )?
         .pool_units
@@ -526,7 +526,7 @@ fn non_strict_testing_of_fees(
                         ResourceManager(XRD)
                             .mint_fungible(dec!(100_000), env)?,
                     ),
-                    LockupPeriod::default(),
+                    LockupPeriod::from_seconds(0),
                     env,
                 )?
                 .pool_units;

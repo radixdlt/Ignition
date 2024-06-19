@@ -46,6 +46,10 @@ impl GatewayNetworkConnector {
         Self {
             configuration: Configuration {
                 base_path: base_url.to_owned(),
+                client: reqwest::blocking::ClientBuilder::new()
+                    .timeout(None)
+                    .build()
+                    .unwrap(),
                 ..Default::default()
             },
             network_definition,
@@ -210,11 +214,24 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
         &mut self,
         preview_intent: PreviewIntentV1,
     ) -> Result<TransactionReceiptV1, Self::Error> {
-        let string_manifest = decompile(
-            &preview_intent.intent.instructions.0,
-            &self.network_definition,
-        )
-        .map_err(GatewayExecutorError::ManifestDecompileError)?;
+        let string_manifest = regex::Regex::new(r"(?m)(\s\s+)")
+            .unwrap()
+            .replace_all(
+                decompile(
+                    &preview_intent.intent.instructions.0,
+                    &self.network_definition,
+                )
+                .map_err(GatewayExecutorError::ManifestDecompileError)?
+                .replace('\n', " ")
+                .as_str(),
+                " ",
+            )
+            .replace(" ,", ",")
+            .replace(", ", ",")
+            .replace(" )", ")")
+            .replace(") ", ")")
+            .replace(" (", "(")
+            .replace("( ", "(");
 
         let blob_hex = preview_intent
             .intent
@@ -260,12 +277,6 @@ impl NetworkConnectionProvider for GatewayNetworkConnector {
                 skip_epoch_check: preview_intent.flags.skip_epoch_check,
             }),
         };
-        std::fs::write(
-            hex::encode(&blake2b_256_hash(
-                &serde_json::to_string_pretty(&request).unwrap().as_bytes(),
-            )),
-            serde_json::to_string_pretty(&request).unwrap(),
-        );
         let response = transaction_preview(&self.configuration, request)
             .map_err(GatewayExecutorError::TransactionPreviewError)?;
 

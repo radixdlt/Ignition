@@ -2147,6 +2147,8 @@ dependencies = [
  "radix-substate-store-interface",
  "radix-transactions",
  "rand 0.8.5",
+ "regex",
+ "reqwest",
  "sbor",
  "sbor-json",
  "scrypto-test",
