@@ -57,7 +57,7 @@ impl IndexedBuckets {
         api: &mut Y,
     ) -> Result<Self, E>
     where
-        Y: ClientApi<E>,
+        Y: SystemApi<E>,
         E: Debug + ScryptoCategorize + ScryptoDecode,
     {
         let mut this = Self::new();
@@ -69,7 +69,7 @@ impl IndexedBuckets {
         api: &mut Y,
     ) -> Result<Self, E>
     where
-        Y: ClientApi<E>,
+        Y: SystemApi<E>,
         E: Debug + ScryptoCategorize + ScryptoDecode,
     {
         let mut this = Self::new();
@@ -84,7 +84,7 @@ impl IndexedBuckets {
         api: &mut Y,
     ) -> Result<(), E>
     where
-        Y: ClientApi<E>,
+        Y: SystemApi<E>,
         E: Debug + ScryptoCategorize + ScryptoDecode,
     {
         let bucket = bucket.into();

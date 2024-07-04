@@ -437,8 +437,8 @@ pub mod adapter {
                                 let mut pool = Global::<TwoResourcePool>::from(
                                     pool_component_address,
                                 );
-                                let (bucket1, bucket2) =
-                                    pool.redeem(pool_units_bucket);
+                                let (bucket1, bucket2) = pool
+                                    .redeem(pool_units_bucket.as_fungible());
                                 IndexedBuckets::from_buckets([bucket1, bucket2])
                             },
                         );
@@ -543,8 +543,8 @@ pub mod adapter {
                                 let mut pool = Global::<TwoResourcePool>::from(
                                     pool_component_address,
                                 );
-                                let (bucket1, bucket2) =
-                                    pool.redeem(pool_units_bucket);
+                                let (bucket1, bucket2) = pool
+                                    .redeem(pool_units_bucket.as_fungible());
                                 IndexedBuckets::from_buckets([bucket1, bucket2])
                             },
                         );

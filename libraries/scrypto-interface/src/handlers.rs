@@ -351,7 +351,7 @@ fn generate_scrypto_test_stub(
                     #[allow(clippy::too_many_arguments)]
                     pub #token_fn #ident <Y, E> ( #arguments ) -> Result<#rtn, E>
                     where
-                        Y: ::radix_engine_interface::prelude::ClientApi<E>,
+                        Y: ::radix_engine_interface::prelude::SystemApi<E>,
                         E: ::core::fmt::Debug
                     {
                         #inner

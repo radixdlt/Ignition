@@ -306,7 +306,7 @@ use proc_macro::TokenStream;
 /// `blueprint_package_address` which is the `PackageAddress` of the package
 /// that the blueprint belongs to, and all functions and methods end with an
 /// argument called `env` which is a generic argument of any type that has a
-/// `::radix_engine_interface::prelude::ClientApi<E>` implementation. This is
+/// `::radix_engine_interface::prelude::SystemApi<E>` implementation. This is
 /// practically going to be the scrypto test environment. The return types are
 /// changed as well such that the functions return a `Result<T, RuntimeError>`
 /// instead of `T` where `T` is their original return type.

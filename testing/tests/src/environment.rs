@@ -372,7 +372,7 @@ impl ScryptoTestEnv {
 
             let registry =
                 OciswapV2RegistryInterfaceScryptoTestStub::instantiate(
-                    GLOBAL_CALLER_VIRTUAL_BADGE,
+                    GLOBAL_CALLER_RESOURCE,
                     dec!(0.03),
                     10080,
                     20,
@@ -1058,7 +1058,7 @@ impl ScryptoUnitEnv {
                         .lock_fee_from_faucet()
                         .ociswap_v2_registry_instantiate(
                             ociswap_v2_registry_package,
-                            GLOBAL_CALLER_VIRTUAL_BADGE,
+                            GLOBAL_CALLER_RESOURCE,
                             dec!(0.03),
                             10080,
                             20,
