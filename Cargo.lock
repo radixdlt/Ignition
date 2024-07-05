@@ -2021,7 +2021,6 @@ dependencies = [
  "radix-common",
  "radix-engine",
  "radix-engine-interface",
- "radix-substate-store-queries",
  "scrypto-compiler 1.3.0-dev (git+https://github.com/radixdlt/radixdlt-scrypto?rev=93ab38386333e7c9b3658e63392e6493692a9291)",
  "walkdir",
  "wasm-opt",

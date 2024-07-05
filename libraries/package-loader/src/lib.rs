@@ -19,18 +19,29 @@
 #[allow(unused, clippy::module_inception)]
 mod package_loader {
     use radix_common::prelude::*;
-    use radix_substate_store_queries::typed_substate_layout::*;
     use std::sync::*;
 
     const PACKAGES_BINARY: &[u8] =
         include_bytes!(concat!(env!("OUT_DIR"), "/compiled_packages.bin"));
 
-    static PACKAGES: OnceLock<HashMap<String, (Vec<u8>, PackageDefinition)>> =
-        OnceLock::new();
+    static PACKAGES: OnceLock<
+        HashMap<
+            String,
+            (
+                Vec<u8>,
+                radix_engine_interface::blueprints::package::PackageDefinition,
+            ),
+        >,
+    > = OnceLock::new();
 
     pub struct PackageLoader;
     impl PackageLoader {
-        pub fn get(name: &str) -> (Vec<u8>, PackageDefinition) {
+        pub fn get(
+            name: &str,
+        ) -> (
+            Vec<u8>,
+            radix_engine_interface::blueprints::package::PackageDefinition,
+        ) {
             let packages = PACKAGES
                 .get_or_init(|| scrypto_decode(PACKAGES_BINARY).unwrap());
             if let Some(rtn) = packages.get(name) {
@@ -46,12 +57,16 @@ mod package_loader {
 #[allow(unused, clippy::module_inception)]
 mod package_loader {
     use radix_common::prelude::*;
-    use radix_substate_store_queries::typed_substate_layout::*;
     use std::path::PathBuf;
 
     pub struct PackageLoader;
     impl PackageLoader {
-        pub fn get(name: &str) -> (Vec<u8>, PackageDefinition) {
+        pub fn get(
+            name: &str,
+        ) -> (
+            Vec<u8>,
+            radix_engine_interface::blueprints::package::PackageDefinition,
+        ) {
             let package_dir = PathBuf::from_str(env!("CARGO_MANIFEST_DIR"))
                 .unwrap()
                 .parent()
