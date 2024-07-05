@@ -45,5 +45,8 @@ lazy_static = "1.4.0"
 [build-dependencies]
 flate2 = { version = "1.0.28" }
 
+[features]
+build-time-blueprints = ["package-loader/build-time-blueprints"]
+
 [lints]
 workspace = true
