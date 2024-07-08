@@ -6,7 +6,7 @@ description = "A simple oracle used in tests."
 
 [dependencies]
 sbor = { workspace = true }
-scrypto = { workspace = true }
+scrypto = { workspace = true, features = ["outsource-decimal-arithmetic-to-engine"] }
 radix-common = { workspace = true }
 radix-common-derive = { workspace = true }
 

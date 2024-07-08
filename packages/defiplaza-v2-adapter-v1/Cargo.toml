@@ -6,7 +6,7 @@ description = "Defines the adapter for DefiPlaza v2"
 
 [dependencies]
 sbor = { workspace = true }
-scrypto = { workspace = true }
+scrypto = { workspace = true, features = ["outsource-decimal-arithmetic-to-engine"] }
 radix-common = { workspace = true }
 radix-engine-interface = { workspace = true }
 radix-transactions = { workspace = true, optional = true }
